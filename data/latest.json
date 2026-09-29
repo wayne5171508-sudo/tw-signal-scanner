@@ -1,14 +1,14 @@
 {
   "date": "2026-09-29",
-  "generated_at": "2026-09-29T23:07:15.509937+08:00",
+  "generated_at": "2026-09-29T23:13:31.230768+08:00",
   "pipeline_version": "v11.2-realcode",
   "scope_decisions": [
     "這份JSON由GitHub Actions上的Python直接呼叫TWSE官方API算出,不經過Claude的WebFetch,所以不會有大表格漏行的問題。新聞面查核跟最終文字撰寫仍由Claude排程完成。",
     "v11.2補回族群效應/損益平衡/振幅/開盤缺口(改寫成Python時一度漏掉),新增大盤環境判斷、漲停可執行性標記、戰績追蹤(track_record),都是為了讓這套規則式評分未來有真實數據可以檢驗,不是純粹加功能。"
   ],
   "market_status": "OK",
-  "market_regime": "無法確認",
-  "taiex_change_pct": null,
+  "market_regime": "空頭",
+  "taiex_change_pct": -0.82,
   "institutional_buy_rank_top8": [
     {
       "code": "1303",
