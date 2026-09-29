@@ -126,21 +126,35 @@ def fetch_mi_index(date_str):
     """
     大盤加權指數當日漲跌幅(%),抓不到回傳None。
     用來判斷market_regime,個股訊號要對照大盤環境看,不是每檔都獨立判斷。
+
+    注意:這個TWSE端點很特別,不是T86/STOCK_DAY那種單純{fields,data}格式。
+    type=IND這個參數實測回傳data永遠是空的(不知道為什麼,可能是TWSE那邊本來就沒對這個
+    type提供資料),必須用type=ALL,而且回傳結構是{tables:[{title,fields,data},...]},
+    要自己去tables裡找title包含「價格指數」的那一個,再從它的data列裡找「指數」欄位等於
+    「發行量加權股價指數」的那一列,取「漲跌百分比(%)」欄位。這是實測過的正確結構,
+    不要改回type=IND或改回簡單的{fields,data}假設,之前v11.2版本就是這樣壞掉的。
     """
-    url = f"https://www.twse.com.tw/rwd/zh/afterTrading/MI_INDEX?date={date_str}&type=IND&response=json"
+    url = f"https://www.twse.com.tw/rwd/zh/afterTrading/MI_INDEX?date={date_str}&type=ALL&response=json"
     try:
         r = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
         r.raise_for_status()
         data = r.json()
-        for row in data.get("data", []):
-            if row and "發行量加權股價指數" in str(row[0]):
-                # 欄位大致是: 指數, 收盤指數, 漲跌(方向符號欄位或文字), 漲跌點數, 漲跌百分比
-                for cell in row:
-                    c = str(cell).replace(" ", "")
-                    if "%" in c:
-                        num = clean_number(c.replace("%", ""))
-                        if num is not None:
-                            return num
+        if data.get("stat") != "OK":
+            return None
+        for table in data.get("tables", []):
+            title = table.get("title", "") or ""
+            if "價格指數" not in title:
+                continue
+            fields = table.get("fields", [])
+            try:
+                idx_col = fields.index("指數")
+                pct_col = fields.index("漲跌百分比(%)")
+            except ValueError:
+                continue
+            for row in table.get("data", []):
+                if len(row) > idx_col and "發行量加權股價指數" in str(row[idx_col]):
+                    if len(row) > pct_col:
+                        return clean_number(row[pct_col])
         return None
     except Exception as e:  # noqa: BLE001
         print(f"[warn] 大盤指數抓取失敗,略過: {e}", file=sys.stderr)
