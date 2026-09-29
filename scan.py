@@ -26,6 +26,7 @@ v11.2新增(阿文以「資深當沖分析師」角度複核後要求補上):
 """
 
 import glob
+import io
 import json
 import os
 import re
@@ -178,7 +179,7 @@ def fetch_wantgoo_codes(path):
     try:
         r = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
         r.raise_for_status()
-        tables = pd.read_html(r.text)
+        tables = pd.read_html(io.StringIO(r.text))
         for table in tables:
             for row in table.astype(str).values.tolist():
                 for cell in row:
@@ -202,7 +203,7 @@ def fetch_industry_map(codes):
     try:
         r = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
         r.encoding = "big5"
-        tables = pd.read_html(r.text)
+        tables = pd.read_html(io.StringIO(r.text))
         if not tables:
             return out
         df = tables[0]
