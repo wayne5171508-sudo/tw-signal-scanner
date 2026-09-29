@@ -1,11 +1,14 @@
 {
   "date": "2026-09-29",
-  "generated_at": "2026-09-29T20:54:28.961300+08:00",
-  "pipeline_version": "v10-realcode",
+  "generated_at": "2026-09-29T23:07:15.509937+08:00",
+  "pipeline_version": "v11.2-realcode",
   "scope_decisions": [
-    "這份JSON由GitHub Actions上的Python直接呼叫TWSE官方API算出,不經過Claude的WebFetch,所以不會有大表格漏行的問題。新聞面查核跟最終文字撰寫仍由Claude排程完成。"
+    "這份JSON由GitHub Actions上的Python直接呼叫TWSE官方API算出,不經過Claude的WebFetch,所以不會有大表格漏行的問題。新聞面查核跟最終文字撰寫仍由Claude排程完成。",
+    "v11.2補回族群效應/損益平衡/振幅/開盤缺口(改寫成Python時一度漏掉),新增大盤環境判斷、漲停可執行性標記、戰績追蹤(track_record),都是為了讓這套規則式評分未來有真實數據可以檢驗,不是純粹加功能。"
   ],
   "market_status": "OK",
+  "market_regime": "無法確認",
+  "taiex_change_pct": null,
   "institutional_buy_rank_top8": [
     {
       "code": "1303",
@@ -54,6 +57,9 @@
     {
       "code": "6505",
       "name": "台塑化",
+      "open": 90.0,
+      "high": 95.5,
+      "low": 89.9,
       "close": 94.3,
       "change": 7.1,
       "net_buy_lots": 16560,
@@ -62,12 +68,23 @@
       "tech_breakdown": "買超+2、放量+0.8、量價同步上漲+1",
       "tag": "偏多",
       "price_volume_diverged": false,
+      "amplitude_pct": 6.42,
+      "amplitude_tag": "high_range",
+      "gap_pct": 3.21,
+      "gap_tag": "large_gap",
+      "cost_breakeven_tag": "normal",
+      "limit_up_locked": false,
+      "sector": "無法查核",
       "signal_status": "放量觀察",
+      "sector_cluster": "無法查核",
       "consecutive_buy_days": 1
     },
     {
       "code": "2002",
       "name": "中鋼",
+      "open": 18.8,
+      "high": 19.1,
+      "low": 18.75,
       "close": 18.8,
       "change": 0.15,
       "net_buy_lots": 9879,
@@ -76,12 +93,23 @@
       "tech_breakdown": "買超+2、溫和上漲+0.5",
       "tag": "偏多",
       "price_volume_diverged": false,
+      "amplitude_pct": 1.88,
+      "amplitude_tag": "normal",
+      "gap_pct": 0.8,
+      "gap_tag": "normal",
+      "cost_breakeven_tag": "below_cost",
+      "limit_up_locked": false,
+      "sector": "無法查核",
       "signal_status": "候選未達標",
+      "sector_cluster": "無法查核",
       "consecutive_buy_days": 1
     },
     {
       "code": "4958",
       "name": "臻鼎-KY",
+      "open": 479.0,
+      "high": 499.5,
+      "low": 472.5,
       "close": 498.5,
       "change": 23.0,
       "net_buy_lots": 13281,
@@ -90,12 +118,23 @@
       "tech_breakdown": "買超+2、溫和上漲+0.5",
       "tag": "偏多",
       "price_volume_diverged": false,
+      "amplitude_pct": 5.68,
+      "amplitude_tag": "high_range",
+      "gap_pct": 0.74,
+      "gap_tag": "normal",
+      "cost_breakeven_tag": "normal",
+      "limit_up_locked": false,
+      "sector": "無法查核",
       "signal_status": "候選未達標",
+      "sector_cluster": "無法查核",
       "consecutive_buy_days": 1
     },
     {
       "code": "1303",
       "name": "南亞",
+      "open": 236.0,
+      "high": 248.0,
+      "low": 235.5,
       "close": 247.0,
       "change": 9.0,
       "net_buy_lots": 33822,
@@ -104,12 +143,23 @@
       "tech_breakdown": "買超+2、規模最大+0.5、溫和上漲+0.5",
       "tag": "偏多",
       "price_volume_diverged": false,
+      "amplitude_pct": 5.25,
+      "amplitude_tag": "high_range",
+      "gap_pct": -0.84,
+      "gap_tag": "normal",
+      "cost_breakeven_tag": "normal",
+      "limit_up_locked": false,
+      "sector": "無法查核",
       "signal_status": "候選未達標",
+      "sector_cluster": "無法查核",
       "consecutive_buy_days": 1
     },
     {
       "code": "3231",
       "name": "緯創",
+      "open": 182.5,
+      "high": 186.5,
+      "low": 182.0,
       "close": 185.5,
       "change": 1.0,
       "net_buy_lots": 8550,
@@ -118,9 +168,22 @@
       "tech_breakdown": "買超+2、溫和上漲+0.5",
       "tag": "偏多",
       "price_volume_diverged": false,
+      "amplitude_pct": 2.44,
+      "amplitude_tag": "normal",
+      "gap_pct": -1.08,
+      "gap_tag": "normal",
+      "cost_breakeven_tag": "below_cost",
+      "limit_up_locked": false,
+      "sector": "無法查核",
       "signal_status": "候選未達標",
+      "sector_cluster": "無法查核",
       "consecutive_buy_days": 1
     }
   ],
-  "excluded_incomplete_volume_data": []
+  "excluded_incomplete_volume_data": [],
+  "track_record_new_entries": [],
+  "track_record_stats": {
+    "sample_size": 0,
+    "note": "目前還沒有足夠的歷史資料可以計算戰績統計,需要連續執行幾天後才會累積出來。"
+  }
 }
