@@ -1,0 +1,126 @@
+{
+  "date": "2026-09-29",
+  "generated_at": "2026-09-29T20:54:28.961300+08:00",
+  "pipeline_version": "v10-realcode",
+  "scope_decisions": [
+    "這份JSON由GitHub Actions上的Python直接呼叫TWSE官方API算出,不經過Claude的WebFetch,所以不會有大表格漏行的問題。新聞面查核跟最終文字撰寫仍由Claude排程完成。"
+  ],
+  "market_status": "OK",
+  "institutional_buy_rank_top8": [
+    {
+      "code": "1303",
+      "name": "南亞",
+      "net_buy_lots": 33822
+    },
+    {
+      "code": "2409",
+      "name": "友達",
+      "net_buy_lots": 23042
+    },
+    {
+      "code": "6505",
+      "name": "台塑化",
+      "net_buy_lots": 16560
+    },
+    {
+      "code": "6770",
+      "name": "力積電",
+      "net_buy_lots": 15575
+    },
+    {
+      "code": "4958",
+      "name": "臻鼎-KY",
+      "net_buy_lots": 13281
+    },
+    {
+      "code": "2002",
+      "name": "中鋼",
+      "net_buy_lots": 9879
+    },
+    {
+      "code": "3231",
+      "name": "緯創",
+      "net_buy_lots": 8550
+    },
+    {
+      "code": "3481",
+      "name": "群創",
+      "net_buy_lots": 7156
+    }
+  ],
+  "candidate_pool_size": 8,
+  "focus_stocks": [],
+  "surge_watch": [
+    {
+      "code": "6505",
+      "name": "台塑化",
+      "close": 94.3,
+      "change": 7.1,
+      "net_buy_lots": 16560,
+      "volume_multiple": 2.57,
+      "tech_score": 3.8,
+      "tech_breakdown": "買超+2、放量+0.8、量價同步上漲+1",
+      "tag": "偏多",
+      "price_volume_diverged": false,
+      "signal_status": "放量觀察",
+      "consecutive_buy_days": 1
+    },
+    {
+      "code": "2002",
+      "name": "中鋼",
+      "close": 18.8,
+      "change": 0.15,
+      "net_buy_lots": 9879,
+      "volume_multiple": 1.43,
+      "tech_score": 2.5,
+      "tech_breakdown": "買超+2、溫和上漲+0.5",
+      "tag": "偏多",
+      "price_volume_diverged": false,
+      "signal_status": "候選未達標",
+      "consecutive_buy_days": 1
+    },
+    {
+      "code": "4958",
+      "name": "臻鼎-KY",
+      "close": 498.5,
+      "change": 23.0,
+      "net_buy_lots": 13281,
+      "volume_multiple": 1.3,
+      "tech_score": 2.5,
+      "tech_breakdown": "買超+2、溫和上漲+0.5",
+      "tag": "偏多",
+      "price_volume_diverged": false,
+      "signal_status": "候選未達標",
+      "consecutive_buy_days": 1
+    },
+    {
+      "code": "1303",
+      "name": "南亞",
+      "close": 247.0,
+      "change": 9.0,
+      "net_buy_lots": 33822,
+      "volume_multiple": 1.22,
+      "tech_score": 3.0,
+      "tech_breakdown": "買超+2、規模最大+0.5、溫和上漲+0.5",
+      "tag": "偏多",
+      "price_volume_diverged": false,
+      "signal_status": "候選未達標",
+      "consecutive_buy_days": 1
+    },
+    {
+      "code": "3231",
+      "name": "緯創",
+      "close": 185.5,
+      "change": 1.0,
+      "net_buy_lots": 8550,
+      "volume_multiple": 0.84,
+      "tech_score": 2.5,
+      "tech_breakdown": "買超+2、溫和上漲+0.5",
+      "tag": "偏多",
+      "price_volume_diverged": false,
+      "signal_status": "候選未達標",
+      "consecutive_buy_days": 1
+    }
+  ],
+  "excluded_incomplete_volume_data": []
+}
