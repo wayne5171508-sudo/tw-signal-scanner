@@ -1,0 +1,40 @@
+name: 收盤後籌碼掃描
+
+on:
+  schedule:
+    # 週一到週五 台北時間 18:20 執行 (UTC 10:20)
+    - cron: "20 10 * * 1-5"
+  workflow_dispatch: {}   # 這行讓你可以在GitHub網站上手動按「Run workflow」測試
+
+permissions:
+  contents: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 安裝套件
+        run: pip install -r requirements.txt
+
+      - name: 執行掃描
+        run: python scan.py > latest.json
+
+      - name: 顯示結果(方便在Actions頁面直接看)
+        run: cat latest.json
+
+      - name: 把結果存回repo
+        run: |
+          mkdir -p data
+          cp latest.json "data/$(date -u -d '+8 hours' +%F).json"
+          cp latest.json data/latest.json
+          git config user.name "tw-signal-scanner-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data/
+          git diff --quiet --cached || git commit -m "掃描結果 $(date -u -d '+8 hours' +%F)"
+          git push
