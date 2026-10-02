@@ -193,14 +193,14 @@
 </div>
 
 <div class="note" style="margin-top:20px">
-  資料來源:大盤與自選股報價每約20分鐘由 GitHub Actions 直接向交易所/報價商 API 抓取一次,非逐秒即時;
+  資料來源:大盤與自選股報價每約5分鐘由 GitHub Actions 直接向交易所/報價商 API 抓取一次,非逐秒即時;
   個股分析卡裡的「觀察重點」是用今天抓到的高低開收跟漲跌停價機械式算出來的參考位置,不是買賣建議;
   籌碼訊號為每日收盤後計算一次。程式碼見
   <a href="https://github.com/wayne5171508-sudo/tw-signal-scanner" target="_blank">tw-signal-scanner</a>。
 </div>
 
 <script>
-let INTRADAY = null, HISTORY = null, CHIP = null;
+let INTRADAY = null, HISTORY = null, CHIP = null, CURRENT_DETAIL = null;
 
 const PCT_CLASS = p => p > 0 ? 'up' : (p < 0 ? 'down' : 'flat');
 const ARROW = p => p > 0 ? '▲' : (p < 0 ? '▼' : '—');
@@ -618,11 +618,13 @@ function cdpTrendBlock(q){
     </div>`;
 }
 
-function openDetail(code, isIndex){
+function openDetail(code, isIndex, opts){
+  opts = opts || {};
   const pool = isIndex ? (INTRADAY && INTRADAY.indices) : (INTRADAY && INTRADAY.watchlist_quotes);
   if(!pool) return;
   const q = pool.find(x => x.code === code);
   if(!q) return;
+  CURRENT_DETAIL = {code, isIndex};
 
   const series = seriesFor(code, isIndex);
   const color = q.change > 0 ? 'var(--up)' : (q.change < 0 ? 'var(--down)' : 'var(--muted)');
@@ -655,17 +657,20 @@ function openDetail(code, isIndex){
     ${!isIndex ? cdpTrendBlock(q) : ''}
 
     <div class="sparkwrap">
-      <div class="meta">今日走勢 + 壓力/交界/支撐參考線(從網頁開始記錄算起,每約20分鐘一個點)</div>
+      <div class="meta">今日走勢 + 壓力/交界/支撐參考線(從網頁開始記錄算起,每約5分鐘一個點)</div>
       ${sparklineSvg(series, 272, 64, color, fillColor, refLines)}
     </div>
     ${!isIndex ? renderChipBox(code) : ''}
   `;
   document.getElementById('detailCard').style.display = '';
-  document.getElementById('detailCard').scrollIntoView({behavior:'smooth', block:'start'});
+  if(!opts.silent){
+    document.getElementById('detailCard').scrollIntoView({behavior:'smooth', block:'start'});
+  }
 }
 
 function closeDetail(){
   document.getElementById('detailCard').style.display = 'none';
+  CURRENT_DETAIL = null;
 }
 
 function renderChip(data){
@@ -753,17 +758,21 @@ function pickSuggest(code){
   openDetail(code, false);
 }
 
-async function loadAll(){
-  document.getElementById('pageMeta').textContent = '載入中...';
-  let chip = null, intraday = null, history = null, errs = [];
+async function loadAll(opts){
+  opts = opts || {};
+  // silent:true 用在60秒自動刷新——不要每次都把畫面閃一下「載入中」;抓取失敗時也保留
+  // 上一次抓到的好資料繼續顯示,不要用null把整個已經在看的畫面洗掉(手機網路本來就常常
+  // 斷斷續續,偶爾一次fetch失敗不該讓畫面整個消失)。
+  if(!opts.silent) document.getElementById('pageMeta').textContent = '載入中...';
+  let chip = CHIP, intraday = INTRADAY, history = HISTORY, errs = [];
   try{
     const r = await fetch('data/latest.json', {cache:'no-store'});
     chip = await r.json();
-  }catch(e){ errs.push('籌碼資料讀取失敗'); }
+  }catch(e){ errs.push('籌碼資料讀取失敗(顯示上次資料)'); }
   try{
     const r = await fetch('data/intraday_latest.json', {cache:'no-store'});
     intraday = await r.json();
-  }catch(e){ errs.push('即時報價讀取失敗'); }
+  }catch(e){ errs.push('即時報價讀取失敗(顯示上次資料)'); }
   try{
     const r = await fetch('data/intraday_history.json', {cache:'no-store'});
     if(r.ok) history = await r.json();
@@ -779,13 +788,22 @@ async function loadAll(){
   renderWatchlist(intraday, document.getElementById('searchInput').value);
   renderChip(chip);
 
+  // 如果目前正開著某檔的個股分析卡,資料重新整理後也跟著刷新內容,不用手動重新搜尋/點擊;
+  // silent:true 避免每次自動刷新都把畫面滾回分析卡頂部,打斷正在看的位置。
+  if(CURRENT_DETAIL){
+    openDetail(CURRENT_DETAIL.code, CURRENT_DETAIL.isIndex, {silent: true});
+  }
+
   document.getElementById('pageMeta').textContent =
     `頁面載入時間 ${new Date().toLocaleString('zh-TW',{hour12:false})}` +
     (errs.length ? ' · ' + errs.join('、') : '');
 }
 
+// 排程每約5分鐘更新一次資料,頁面每60秒自動重新抓一次,盤中開著不用一直手動按「重新整理」;
+// 分頁切到背景時瀏覽器本來就會自動降低timer頻率,不特別處理也不會浪費太多資源。
 setupSearch();
 loadAll();
+setInterval(() => loadAll({silent: true}), 60000);
 </script>
 </body>
 </html>
