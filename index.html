@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>爆量雷達</title>
+<style>
+  :root{
+    --bg:#0f1115; --card:#171a21; --border:#262b36; --text:#e8eaed; --muted:#8b92a3;
+    --up:#ff4d4f; --down:#2fbf71; --accent:#5b8cff;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Microsoft JhengHei",sans-serif;padding:16px;line-height:1.5}
+  h1{font-size:20px;margin:0 0 4px}
+  h2{font-size:15px;margin:24px 0 10px;color:var(--accent)}
+  .meta{font-size:12px;color:var(--muted);margin-bottom:2px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:12px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{padding:6px 6px;text-align:right;white-space:nowrap}
+  th:first-child,td:first-child{text-align:left}
+  th{color:var(--muted);font-weight:500;border-bottom:1px solid var(--border)}
+  tr+tr td{border-top:1px solid var(--border)}
+  .up{color:var(--up)}
+  .down{color:var(--down)}
+  .flat{color:var(--muted)}
+  .tablewrap{overflow-x:auto}
+  .tag{display:inline-block;font-size:11px;padding:1px 6px;border-radius:4px;background:#232838;color:var(--muted);margin-left:4px}
+  .tag.warn{background:#3a2420;color:#ffb199}
+  .note{font-size:12px;color:var(--muted);margin-top:8px}
+  .err{color:#ffb199;font-size:13px}
+  .stockcard{border-top:1px solid var(--border);padding:8px 0;font-size:13px}
+  .stockcard:first-child{border-top:none}
+  .stockcard .row1{display:flex;justify-content:space-between;font-weight:600}
+  .stockcard .row2{font-size:12px;color:var(--muted);margin-top:2px}
+  .badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:12px;font-weight:600}
+  .badge.bull{background:#3d1f22;color:#ff8080}
+  .badge.bear{background:#1f3d2b;color:#5fd98a}
+  .badge.flat{background:#2a2e38;color:var(--muted)}
+  a{color:var(--accent)}
+  .refresh{float:right;font-size:12px;color:var(--accent);cursor:pointer;text-decoration:underline}
+</style>
+</head>
+<body>
+
+<h1>爆量雷達 <span class="refresh" onclick="loadAll()">重新整理</span></h1>
+<div class="meta" id="pageMeta">載入中...</div>
+
+<h2>大盤</h2>
+<div class="card tablewrap">
+  <div id="indicesTable">載入中...</div>
+  <div class="note" id="intradayNote"></div>
+</div>
+
+<h2>自選股即時報價</h2>
+<div class="card tablewrap">
+  <div id="watchlistTable">載入中...</div>
+</div>
+
+<h2>盤後籌碼訊號</h2>
+<div class="card" id="chipSummary">載入中...</div>
+
+<div class="card" id="chipRank" style="display:none">
+  <div style="margin-bottom:6px;color:var(--muted);font-size:13px">三大法人買超排行</div>
+  <div class="tablewrap" id="chipRankTable"></div>
+</div>
+
+<div class="card" id="chipWatch" style="display:none">
+  <div style="margin-bottom:6px;color:var(--muted);font-size:13px">重點觀察 / 放量關注</div>
+  <div id="chipWatchList"></div>
+</div>
+
+<div class="note" style="margin-top:20px">
+  資料來源:大盤與自選股報價每約20分鐘由 GitHub Actions 直接向交易所/報價商 API 抓取一次,非逐秒即時;
+  籌碼訊號為每日收盤後計算一次。程式碼見
+  <a href="https://github.com/wayne5171508-sudo/tw-signal-scanner" target="_blank">tw-signal-scanner</a>。
+</div>
+
+<script>
+const PCT_CLASS = p => p > 0 ? 'up' : (p < 0 ? 'down' : 'flat');
+const fmtPct = p => (p === null || p === undefined) ? '-' : (p > 0 ? '+' : '') + p.toFixed(2) + '%';
+const fmtNum = n => (n === null || n === undefined) ? '-' : (Number.isInteger(n) ? n : n.toFixed(2));
+const fmtChange = c => (c === null || c === undefined) ? '-' : (c > 0 ? '+' : '') + fmtNum(c);
+const fmtTime = iso => {
+  if(!iso) return '-';
+  const d = new Date(iso);
+  return d.toLocaleString('zh-TW', {month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', hour12:false});
+};
+
+function renderIndices(data){
+  if(!data || !data.indices){
+    document.getElementById('indicesTable').innerHTML = '<div class="err">暫無大盤資料</div>';
+    return;
+  }
+  let rows = data.indices.map(q => `
+    <tr>
+      <td>${q.name}</td>
+      <td class="${PCT_CLASS(q.change)}">${fmtNum(q.last)}</td>
+      <td class="${PCT_CLASS(q.change)}">${fmtChange(q.change)}</td>
+      <td class="${PCT_CLASS(q.change)}">${fmtPct(q.pct)}</td>
+    </tr>`).join('');
+  document.getElementById('indicesTable').innerHTML = `
+    <table><thead><tr><th>指數</th><th>最新</th><th>漲跌</th><th>漲跌幅</th></tr></thead>
+    <tbody>${rows}</tbody></table>`;
+  document.getElementById('intradayNote').textContent =
+    `資料時間約 ${fmtTime(data.data_as_of)} · ${data.check_frequency_note || ''}`;
+}
+
+function renderWatchlist(data){
+  if(!data || !data.watchlist_quotes){
+    document.getElementById('watchlistTable').innerHTML = '<div class="err">暫無自選股資料</div>';
+    return;
+  }
+  const sorted = [...data.watchlist_quotes].sort((a,b) => (b.pct ?? -999) - (a.pct ?? -999));
+  let rows = sorted.map(q => {
+    const nearLimit = q.pct !== null && q.pct !== undefined && Math.abs(q.pct) >= 9.5;
+    return `
+    <tr>
+      <td>${q.code} ${q.name}${nearLimit ? '<span class="tag warn">近停板</span>' : ''}</td>
+      <td class="${PCT_CLASS(q.change)}">${fmtNum(q.last)}</td>
+      <td class="${PCT_CLASS(q.change)}">${fmtPct(q.pct)}</td>
+      <td>${fmtNum(q.open)}</td>
+      <td>${fmtNum(q.high)}</td>
+      <td>${fmtNum(q.low)}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('watchlistTable').innerHTML = `
+    <table><thead><tr><th>代碼/名稱</th><th>成交</th><th>漲跌幅</th><th>開</th><th>高</th><th>低</th></tr></thead>
+    <tbody>${rows}</tbody></table>`;
+}
+
+function renderChip(data){
+  const summaryEl = document.getElementById('chipSummary');
+  if(!data){
+    summaryEl.innerHTML = '<div class="err">暫無籌碼資料</div>';
+    return;
+  }
+  if(data.market_status !== 'OK'){
+    summaryEl.innerHTML = `<div class="meta">${data.date || ''}</div>
+      <div class="note">今日籌碼資料尚未就緒(排程可能還沒跑完,晚點再看)。</div>`;
+    return;
+  }
+  const regime = data.market_regime || '-';
+  const badgeClass = regime === '多頭' ? 'bull' : (regime === '空頭' ? 'bear' : 'flat');
+  summaryEl.innerHTML = `
+    <div class="meta">${data.date}</div>
+    <span class="badge ${badgeClass}">大盤環境:${regime}</span>
+    <span class="tag">加權指數 ${fmtPct(data.taiex_change_pct)}</span>`;
+
+  if(data.institutional_buy_rank_top8 && data.institutional_buy_rank_top8.length){
+    document.getElementById('chipRank').style.display = '';
+    const rows = data.institutional_buy_rank_top8.map(r => `
+      <tr><td>${r.code} ${r.name}</td><td>${fmtNum(r.net_buy_lots)} 張</td></tr>`).join('');
+    document.getElementById('chipRankTable').innerHTML = `
+      <table><thead><tr><th>個股</th><th>買超張數</th></tr></thead><tbody>${rows}</tbody></table>`;
+  }
+
+  const watch = [...(data.focus_stocks||[]), ...(data.surge_watch||[])];
+  if(watch.length){
+    document.getElementById('chipWatch').style.display = '';
+    document.getElementById('chipWatchList').innerHTML = watch.map(s => `
+      <div class="stockcard">
+        <div class="row1"><span>${s.code} ${s.name}</span><span class="${PCT_CLASS(s.change)}">${fmtChange(s.change)}</span></div>
+        <div class="row2">
+          ${s.signal_status || ''} · 技術分 ${fmtNum(s.tech_score)}(${s.tag || '-'})
+          ${s.sector_cluster && s.sector_cluster !== '無族群效應' ? ' · ' + s.sector_cluster : ''}
+          ${s.limit_up_locked ? '<span class="tag warn">漲停鎖死</span>' : ''}
+          ${s.consecutive_buy_days ? ` · 連買${s.consecutive_buy_days}天` : ''}
+        </div>
+      </div>`).join('');
+  }
+}
+
+async function loadAll(){
+  document.getElementById('pageMeta').textContent = '載入中...';
+  let chip = null, intraday = null, errs = [];
+  try{
+    const r = await fetch('data/latest.json', {cache:'no-store'});
+    chip = await r.json();
+  }catch(e){ errs.push('籌碼資料讀取失敗'); }
+  try{
+    const r = await fetch('data/intraday_latest.json', {cache:'no-store'});
+    intraday = await r.json();
+  }catch(e){ errs.push('即時報價讀取失敗'); }
+
+  renderIndices(intraday);
+  renderWatchlist(intraday);
+  renderChip(chip);
+
+  document.getElementById('pageMeta').textContent =
+    `頁面載入時間 ${new Date().toLocaleString('zh-TW',{hour12:false})}` +
+    (errs.length ? ' · ' + errs.join('、') : '');
+}
+
+loadAll();
+</script>
+</body>
+</html>
