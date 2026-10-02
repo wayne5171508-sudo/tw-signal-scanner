@@ -25,9 +25,25 @@ v3新增(觸價通知):
 - 有新觸發就寄一封信到阿文的Gmail(用GitHub Actions secret裡的App密碼登入,沒設定就跳過
   寄信但不會讓整個排程失敗)。
 
+v4新增(CDP壓力/支撐,取代原本誤用的今日高低/漲跌停):
+- 原本網頁把「壓力位/支撐位」寫成漲停/跌停價,但台股正常股票每天都有漲跌停價,等於每天
+  都釘死在同一個位置,沒有參考意義,是設計錯誤。查過實際的技術分析定義後,改用股市常見的
+  CDP逆勢操作系統(定點轉向):用「前一個交易日」的最高/最低/收盤價算出一個樞紐價(CDP),
+  再算出近高值(NH,當壓力參考)、近低值(NL,當支撐參考)。這個算法在台股看盤軟體(例如
+  三竹股市)很常見,是真的有人在用的公式,不是我自己發明的。
+- 這支程式本來就每天開盤期間重複抓同一批股票的「今日高/今日低/成交價」,所以不用額外呼叫
+  證交所的歷史資料API,直接把每天最後一次抓到的高低收,存成 data/daily_hlc.json 當「明天
+  算CDP要用的昨天資料」,隔天換日期時自動把這份存檔內容轉正式變成「昨天」,重新開始累積
+  「今天」。好處是不必再去區分一檔股票是上市(TWSE)還是上櫃(TPEX)、不用多接一個官方API,
+  壞處是剛上線的第一個交易日還沒有「昨天」資料可以算,那天網頁會先顯示今日高/今日低當替代,
+  從第二個交易日開始才會自動換成CDP。
+- CDP公式:CDP=(昨高+昨低+2*昨收)/4;近高值NH=2*CDP-昨低;近低值NL=2*CDP-昨高;
+  最高值AH=CDP+(昨高-昨低);最低值AL=CDP-(昨高-昨低)。
+
 用法:
     python intraday.py
-    (會自動寫到 data/intraday_latest.json、data/intraday_history.json、data/alerts_state.json)
+    (會自動寫到 data/intraday_latest.json、data/intraday_history.json、
+     data/alerts_state.json、data/daily_hlc.json)
 """
 
 import json
@@ -47,6 +63,7 @@ OUT_FILE = os.path.join(DATA_DIR, "intraday_latest.json")
 HISTORY_FILE = os.path.join(DATA_DIR, "intraday_history.json")
 ALERTS_CONFIG_FILE = os.path.join(DATA_DIR, "alerts.json")
 ALERTS_STATE_FILE = os.path.join(DATA_DIR, "alerts_state.json")
+DAILY_HLC_FILE = os.path.join(DATA_DIR, "daily_hlc.json")
 MAX_POINTS_PER_DAY = 60
 
 ALERT_EMAIL_TO = "wayne5171508@gmail.com"
@@ -160,6 +177,52 @@ def update_history(run_time, indices_out, watchlist_out):
 
     with open(HISTORY_FILE, "w", encoding="utf-8") as f:
         json.dump(history, f, ensure_ascii=False)
+
+
+def update_daily_hlc(run_time, watchlist_out):
+    """維護 data/daily_hlc.json,存「今天目前為止」跟「前一個交易日」的最高/最低/收盤(近似值,
+    用最後一次抓到的成交價當收盤價)。換日期時自動把舊的「今天」轉成「昨天」。
+    回傳「昨天」那份資料,給這次的CDP計算用。"""
+    today_str = run_time.strftime("%Y-%m-%d")
+    stored = load_json_safe(DAILY_HLC_FILE, {"date": None, "prev": {}, "today": {}})
+
+    if stored.get("date") != today_str:
+        # 換日期了(新的交易日第一次跑):把舊的「今天」正式變成「昨天」,只在舊資料不是空的時候轉,
+        # 避免程式剛上線、或某天排程完全沒跑成功時,拿空字典把前一份好不容易存到的「昨天」蓋掉。
+        if stored.get("today"):
+            stored["prev"] = stored["today"]
+        stored["today"] = {}
+        stored["date"] = today_str
+
+    for q in watchlist_out:
+        if q.get("high") is not None and q.get("low") is not None and q.get("last") is not None:
+            stored["today"][q["code"]] = {"h": q["high"], "l": q["low"], "c": q["last"]}
+
+    with open(DAILY_HLC_FILE, "w", encoding="utf-8") as f:
+        json.dump(stored, f, ensure_ascii=False)
+
+    return stored.get("prev", {})
+
+
+def compute_cdp(prev_hlc_for_code):
+    """CDP逆勢操作系統:用前一個交易日的高/低/收算今天的樞紐價跟近高/近低值。
+    prev_hlc_for_code 是 {"h":前高, "l":前低, "c":前收} 或 None/缺值時回傳 None(表示還沒有
+    足夠資料可以算,網頁端要自己 fallback 回今日高/今日低)。"""
+    if not prev_hlc_for_code:
+        return None
+    h, l, c = prev_hlc_for_code.get("h"), prev_hlc_for_code.get("l"), prev_hlc_for_code.get("c")
+    if h is None or l is None or c is None:
+        return None
+    cdp = (h + l + 2 * c) / 4
+    rng = h - l
+    return {
+        "cdp": round(cdp, 4),
+        "nh": round(2 * cdp - l, 4),   # 近高值,當壓力參考
+        "nl": round(2 * cdp - h, 4),   # 近低值,當支撐參考
+        "ah": round(cdp + rng, 4),     # 最高值
+        "al": round(cdp - rng, 4),     # 最低值
+        "basis": {"h": h, "l": l, "c": c},
+    }
 
 
 def load_json_safe(path, default):
@@ -283,6 +346,11 @@ def main():
         cnyes_code = f"TWS:{code}:STOCK"
         q = row_to_quote(all_rows.get(cnyes_code), code, name)
         watchlist_out.append(q)
+
+    # CDP壓力/支撐:用前一個交易日的高低收算,取代原本誤用今日漲跌停當壓力支撐的寫法
+    prev_hlc = update_daily_hlc(run_time, watchlist_out)
+    for q in watchlist_out:
+        q["cdp"] = compute_cdp(prev_hlc.get(q["code"]))
 
     # 用任一筆有拿到時間戳的資料,換算成「資料實際代表的時間」,跟「程式執行的時間」分開揭露
     data_ts = None
