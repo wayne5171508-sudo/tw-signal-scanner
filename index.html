@@ -95,6 +95,7 @@
   .biasnote{margin-top:12px;padding:9px 10px;background:#ffffff;border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:4px;font-size:13px}
 
   .sparkwrap{margin-top:14px}
+  .candletime{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:2px}
   .chipbox{margin-top:12px;padding-top:10px;border-top:1px dashed var(--border);font-size:13px}
   .chipbox .none{color:var(--muted)}
 
@@ -210,7 +211,9 @@ const fmtChange = c => (c === null || c === undefined) ? '-' : (c > 0 ? '+' : ''
 const fmtTime = iso => {
   if(!iso) return '-';
   const d = new Date(iso);
-  return d.toLocaleString('zh-TW', {month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', hour12:false});
+  // 明確指定台北時區——資料本身是台股盤中時間,不該因為手機當下所在時區不同就跟著變動
+  // (時間字串本身帶有+08:00,之前沒指定timeZone時會照瀏覽器當地時區顯示,在非台灣時區會跑掉)
+  return d.toLocaleString('zh-TW', {timeZone: 'Asia/Taipei', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', hour12:false});
 };
 
 // ---- 漲跌幅發散長條(diverging bar):紅漲綠跌,中間0為基準線,附方向箭頭做第二層辨識(不只靠顏色) ----
@@ -260,6 +263,109 @@ function sparklineSvg(series, w, h, color, fillColor, refLines, padOverride){
     <polyline points="${lineStr}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
     <circle cx="${last[0]}" cy="${last[1]}" r="3.5" fill="${color}" stroke="var(--card)" stroke-width="1.5"/>
   </svg>`;
+}
+
+// ---- 個股近似K線圖 --------------------------------------------------------------------
+// 免費報價源(cnyes)只給「現在的成交價」,沒有逐筆/分鐘K棒資料。這裡用每次排程(目前5分鐘
+// 一次)抓到的收盤價堆疊出「近似K棒」:開盤=上一次抓到的價,收盤=這一次的價,所以每根只有
+// 實體、沒有影線(誠實反映沒有分鐘內最高最低資料,不假裝精確)。量能不一樣——用「這次累積量
+// -上次累積量」算出的每個區間成交量是真的,不是估的。壓力/交界/支撐三條線直接畫成橫跨全圖
+// 的實線+右側色塊價格標籤,仿照看盤軟體的畫法,不是只在旁邊放小字。
+function buildCandleBars(code){
+  if(!HISTORY || !HISTORY.points) return [];
+  const pts = HISTORY.points.filter(p => p.wl && p.wl[code] !== undefined && p.wl[code] !== null);
+  const bars = [];
+  for(let i = 1; i < pts.length; i++){
+    const open = pts[i - 1].wl[code], close = pts[i].wl[code];
+    const vPrev = pts[i - 1].wlv ? pts[i - 1].wlv[code] : undefined;
+    const vNow = pts[i].wlv ? pts[i].wlv[code] : undefined;
+    const vol = (vPrev != null && vNow != null) ? Math.max(0, vNow - vPrev) : null;
+    bars.push({t: pts[i].t, open, close, high: Math.max(open, close), low: Math.min(open, close), vol});
+  }
+  return bars;
+}
+
+function niceTicks(min, max, count){
+  if(min === max){ min -= 1; max += 1; }
+  const range = max - min;
+  const rawStep = range / count;
+  const mag = Math.pow(10, Math.floor(Math.log10(rawStep)));
+  const norm = rawStep / mag;
+  const step = (norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 5 ? 5 : 10) * mag;
+  const ticks = [];
+  for(let t = Math.ceil(min / step) * step; t <= max; t += step) ticks.push(+t.toFixed(4));
+  return ticks;
+}
+
+function candleChart(code, q){
+  const bars = buildCandleBars(code);
+  if(bars.length < 2){
+    return `<div class="note" style="padding:18px 0;text-align:center">今日資料點還不夠(至少要累積2次排程),K線圖稍後自動出現</div>`;
+  }
+
+  const baseW = 320, h = 196, volH = 44, gap = 6, axisW = 52, topPad = 6;
+  const plotW = baseW - axisW;
+  const plotH = h - volH - gap - topPad;
+
+  const {resTarget, resLabel, supTarget, supLabel, midVal, midLabel} = keyLevels(q);
+  const refLevels = [resTarget, supTarget, midVal, q.last].filter(v => v != null);
+  let min = Math.min(...bars.flatMap(b => [b.high, b.low]).concat(refLevels));
+  let max = Math.max(...bars.flatMap(b => [b.high, b.low]).concat(refLevels));
+  if(min === max){ min -= 1; max += 1; }
+  const pad = (max - min) * 0.1;
+  min -= pad; max += pad;
+  const yOf = v => topPad + plotH - ((v - min) / (max - min)) * plotH;
+
+  const n = bars.length;
+  const slot = plotW / n;
+  const bodyW = Math.max(2, Math.min(12, slot * 0.6));
+
+  const candleSvg = bars.map((b, i) => {
+    const cx = i * slot + slot / 2;
+    const color = b.close >= b.open ? 'var(--up)' : 'var(--down)';
+    const yTop = yOf(Math.max(b.open, b.close));
+    const yBot = yOf(Math.min(b.open, b.close));
+    const bh = Math.max(1.5, yBot - yTop);
+    return `<rect x="${(cx - bodyW / 2).toFixed(1)}" y="${yTop.toFixed(1)}" width="${bodyW.toFixed(1)}" height="${bh.toFixed(1)}" fill="${color}" rx="1"/>`;
+  }).join('');
+
+  const ticks = niceTicks(min, max, 4);
+  const gridSvg = ticks.map(t => {
+    const y = yOf(t);
+    return `<line x1="0" y1="${y.toFixed(1)}" x2="${plotW}" y2="${y.toFixed(1)}" stroke="var(--grid)" stroke-width="1"/>
+      <text x="${plotW + 5}" y="${(y + 3).toFixed(1)}" font-size="9.5" fill="var(--muted)">${fmtNum(t)}</text>`;
+  }).join('');
+
+  function levelLine(val, color, dash){
+    if(val == null) return '';
+    const y = Math.max(8, Math.min(topPad + plotH - 2, yOf(val)));
+    return `<line x1="0" y1="${y.toFixed(1)}" x2="${plotW}" y2="${y.toFixed(1)}" stroke="${color}" stroke-width="1.3"${dash ? ' stroke-dasharray="4,3"' : ''}/>
+      <rect x="${plotW + 2}" y="${(y - 8).toFixed(1)}" width="${axisW - 2}" height="16" rx="3" fill="${color}"/>
+      <text x="${plotW + 2 + (axisW - 2) / 2}" y="${(y + 4).toFixed(1)}" font-size="9.5" fill="#fff" text-anchor="middle">${fmtNum(val)}</text>`;
+  }
+  const levelsSvg = levelLine(resTarget, '#d1403f', false) + levelLine(midVal, '#9a8a2a', true) + levelLine(supTarget, '#188f63', false);
+
+  const vols = bars.map(b => b.vol).filter(v => v != null);
+  const maxVol = vols.length ? Math.max(...vols) : 0;
+  const volY0 = topPad + plotH + gap;
+  const volSvg = bars.map((b, i) => {
+    if(b.vol == null || !maxVol) return '';
+    const cx = i * slot + slot / 2;
+    const color = b.close >= b.open ? 'var(--up)' : 'var(--down)';
+    const bh = Math.max(1, (b.vol / maxVol) * (volH - 2));
+    return `<rect x="${(cx - bodyW / 2).toFixed(1)}" y="${(volY0 + (volH - 2) - bh).toFixed(1)}" width="${bodyW.toFixed(1)}" height="${bh.toFixed(1)}" fill="${color}" opacity="0.6"/>`;
+  }).join('');
+
+  return `
+    <svg width="100%" height="${h}" viewBox="0 0 ${baseW} ${h}" preserveAspectRatio="xMidYMid meet">
+      ${gridSvg}
+      ${candleSvg}
+      ${levelsSvg}
+      <line x1="0" y1="${volY0.toFixed(1)}" x2="${plotW}" y2="${volY0.toFixed(1)}" stroke="var(--grid)" stroke-width="1"/>
+      ${volSvg}
+    </svg>
+    <div class="candletime"><span>${fmtTime(bars[0].t)}</span><span>量能(區間實際成交量)</span><span>${fmtTime(bars[bars.length - 1].t)}</span></div>
+    <div class="meta" style="margin-top:2px">近似K線:每約5分鐘一格,用當時成交價堆疊(非逐筆真實高低,沒有影線);下方量能是真實區間成交量,不是估的</div>`;
 }
 
 function renderIndices(data){
@@ -657,8 +763,9 @@ function openDetail(code, isIndex, opts){
     ${!isIndex ? cdpTrendBlock(q) : ''}
 
     <div class="sparkwrap">
-      <div class="meta">今日走勢 + 壓力/交界/支撐參考線(從網頁開始記錄算起,每約5分鐘一個點)</div>
-      ${sparklineSvg(series, 272, 64, color, fillColor, refLines)}
+      ${isIndex
+        ? `<div class="meta">今日走勢 + 壓力/交界/支撐參考線(從網頁開始記錄算起,每約5分鐘一個點)</div>${sparklineSvg(series, 272, 64, color, fillColor, refLines)}`
+        : candleChart(code, q)}
     </div>
     ${!isIndex ? renderChipBox(code) : ''}
   `;
