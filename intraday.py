@@ -40,10 +40,19 @@ v4新增(CDP壓力/支撐,取代原本誤用的今日高低/漲跌停):
 - CDP公式:CDP=(昨高+昨低+2*昨收)/4;近高值NH=2*CDP-昨低;近低值NL=2*CDP-昨高;
   最高值AH=CDP+(昨高-昨低);最低值AL=CDP-(昨高-昨低)。
 
+v5新增(把v4的「前一天」擴充成「最近N個交易日」的滾動歷史,一次解決三件事):
+- data/daily_hlc.json(只存前一天)換成 data/daily_bars.json(存最近10個交易日的高低收量),
+  程式會自動把舊檔案的資料搬過來,不會把v4那天已經抓到的資料丟掉。
+- 量能倍率(全部50檔自選股,不只scan.py那20檔候選股):今日成交量 / 最近5個交易日平均量,
+  資料不足3天時回傳null,讓網頁知道還在累積中,不會顯示一個假的倍率。
+- 壓力/支撐多日趨勢:用歷史裡每一天搭配「它的前一天」,回推出最近幾天「當時」的CDP近高/
+  近低值,串成一條小時間序列,讓網頁可以畫出「壓力是不是越墊越高、支撐是不是越墊越低」這種
+  短線偏多/偏空的味道,一樣是機械式算出來的,不是預測。
+
 用法:
     python intraday.py
     (會自動寫到 data/intraday_latest.json、data/intraday_history.json、
-     data/alerts_state.json、data/daily_hlc.json)
+     data/alerts_state.json、data/daily_bars.json)
 """
 
 import json
@@ -63,8 +72,12 @@ OUT_FILE = os.path.join(DATA_DIR, "intraday_latest.json")
 HISTORY_FILE = os.path.join(DATA_DIR, "intraday_history.json")
 ALERTS_CONFIG_FILE = os.path.join(DATA_DIR, "alerts.json")
 ALERTS_STATE_FILE = os.path.join(DATA_DIR, "alerts_state.json")
-DAILY_HLC_FILE = os.path.join(DATA_DIR, "daily_hlc.json")
+DAILY_HLC_FILE = os.path.join(DATA_DIR, "daily_hlc.json")  # v4的舊檔,只用來搬資料,之後不再寫入
+DAILY_BARS_FILE = os.path.join(DATA_DIR, "daily_bars.json")
 MAX_POINTS_PER_DAY = 60
+MAX_HISTORY_DAYS = 10
+VOLUME_LOOKBACK_DAYS = 5
+CDP_TREND_POINTS = 6  # 趨勢最多顯示幾個點(含今天)
 
 ALERT_EMAIL_TO = "wayne5171508@gmail.com"
 ALERT_EMAIL_FROM = "wayne5171508@gmail.com"
@@ -179,29 +192,79 @@ def update_history(run_time, indices_out, watchlist_out):
         json.dump(history, f, ensure_ascii=False)
 
 
-def update_daily_hlc(run_time, watchlist_out):
-    """維護 data/daily_hlc.json,存「今天目前為止」跟「前一個交易日」的最高/最低/收盤(近似值,
-    用最後一次抓到的成交價當收盤價)。換日期時自動把舊的「今天」轉成「昨天」。
-    回傳「昨天」那份資料,給這次的CDP計算用。"""
+def update_daily_bars(run_time, watchlist_out):
+    """維護 data/daily_bars.json:存「今天目前為止」+「最近 MAX_HISTORY_DAYS 個交易日」的
+    高低收量(近似值,收盤價用當天最後一次抓到的成交價,成交量同理)。換日期時自動把舊的
+    「今天」疊進歷史清單最前面(新到舊排列)。
+
+    只用這支程式本來就在抓的cnyes報價滾動累積,不必再多接證交所的歷史API、也不用分上市上櫃,
+    壞處是剛上線前幾天資料還不夠多,CDP/量能倍率/多日趨勢都要等資料長出來才會生效,這是刻意
+    的取捨,詳見檔案開頭的說明。
+
+    回傳 (prev_bars, history_days):
+      prev_bars: 前一個交易日的 {code:{h,l,c,v}},給 compute_cdp() 用。
+      history_days: 新到舊排列、不含今天的歷史清單,給量能倍率、多日趨勢用。
+    """
     today_str = run_time.strftime("%Y-%m-%d")
-    stored = load_json_safe(DAILY_HLC_FILE, {"date": None, "prev": {}, "today": {}})
+    stored = load_json_safe(DAILY_BARS_FILE, None)
+
+    if stored is None:
+        # 第一次換成這個新格式:把v4那支舊檔 data/daily_hlc.json 的資料搬過來,
+        # 不要把已經抓到的資料平白丟掉。舊檔沒有也沒關係,就當全新開始。
+        old = load_json_safe(DAILY_HLC_FILE, {})
+        stored = {"date": old.get("date"), "today": old.get("today", {}) or {}, "days": []}
+        if old.get("prev"):
+            stored["days"] = [{"date": None, "bars": old["prev"]}]
 
     if stored.get("date") != today_str:
-        # 換日期了(新的交易日第一次跑):把舊的「今天」正式變成「昨天」,只在舊資料不是空的時候轉,
-        # 避免程式剛上線、或某天排程完全沒跑成功時,拿空字典把前一份好不容易存到的「昨天」蓋掉。
         if stored.get("today"):
-            stored["prev"] = stored["today"]
+            stored.setdefault("days", []).insert(0, {"date": stored.get("date"), "bars": stored["today"]})
+            stored["days"] = stored["days"][:MAX_HISTORY_DAYS]
         stored["today"] = {}
         stored["date"] = today_str
 
     for q in watchlist_out:
         if q.get("high") is not None and q.get("low") is not None and q.get("last") is not None:
-            stored["today"][q["code"]] = {"h": q["high"], "l": q["low"], "c": q["last"]}
+            stored["today"][q["code"]] = {
+                "h": q["high"], "l": q["low"], "c": q["last"], "v": q.get("volume"),
+            }
 
-    with open(DAILY_HLC_FILE, "w", encoding="utf-8") as f:
+    with open(DAILY_BARS_FILE, "w", encoding="utf-8") as f:
         json.dump(stored, f, ensure_ascii=False)
 
-    return stored.get("prev", {})
+    days = stored.get("days", [])
+    prev_bars = days[0]["bars"] if days else {}
+    return prev_bars, days
+
+
+def compute_volume_multiple(today_volume, code, history_days):
+    """量能倍率 = 今日成交量 / 最近 VOLUME_LOOKBACK_DAYS 個交易日的平均成交量。
+    不到3天歷史資料時回傳 None,網頁端要顯示「資料還在累積中」,不要硬算出一個不可靠的倍率。"""
+    if today_volume is None:
+        return None
+    vols = []
+    for day in history_days[:VOLUME_LOOKBACK_DAYS]:
+        bar = (day.get("bars") or {}).get(code)
+        if bar and bar.get("v"):
+            vols.append(bar["v"])
+    if len(vols) < 3:
+        return None
+    avg = sum(vols) / len(vols)
+    return round(today_volume / avg, 2) if avg else None
+
+
+def compute_cdp_trend(code, history_days, today_cdp):
+    """回推最近幾天「當時」適用的CDP近高/近低值,串成一條由舊到新的小時間序列,
+    讓網頁可以畫出壓力/支撐是不是越墊越高/越墊越低。history_days 新到舊排列、不含今天;
+    每一天要搭配「它的前一天」才能算出當天的CDP,所以最多隻能往回推 len(history_days)-1 天。"""
+    points = []
+    for i in range(len(history_days) - 1, 0, -1):
+        c = compute_cdp((history_days[i].get("bars") or {}).get(code))
+        if c:
+            points.append({"date": history_days[i - 1].get("date"), "nh": c["nh"], "nl": c["nl"], "cdp": c["cdp"]})
+    if today_cdp:
+        points.append({"date": "今天", "nh": today_cdp["nh"], "nl": today_cdp["nl"], "cdp": today_cdp["cdp"]})
+    return points[-CDP_TREND_POINTS:]
 
 
 def compute_cdp(prev_hlc_for_code):
@@ -347,10 +410,13 @@ def main():
         q = row_to_quote(all_rows.get(cnyes_code), code, name)
         watchlist_out.append(q)
 
-    # CDP壓力/支撐:用前一個交易日的高低收算,取代原本誤用今日漲跌停當壓力支撐的寫法
-    prev_hlc = update_daily_hlc(run_time, watchlist_out)
+    # CDP壓力/支撐(用前一個交易日的高低收算)+ 量能倍率 + 壓力支撐多日趨勢,
+    # 三個都是從同一份滾動歷史(data/daily_bars.json)算出來的,取代原本誤用今日漲跌停當壓力支撐的寫法
+    prev_bars, history_days = update_daily_bars(run_time, watchlist_out)
     for q in watchlist_out:
-        q["cdp"] = compute_cdp(prev_hlc.get(q["code"]))
+        q["cdp"] = compute_cdp(prev_bars.get(q["code"]))
+        q["volume_multiple"] = compute_volume_multiple(q.get("volume"), q["code"], history_days)
+        q["cdp_trend"] = compute_cdp_trend(q["code"], history_days, q["cdp"])
 
     # 用任一筆有拿到時間戳的資料,換算成「資料實際代表的時間」,跟「程式執行的時間」分開揭露
     data_ts = None
