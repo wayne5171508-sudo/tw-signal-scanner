@@ -431,27 +431,56 @@ def compute_track_record(today_iso, month_first):
 
 # ---------- 主流程 ----------
 
+def resolve_latest_trading_day(run_time, max_lookback_days=7):
+    """
+    從run_time往回找「最近一個T86有資料的交易日」,回傳(該日當作today用的datetime, 該日T86 rows, 該日T86 stat)。
+
+    背景(v11.3修正的bug):GitHub Actions的schedule觸發,在低用量的repo上常常會延遲好幾個小時才真的執行,
+    這是GitHub平台本身的已知限制,不是workflow設定錯誤,沒辦法單靠改cron時間解決。原本這支程式直接拿
+    「執行當下的日曆日期」去查TWSE,一旦排程延遲到跨過午夜才真的執行,就會查到還沒開盤收盤的「明天」,
+    TWSE當然回傳沒有資料,結果就被誤判成「今天沒有交易資料/還沒收盤」,但實際上前一個交易日的收盤資料
+    早就好好地在TWSE那邊,只是執行時間比預期晚而已。這裡改成從執行當下的日期開始找,找不到OK就往前一天
+    再試,最多往回找max_lookback_days天(留夠餘裕蓋過連假),抓到OK就用那一天當作這份報告真正代表的交易日,
+    跟「程式實際是幾點被執行」脫鉤。
+    """
+    candidate = run_time
+    last_stat = None
+    for _ in range(max_lookback_days):
+        date_str = candidate.strftime("%Y%m%d")
+        stat, rows = fetch_t86(date_str)
+        if stat == "OK":
+            return candidate, rows, stat
+        last_stat = stat
+        candidate = candidate - timedelta(days=1)
+    return run_time, [], last_stat
+
+
 def main():
-    today = taipei_now()
+    run_time = taipei_now()
+    today, t86_rows, stat = resolve_latest_trading_day(run_time)
     date_str = today.strftime("%Y%m%d")
     iso_date = today.strftime("%Y-%m-%d")
     month_first = today.strftime("%Y%m") + "01"
 
     result = {
         "date": iso_date,
-        "generated_at": today.isoformat(),
-        "pipeline_version": "v11.2-realcode",
+        "generated_at": run_time.isoformat(),
+        "pipeline_version": "v11.3-realcode",
         "scope_decisions": [
             "這份JSON由GitHub Actions上的Python直接呼叫TWSE官方API算出,不經過Claude的WebFetch,"
             "所以不會有大表格漏行的問題。新聞面查核跟最終文字撰寫仍由Claude排程完成。",
             "v11.2補回族群效應/損益平衡/振幅/開盤缺口(改寫成Python時一度漏掉),"
             "新增大盤環境判斷、漲停可執行性標記、戰績追蹤(track_record),"
             "都是為了讓這套規則式評分未來有真實數據可以檢驗,不是純粹加功能。",
+            "v11.3修正:改成往回找「最近一個有資料的交易日」(resolve_latest_trading_day),"
+            "不再只看執行當下的日曆日期。原因是GitHub Actions排程常常延遲數小時才真的執行"
+            "(GitHub平台本身的已知限制,免費方案在低用量repo上不保證準時),"
+            "延遲到跨過午夜才執行時,舊邏輯會把日期算成還沒收盤的隔天,"
+            "害明明已經有的收盤資料被誤判成「資料還沒準備好」。",
         ],
     }
 
-    # T86
-    stat, t86_rows = fetch_t86(date_str)
+    # T86(已經在resolve_latest_trading_day裡抓過了)
     if stat != "OK":
         result["market_status"] = "data_not_ready_or_no_trading_day"
         result["t86_stat_raw"] = stat
