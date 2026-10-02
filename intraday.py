@@ -49,6 +49,18 @@ v5新增(把v4的「前一天」擴充成「最近N個交易日」的滾動歷�
   近低值,串成一條小時間序列,讓網頁可以畫出「壓力是不是越墊越高、支撐是不是越墊越低」這種
   短線偏多/偏空的味道,一樣是機械式算出來的,不是預測。
 
+v6新增(職業操盤手複檢抓出的兩個資料正確性問題,加抓取韌性):
+- 國定假日/颱風假等「週一到週五但沒開盤」的日子,排程還是會跑,但cnyes會回傳一整天沒變化
+  的「死數字」(成交量是0、最高=最低=昨收)。這種假資料如果照樣疊進歷史,會讓CDP滾動歷史
+  多一天「高低收都一樣」的假交易日,隔天算出來的壓力/支撐會跟著算錯;也會讓觸價通知的
+  「昨收跨越方向」記錄被洗成「平盤」,隔天真的開盤時誤判成一次假的「跨越」而發錯通知。
+  新增 _is_real_trading_day() 判斷「今天這批資料看起來像不像真的有在交易」,不像的話:
+  不把這天寫進 daily_bars 的歷史、也不更新觸價通知的跨越方向記錄,等於當作沒抓到一樣跳過,
+  不會汙染任何一份長期累積的資料。
+- fetch_quotes() 加簡單重試(最多3次、間隔遞增),單純網路瞬斷不會讓整次排程直接失敗、
+  漏掉一個資料點;真的連續失敗才會讓這次執行失敗(GitHub Actions會顯示紅叉),這是刻意的,
+  因為「完全抓不到資料」時寧可讓這次排程明顯失敗,也不要默默寫出一份空的/半套資料蓋掉舊檔。
+
 用法:
     python intraday.py
     (會自動寫到 data/intraday_latest.json、data/intraday_history.json、
@@ -58,6 +70,7 @@ v5新增(把v4的「前一天」擴充成「最近N個交易日」的滾動歷�
 import json
 import os
 import smtplib
+import time
 from datetime import datetime
 from email.mime.text import MIMEText
 from zoneinfo import ZoneInfo
@@ -119,15 +132,28 @@ def taipei_now():
 
 def fetch_quotes(codes):
     """codes: list of cnyes代碼字串。不帶 column 參數——帶了反而只會拿到精簡欄位,
-    不帶才會拿到完整欄位(含高低開收、漲跌停價)。一次最多抓50筆,分批呼叫。"""
+    不帶才會拿到完整欄位(含高低開收、漲跌停價)。一次最多抓50筆,分批呼叫。
+    單一批次失敗時重試最多3次(間隔遞增1秒/2秒),應付網路瞬斷;連續3次都失敗才真的
+    往外拋例外,讓main()中止、這次排程失敗(寧可明顯失敗,也不要默默寫出半套資料)。"""
     out = {}
     batch_size = 50
     for i in range(0, len(codes), batch_size):
         batch = codes[i:i + batch_size]
         url = CNYES_QUOTE_URL.format(codes=",".join(batch))
-        resp = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
-        resp.raise_for_status()
-        body = resp.json()
+        last_err = None
+        body = None
+        for attempt in range(3):
+            try:
+                resp = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
+                resp.raise_for_status()
+                body = resp.json()
+                break
+            except (requests.RequestException, ValueError) as e:
+                last_err = e
+                if attempt < 2:
+                    time.sleep(attempt + 1)
+        if body is None:
+            raise last_err
         for row in body.get("data", []):
             out[row.get("0")] = row
     return out
@@ -192,6 +218,29 @@ def update_history(run_time, indices_out, watchlist_out):
         json.dump(history, f, ensure_ascii=False)
 
 
+def _is_real_trading_day(bars):
+    """bars是{code:{h,l,c,v}}這種「一天份」的資料。判斷依據:只要有任何一檔股票成交量
+    是正的、或是最高不等於最低(代表當天價格真的有動),就當作是真的有開盤交易的一天。
+    國定假日/颱風假這種排程照跑但其實沒開盤的日子,cnyes回傳的每一檔都會是量=0、
+    高=低=昨收的死數字,全部檔位都符合這兩個條件才會判斷為「非交易日」。"""
+    if not bars:
+        return False
+    for bar in bars.values():
+        if bar.get("v"):
+            return True
+        if bar.get("h") is not None and bar.get("l") is not None and bar["h"] != bar["l"]:
+            return True
+    return False
+
+
+def _looks_like_trading_session(watchlist_out):
+    """判斷這次抓到的「這一次」報價看起來像不像真的在交易中(用來擋掉觸價通知誤判)。
+    50檔自選股裡只要有10檔以上這次有成交量,就當作真的在交易;假日/非交易時段抓到的
+    通常會是全部掛零或極少數有量,不會誤擋到正常開盤時間。"""
+    traded = sum(1 for q in watchlist_out if q.get("volume"))
+    return traded >= 10
+
+
 def update_daily_bars(run_time, watchlist_out):
     """維護 data/daily_bars.json:存「今天目前為止」+「最近 MAX_HISTORY_DAYS 個交易日」的
     高低收量(近似值,收盤價用當天最後一次抓到的成交價,成交量同理)。換日期時自動把舊的
@@ -217,7 +266,9 @@ def update_daily_bars(run_time, watchlist_out):
             stored["days"] = [{"date": None, "bars": old["prev"]}]
 
     if stored.get("date") != today_str:
-        if stored.get("today"):
+        # 只有「看起來真的有開盤交易」的一天才滾進歷史;國定假日排程照跑但沒開盤的話,
+        # 那天的死數字直接丟棄不留痕跡,換日期後從頭累積「今天」,不會汙染CDP/量能歷史。
+        if stored.get("today") and _is_real_trading_day(stored["today"]):
             stored.setdefault("days", []).insert(0, {"date": stored.get("date"), "bars": stored["today"]})
             stored["days"] = stored["days"][:MAX_HISTORY_DAYS]
         stored["today"] = {}
@@ -333,6 +384,14 @@ def check_and_send_alerts(run_time, watchlist_out):
     state.setdefault("limit_fired", {})
     state.setdefault("custom_fired", [])
 
+    if not _looks_like_trading_session(watchlist_out):
+        # 國定假日/颱風假排程照跑但沒開盤:這次報價多半是量能掛零的死數字,
+        # 跳過整個通知邏輯,不更新last_side(避免把「平盤」誤記成方向、隔天真的開盤時
+        # 誤判成一次假的「跨越昨收」),也不會誤判漲跌停。狀態檔還是寫回去,讓日期有換就換。
+        with open(ALERTS_STATE_FILE, "w", encoding="utf-8") as f:
+            json.dump(state, f, ensure_ascii=False)
+        return
+
     fires = []  # 這次要通知的文字清單
 
     for q in watchlist_out:
@@ -432,7 +491,7 @@ def main():
     result = {
         "checked_at": run_time.isoformat(),
         "data_as_of": data_as_of,
-        "check_frequency_note": "開盤期間每約20分鐘由GitHub Actions排程抓一次,非逐秒即時報價",
+        "check_frequency_note": "開盤期間每約5分鐘由GitHub Actions排程抓一次,非逐秒即時報價",
         "indices": indices_out,
         "watchlist_quotes": watchlist_out,
     }
