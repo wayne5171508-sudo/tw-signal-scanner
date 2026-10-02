@@ -18,14 +18,23 @@
 v2新增:順便維護 data/intraday_history.json,把每次抓到的價格疊加進去(只留當天的點、
 最多留60筆),讓網頁可以畫出「今天到目前為止」的走勢小圖,不只是單一時間點的數字。
 
+v3新增(觸價通知):
+- 自動比對每檔自選股現價相對「昨收」是否剛好跨過(由上轉下、由下轉上),以及有沒有碰到
+  漲停/跌停,一天一檔只通知一次,寫在 data/alerts_state.json 裡避免重複推播。
+- 讀 data/alerts.json 裡阿文自己設定的「某檔股票到某個價位通知我」,碰到一樣一天只推一次。
+- 有新觸發就寄一封信到阿文的Gmail(用GitHub Actions secret裡的App密碼登入,沒設定就跳過
+  寄信但不會讓整個排程失敗)。
+
 用法:
     python intraday.py
-    (會自動寫到 data/intraday_latest.json 跟 data/intraday_history.json)
+    (會自動寫到 data/intraday_latest.json、data/intraday_history.json、data/alerts_state.json)
 """
 
 import json
 import os
+import smtplib
 from datetime import datetime
+from email.mime.text import MIMEText
 from zoneinfo import ZoneInfo
 
 import requests
@@ -36,7 +45,13 @@ TIMEOUT = 20
 DATA_DIR = "data"
 OUT_FILE = os.path.join(DATA_DIR, "intraday_latest.json")
 HISTORY_FILE = os.path.join(DATA_DIR, "intraday_history.json")
+ALERTS_CONFIG_FILE = os.path.join(DATA_DIR, "alerts.json")
+ALERTS_STATE_FILE = os.path.join(DATA_DIR, "alerts_state.json")
 MAX_POINTS_PER_DAY = 60
+
+ALERT_EMAIL_TO = "wayne5171508@gmail.com"
+ALERT_EMAIL_FROM = "wayne5171508@gmail.com"
+GMAIL_APP_PASSWORD_ENV = "GMAIL_APP_PASSWORD"
 
 CNYES_QUOTE_URL = "https://ws.api.cnyes.com/ws/api/v1/quote/quotes/{codes}"
 
@@ -94,7 +109,7 @@ def row_to_quote(row, fallback_code, fallback_name):
             "code": fallback_code, "name": fallback_name,
             "last": None, "change": None, "pct": None,
             "open": None, "high": None, "low": None, "prev_close": None,
-            "ts": None,
+            "volume": None, "ts": None,
         }
     last = row.get("6")
     change = row.get("11")
@@ -111,6 +126,7 @@ def row_to_quote(row, fallback_code, fallback_name):
         "high": row.get("12"),
         "low": row.get("13"),
         "prev_close": prev_close,
+        "volume": row.get("200013"),
         "upper_limit": row.get("75"),
         "lower_limit": row.get("76"),
         "limit_flag": row.get("200025"),
@@ -144,6 +160,111 @@ def update_history(run_time, indices_out, watchlist_out):
 
     with open(HISTORY_FILE, "w", encoding="utf-8") as f:
         json.dump(history, f, ensure_ascii=False)
+
+
+def load_json_safe(path, default):
+    if not os.path.exists(path):
+        return default
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return default
+
+
+def send_alert_email(subject, body):
+    """寄一封純文字信到阿文的Gmail。沒設定GMAIL_APP_PASSWORD這個secret就只印警告、不中斷排程,
+    避免「忘了設定密碼」變成每次排程都失敗。"""
+    app_password = os.environ.get(GMAIL_APP_PASSWORD_ENV)
+    if not app_password:
+        print(f"[警告] 沒有設定 {GMAIL_APP_PASSWORD_ENV} 這個 GitHub secret,略過寄信。觸發內容:\n{body}")
+        return
+    msg = MIMEText(body, "plain", "utf-8")
+    msg["Subject"] = subject
+    msg["From"] = ALERT_EMAIL_FROM
+    msg["To"] = ALERT_EMAIL_TO
+    try:
+        with smtplib.SMTP("smtp.gmail.com", 587, timeout=20) as server:
+            server.starttls()
+            server.login(ALERT_EMAIL_FROM, app_password)
+            server.send_message(msg)
+        print(f"[通知] 已寄出提醒信:{subject}")
+    except Exception as e:  # 寄信失敗也不該讓整個排程中斷
+        print(f"[警告] 寄信失敗:{e}\n觸發內容:\n{body}")
+
+
+def check_and_send_alerts(run_time, watchlist_out):
+    """兩種觸價通知:
+    1. 自動:自選股現價「跨越昨收」(由空翻多/由多翻空)、或碰到漲停/跌停 —— 一天一檔一種只通知一次。
+    2. 自訂:讀 data/alerts.json 裡阿文自己填的目標價,碰到也是一天一次。
+    用 data/alerts_state.json 記錄「今天已經通知過什麼」,換日期自動重置。"""
+    today_str = run_time.strftime("%Y-%m-%d")
+
+    state = load_json_safe(ALERTS_STATE_FILE, {})
+    if state.get("date") != today_str:
+        state = {"date": today_str, "last_side": {}, "limit_fired": {}, "custom_fired": []}
+    state.setdefault("last_side", {})
+    state.setdefault("limit_fired", {})
+    state.setdefault("custom_fired", [])
+
+    fires = []  # 這次要通知的文字清單
+
+    for q in watchlist_out:
+        code, name, last = q["code"], q["name"], q.get("last")
+        prev = q.get("prev_close")
+        if last is None:
+            continue
+
+        # -- 漲停/跌停,一天一次 --
+        fired_limits = state["limit_fired"].setdefault(code, [])
+        if q.get("upper_limit") is not None and last >= q["upper_limit"] and "up" not in fired_limits:
+            fires.append(f"{code} {name} 觸及漲停 {q['upper_limit']}")
+            fired_limits.append("up")
+        if q.get("lower_limit") is not None and last <= q["lower_limit"] and "down" not in fired_limits:
+            fires.append(f"{code} {name} 觸及跌停 {q['lower_limit']}")
+            fired_limits.append("down")
+
+        # -- 跨越昨收(交界位),由上一次記錄的方向比對,真的「跨過去」才通知,不是只要站上面就一直通知 --
+        if prev is not None:
+            side = "above" if last > prev else ("below" if last < prev else "equal")
+            prev_side = state["last_side"].get(code)
+            if prev_side and prev_side != side and side != "equal":
+                direction = "由空翻多,站上昨收" if side == "above" else "由多翻空,跌破昨收"
+                fires.append(f"{code} {name} {direction}(昨收{prev}, 現價{last})")
+            state["last_side"][code] = side
+
+    # -- 自訂目標價(data/alerts.json 裡阿文自己設定的) --
+    alerts_config = load_json_safe(ALERTS_CONFIG_FILE, {"custom": []})
+    by_code = {q["code"]: q for q in watchlist_out}
+    for a in alerts_config.get("custom", []):
+        code = a.get("code")
+        target = a.get("target")
+        direction = a.get("direction")  # "above" or "below"
+        if code not in by_code or target is None or direction not in ("above", "below"):
+            continue
+        q = by_code[code]
+        last = q.get("last")
+        if last is None:
+            continue
+        alert_id = f"{code}:{direction}:{target}"
+        hit = (direction == "above" and last >= target) or (direction == "below" and last <= target)
+        if hit and alert_id not in state["custom_fired"]:
+            word = "漲到" if direction == "above" else "跌到"
+            note = f"({a['note']})" if a.get("note") else ""
+            fires.append(f"{code} {q['name']} {word} {target}{note},現價 {last}")
+            state["custom_fired"].append(alert_id)
+
+    if fires:
+        body = (
+            f"爆量雷達 觸價通知 — {run_time.strftime('%Y-%m-%d %H:%M')}\n\n"
+            + "\n".join(f"・{f}" for f in fires)
+            + "\n\nhttps://wayne5171508-sudo.github.io/tw-signal-scanner/\n"
+            + "(此為機械式價位比對,非買賣建議)"
+        )
+        send_alert_email(f"【爆量雷達】{len(fires)} 檔觸發觀察價位", body)
+
+    with open(ALERTS_STATE_FILE, "w", encoding="utf-8") as f:
+        json.dump(state, f, ensure_ascii=False)
 
 
 def main():
@@ -187,6 +308,7 @@ def main():
         json.dump(result, f, ensure_ascii=False, indent=2)
 
     update_history(run_time, indices_out, watchlist_out)
+    check_and_send_alerts(run_time, watchlist_out)
 
     print(json.dumps(result, ensure_ascii=False, indent=2))
 
