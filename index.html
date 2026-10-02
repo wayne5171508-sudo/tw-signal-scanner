@@ -97,6 +97,45 @@
   .sparkwrap{margin-top:14px}
   .chipbox{margin-top:12px;padding-top:10px;border-top:1px dashed var(--border);font-size:13px}
   .chipbox .none{color:var(--muted)}
+
+  /* 今日焦點卡片:取代一排數字,一眼看出排名/價格/漲跌/原因 */
+  .focusgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:10px;margin-bottom:4px}
+  .focuscard{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 12px;cursor:pointer}
+  .focuscard:active{border-color:var(--accent)}
+  .focuscard .fclabel{font-size:11px;color:var(--muted);margin-bottom:3px}
+  .focuscard .fcname{font-size:13px;font-weight:700;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .focuscard .fcprice{font-size:21px;font-weight:700;font-variant-numeric:normal;display:block}
+  .focuscard .fcchg{font-size:12px;margin-top:2px;display:block}
+  .focuscard .fcreason{font-size:11px;color:var(--muted);margin-top:7px;line-height:1.4;min-height:28px}
+
+  /* 接近關鍵價位觀察:掃全部自選股,把快碰到壓力/支撐的挑出來,不用自己盯50檔 */
+  .nearlevel{display:flex;align-items:center;gap:8px;padding:8px 2px;border-top:1px solid var(--border);cursor:pointer;font-size:13px}
+  .nearlevel:first-child{border-top:none}
+  .nearlevel .nlname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .nearlevel .nlbadge{font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600;white-space:nowrap}
+  .nearlevel .nlbadge.res{background:#fbe8e5;color:var(--up)}
+  .nearlevel .nlbadge.sup{background:#e3f3ec;color:var(--down)}
+  .nearlevel .nldist{font-size:12px;color:var(--muted);white-space:nowrap;min-width:52px;text-align:right}
+
+  /* 自選股漲跌幅熱力圖:50格色塊一次看完,不用逐行掃表格 */
+  .heatgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(62px,1fr));gap:5px}
+  .heattile{border-radius:7px;padding:6px 4px;text-align:center;cursor:pointer;min-height:50px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .heattile .htcode{font-size:10.5px;font-weight:700;line-height:1.2}
+  .heattile .htpct{font-size:11.5px;font-weight:700;margin-top:3px;line-height:1.2}
+  .heatlegend{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);margin-top:8px;flex-wrap:wrap}
+  .heatlegend .lg{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:middle;margin-right:3px}
+
+  /* 量能異常排行:跟今日焦點卡片共用樣式,只是排序依據換成量能倍率 */
+  .volcard .fcprice{font-size:18px}
+  .volcard .fcratio{font-size:21px;font-weight:700;color:var(--accent);display:block}
+
+  /* 壓力/支撐多日趨勢 */
+  .cdptrend{margin-top:12px;padding-top:10px;border-top:1px dashed var(--border)}
+  .cdptrendrow{display:flex;align-items:center;gap:8px;margin-top:4px}
+  .cdptrendlbl{font-size:11px;min-width:56px;font-weight:600}
+  .cdptrendlbl.res{color:var(--up)}
+  .cdptrendlbl.sup{color:var(--down)}
+  .cdptrendval{font-size:11px;color:var(--muted);white-space:nowrap}
 </style>
 </head>
 <body>
@@ -110,6 +149,24 @@
 </div>
 
 <div class="card detail" id="detailCard" style="display:none"></div>
+
+<h2>今日焦點(自選股漲跌幅TOP5)</h2>
+<div class="focusgrid" id="focusCards">載入中...</div>
+
+<h2>自選股漲跌幅熱力圖</h2>
+<div class="card">
+  <div class="heatgrid" id="heatGrid">載入中...</div>
+  <div class="heatlegend" id="heatLegend"></div>
+</div>
+
+<h2>量能異常排行(自選股)</h2>
+<div class="focusgrid" id="volumeCards">載入中...</div>
+<div class="note" id="volumeNote" style="margin-top:0"></div>
+
+<h2>接近關鍵價位觀察</h2>
+<div class="card" id="nearLevelsCard">
+  <div id="nearLevelsList">載入中...</div>
+</div>
 
 <h2>大盤</h2>
 <div class="card tablewrap">
@@ -176,8 +233,8 @@ function seriesFor(code, isIndex){
   return HISTORY.points.map(p => p[key] ? p[key][code] : undefined).filter(v => v !== undefined && v !== null);
 }
 
-function sparklineSvg(series, w, h, color, fillColor, refLines){
-  const pad = 54; // 右側留白給壓力/交界/支撐標籤
+function sparklineSvg(series, w, h, color, fillColor, refLines, padOverride){
+  const pad = padOverride !== undefined ? padOverride : 54; // 右側留白給壓力/交界/支撐標籤
   const plotW = w - pad;
   if(!series || series.length < 2){
     return `<svg width="${w}" height="${h}"></svg>`;
@@ -260,6 +317,150 @@ function findChipEntry(code){
   const rank = (CHIP.institutional_buy_rank_top8||[]).findIndex(s => s.code === code);
   if(rank >= 0) return {type:'rank', data:CHIP.institutional_buy_rank_top8[rank], rank: rank+1};
   return null;
+}
+
+// ---- 今日焦點卡片:自選股漲跌幅(不分正負)前5名,取代一排數字,優先顯示有籌碼訊號的原因,
+// 沒有籌碼訊號的話改顯示「快碰到關鍵價位」或純排名,盡量讓每張卡都講得出一個理由 ----
+function focusReason(q, rank){
+  const entry = findChipEntry(q.code);
+  if(entry){
+    if(entry.type === 'rank') return `三大法人買超排行第${entry.rank}名`;
+    const s = entry.data;
+    const bits = [s.signal_status, s.consecutive_buy_days ? `連買${s.consecutive_buy_days}天` : null, s.limit_up_locked ? '漲停鎖死' : null].filter(Boolean);
+    if(bits.length) return bits.join('・');
+  }
+  if(q.volume_multiple != null && q.volume_multiple >= 2) return `量能放大到${q.volume_multiple}倍`;
+  const {resTarget, resLabel, supTarget, supLabel} = keyLevels(q);
+  if(resTarget != null && q.last){
+    const dRes = (resTarget - q.last) / q.last * 100;
+    if(dRes >= 0 && dRes <= 3) return `接近${resLabel}壓力,距離${dRes.toFixed(1)}%`;
+  }
+  if(supTarget != null && q.last){
+    const dSup = (q.last - supTarget) / q.last * 100;
+    if(dSup >= 0 && dSup <= 3) return `接近${supLabel}支撐,距離${dSup.toFixed(1)}%`;
+  }
+  return `今日自選股${q.pct >= 0 ? '漲' : '跌'}幅排名第${rank}`;
+}
+
+function renderFocusCards(data){
+  const el = document.getElementById('focusCards');
+  if(!data || !data.watchlist_quotes){
+    el.innerHTML = '<div class="note">暫無資料</div>';
+    return;
+  }
+  const list = data.watchlist_quotes.filter(q => q.pct !== null && q.pct !== undefined && q.last !== null);
+  list.sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct));
+  const top = list.slice(0, 5);
+  if(!top.length){
+    el.innerHTML = '<div class="note">暫無資料</div>';
+    return;
+  }
+  el.innerHTML = top.map((q, i) => `
+    <div class="focuscard" onclick="searchAndOpen('${q.code}')">
+      <div class="fclabel">No.${i + 1} · 自選股焦點</div>
+      <div class="fcname">${q.code} ${q.name}</div>
+      <span class="fcprice ${PCT_CLASS(q.change)}">${fmtNum(q.last)}</span>
+      <span class="fcchg ${PCT_CLASS(q.change)}">${ARROW(q.change)} ${fmtPct(q.pct)}</span>
+      <div class="fcreason">${focusReason(q, i + 1)}</div>
+    </div>`).join('');
+}
+
+// ---- 自選股漲跌幅熱力圖:50格色塊一次看完,顏色深淺依漲跌幅大小(封頂±7%避免單一離群值
+// 把色階拉爛),紅漲綠跌維持跟全站一致的台股配色,格子裡的文字永遠是白色或深色(依底色深淺
+// 自動切換,不直接把文字染成資料色,符合排版可讀性原則)----
+function heatColor(pct){
+  const cap = 7;
+  const mag = Math.min(Math.abs(pct ?? 0), cap) / cap;      // 0~1
+  const alpha = 0.12 + mag * 0.78;                           // 淺到接近滿色
+  const rgb = (pct ?? 0) >= 0 ? '209,64,63' : '24,143,99';   // 對應 --up / --down
+  return {bg: `rgba(${rgb},${alpha.toFixed(2)})`, dark: alpha >= 0.5};
+}
+
+function renderHeatGrid(data){
+  const el = document.getElementById('heatGrid');
+  const legendEl = document.getElementById('heatLegend');
+  if(!data || !data.watchlist_quotes){
+    el.innerHTML = '<div class="note">暫無資料</div>';
+    return;
+  }
+  const list = [...data.watchlist_quotes].sort((a, b) => (b.pct ?? -999) - (a.pct ?? -999));
+  el.innerHTML = list.map(q => {
+    const {bg, dark} = heatColor(q.pct);
+    const textColor = dark ? '#ffffff' : 'var(--text)';
+    return `
+      <div class="heattile" style="background:${bg}" onclick="searchAndOpen('${q.code}')">
+        <span class="htcode" style="color:${textColor}">${q.code}</span>
+        <span class="htpct" style="color:${textColor}">${fmtPct(q.pct)}</span>
+      </div>`;
+  }).join('');
+  legendEl.innerHTML = `
+    <span><span class="lg" style="background:rgba(209,64,63,0.78)"></span>大漲</span>
+    <span><span class="lg" style="background:rgba(209,64,63,0.2)"></span>小漲</span>
+    <span><span class="lg" style="background:rgba(24,143,99,0.2)"></span>小跌</span>
+    <span><span class="lg" style="background:rgba(24,143,99,0.78)"></span>大跌</span>
+    <span>(顏色深淺封頂在±7%)</span>`;
+}
+
+// ---- 量能異常排行:全部50檔自選股依「今日量/近5日均量」倍率排序,不是只有scan.py那20檔
+// 候選股才有。資料還在累積(上線前3天內)時 volume_multiple 會是 null,自動跳過不排 ----
+function renderVolumeCards(data){
+  const el = document.getElementById('volumeCards');
+  const noteEl = document.getElementById('volumeNote');
+  if(!data || !data.watchlist_quotes){
+    el.innerHTML = '<div class="note">暫無資料</div>';
+    noteEl.textContent = '';
+    return;
+  }
+  const withRatio = data.watchlist_quotes.filter(q => q.volume_multiple != null);
+  if(!withRatio.length){
+    el.innerHTML = '';
+    noteEl.textContent = '量能倍率需要至少3個交易日的歷史資料才能算,功能剛上線還在累積中,過幾天會自動出現。';
+    return;
+  }
+  const top = [...withRatio].sort((a, b) => b.volume_multiple - a.volume_multiple).slice(0, 5);
+  noteEl.textContent = '';
+  el.innerHTML = top.map((q, i) => `
+    <div class="focuscard volcard" onclick="searchAndOpen('${q.code}')">
+      <div class="fclabel">No.${i + 1} · 今日量/近5日均量</div>
+      <div class="fcname">${q.code} ${q.name}</div>
+      <span class="fcratio">${q.volume_multiple}倍</span>
+      <span class="fcprice ${PCT_CLASS(q.change)}">${fmtNum(q.last)} <span class="fcchg ${PCT_CLASS(q.change)}" style="display:inline">${ARROW(q.change)}${fmtPct(q.pct)}</span></span>
+    </div>`).join('');
+}
+
+// ---- 接近關鍵價位觀察:掃全部自選股的CDP(或替代用的今日高低)壓力/支撐,距離3%以內的挑出來,
+// 不用自己盯著50檔的表格找 ----
+function renderNearLevels(data){
+  const el = document.getElementById('nearLevelsList');
+  if(!data || !data.watchlist_quotes){
+    el.innerHTML = '<div class="note">暫無資料</div>';
+    return;
+  }
+  const THRESHOLD = 3;
+  const hits = [];
+  data.watchlist_quotes.forEach(q => {
+    if(q.last == null) return;
+    const {resTarget, resLabel, supTarget, supLabel} = keyLevels(q);
+    if(resTarget != null){
+      const d = (resTarget - q.last) / q.last * 100;
+      if(d >= 0 && d <= THRESHOLD) hits.push({q, side: 'res', label: resLabel, target: resTarget, dist: d});
+    }
+    if(supTarget != null){
+      const d = (q.last - supTarget) / q.last * 100;
+      if(d >= 0 && d <= THRESHOLD) hits.push({q, side: 'sup', label: supLabel, target: supTarget, dist: d});
+    }
+  });
+  hits.sort((a, b) => a.dist - b.dist);
+  if(!hits.length){
+    el.innerHTML = `<div class="note">目前沒有自選股的現價落在壓力或支撐${THRESHOLD}%以內</div>`;
+    return;
+  }
+  el.innerHTML = hits.slice(0, 10).map(h => `
+    <div class="nearlevel" onclick="searchAndOpen('${h.q.code}')">
+      <span class="nlname">${h.q.code} ${h.q.name}</span>
+      <span class="nlbadge ${h.side}">${h.side === 'res' ? '壓力' : '支撐'} ${fmtNum(h.target)}(${h.label})</span>
+      <span class="nldist">剩${h.dist.toFixed(1)}%</span>
+    </div>`).join('');
 }
 
 function renderChipBox(code){
@@ -391,6 +592,32 @@ function biasNote(q){
   return '剛好卡在昨收價位,方向還沒出來,觀察往上或往下先突破哪一邊。';
 }
 
+// ---- 壓力/支撐多日趨勢:看最近幾天CDP近高/近低值是不是持續墊高或走低,一樣是機械式算出來的
+// 歷史比較,不是預測。少於2個點(資料還在累積)就不顯示 ----
+function cdpTrendBlock(q){
+  const trend = q.cdp_trend;
+  if(!trend || trend.length < 2) return '';
+  const nhSeries = trend.map(p => p.nh);
+  const nlSeries = trend.map(p => p.nl);
+  const dirText = v => v > 0.01 ? '墊高' : (v < -0.01 ? '走低' : '持平');
+  const nhDir = nhSeries[nhSeries.length - 1] - nhSeries[0];
+  const nlDir = nlSeries[nlSeries.length - 1] - nlSeries[0];
+  return `
+    <div class="cdptrend">
+      <div class="meta">近${trend.length}個交易日 CDP壓力/支撐走勢(機械式歷史比較,不是預測)</div>
+      <div class="cdptrendrow">
+        <span class="cdptrendlbl res">壓力${dirText(nhDir)}</span>
+        ${sparklineSvg(nhSeries, 100, 28, 'var(--up)', 'var(--up-fill)', null, 0)}
+        <span class="cdptrendval">${fmtNum(nhSeries[0])} → ${fmtNum(nhSeries[nhSeries.length - 1])}</span>
+      </div>
+      <div class="cdptrendrow">
+        <span class="cdptrendlbl sup">支撐${dirText(nlDir)}</span>
+        ${sparklineSvg(nlSeries, 100, 28, 'var(--down)', 'var(--down-fill)', null, 0)}
+        <span class="cdptrendval">${fmtNum(nlSeries[0])} → ${fmtNum(nlSeries[nlSeries.length - 1])}</span>
+      </div>
+    </div>`;
+}
+
 function openDetail(code, isIndex){
   const pool = isIndex ? (INTRADAY && INTRADAY.indices) : (INTRADAY && INTRADAY.watchlist_quotes);
   if(!pool) return;
@@ -407,6 +634,7 @@ function openDetail(code, isIndex){
     {v: supTarget, color: '#188f63', label: '支撐 ' + fmtNum(supTarget)},
   ];
   const volText = (q.volume !== null && q.volume !== undefined) ? Number(q.volume).toLocaleString('zh-TW') : '-';
+  const volMulText = (q.volume_multiple != null) ? `,為近5日均量的${q.volume_multiple}倍` : '';
 
   document.getElementById('detailCard').innerHTML = `
     <div class="dhead">
@@ -419,11 +647,12 @@ function openDetail(code, isIndex){
         <span class="dchg ${PCT_CLASS(q.change)}">${ARROW(q.change)} ${fmtChange(q.change)}(${fmtPct(q.pct)})</span>
       </div>
     </div>
-    ${!isIndex ? `<div class="meta">成交量 ${volText}(與昨日比較相對大小用,非委買委賣量;免費報價源無法取得買賣盤口)</div>` : ''}
+    ${!isIndex ? `<div class="meta">成交量 ${volText}${volMulText}(與昨日比較相對大小用,非委買委賣量;免費報價源無法取得買賣盤口)</div>` : ''}
 
     ${priceLadder(q)}
     ${levelChips(q, isIndex)}
     <div class="biasnote">${biasNote(q)}</div>
+    ${!isIndex ? cdpTrendBlock(q) : ''}
 
     <div class="sparkwrap">
       <div class="meta">今日走勢 + 壓力/交界/支撐參考線(從網頁開始記錄算起,每約20分鐘一個點)</div>
@@ -542,6 +771,10 @@ async function loadAll(){
 
   CHIP = chip; INTRADAY = intraday; HISTORY = history;
 
+  renderFocusCards(intraday);
+  renderHeatGrid(intraday);
+  renderVolumeCards(intraday);
+  renderNearLevels(intraday);
   renderIndices(intraday);
   renderWatchlist(intraday, document.getElementById('searchInput').value);
   renderChip(chip);
