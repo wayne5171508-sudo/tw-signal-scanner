@@ -6,10 +6,10 @@
 <title>爆量雷達</title>
 <style>
   :root{
-    --bg:#0d0d0d; --card:#17181a; --border:#2c2c2a; --text:#ffffff; --muted:#898781; --sec:#c3c2b7;
-    --up:#e34948; --down:#1baf7a; --up-fill:rgba(227,73,72,0.14); --down-fill:rgba(27,175,122,0.14);
-    --accent:#3987e5; --accent-fill:rgba(57,135,229,0.16);
-    --grid:#2c2c2a;
+    --bg:#f9f9f7; --card:#ffffff; --border:#e1e0d9; --text:#0b0b0b; --muted:#78766f; --sec:#52514e;
+    --up:#d1403f; --down:#188f63; --up-fill:rgba(209,64,63,0.10); --down-fill:rgba(24,143,99,0.10);
+    --accent:#2a78d6; --accent-fill:rgba(42,120,214,0.10);
+    --grid:#e1e0d9; --shadow:0 1px 3px rgba(11,11,11,0.06);
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Microsoft JhengHei",sans-serif;padding:16px;line-height:1.5}
@@ -23,23 +23,23 @@
   th{color:var(--muted);font-weight:500;font-size:11px;border-bottom:1px solid var(--border)}
   tr+tr td{border-top:1px solid var(--border)}
   tbody tr{cursor:pointer}
-  tbody tr:active{background:#1f2023}
+  tbody tr:active{background:#f1f0ea}
   .up{color:var(--up)}
   .down{color:var(--down)}
   .flat{color:var(--muted)}
   .tablewrap{overflow-x:auto}
-  .tag{display:inline-block;font-size:11px;padding:1px 7px;border-radius:10px;background:#232323;color:var(--sec);margin-left:4px}
-  .tag.warn{background:#3a2420;color:#ffb199}
+  .tag{display:inline-block;font-size:11px;padding:1px 7px;border-radius:10px;background:#f1f0ea;color:var(--sec);margin-left:4px}
+  .tag.warn{background:#fbe8e5;color:#a8352f}
   .note{font-size:12px;color:var(--muted);margin-top:8px}
-  .err{color:#ffb199;font-size:13px}
+  .err{color:#c0392b;font-size:13px}
   .stockcard{border-top:1px solid var(--border);padding:8px 0;font-size:13px}
   .stockcard:first-child{border-top:none}
   .stockcard .row1{display:flex;justify-content:space-between;font-weight:600}
   .stockcard .row2{font-size:12px;color:var(--muted);margin-top:2px}
   .badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600}
-  .badge.bull{background:#3d1f22;color:#ff8080}
-  .badge.bear{background:#17352a;color:#4fd999}
-  .badge.flat{background:#232323;color:var(--muted)}
+  .badge.bull{background:#fbe8e5;color:#a8352f}
+  .badge.bear{background:#e3f3ec;color:#0f6e49}
+  .badge.flat{background:#f1f0ea;color:var(--muted)}
   a{color:var(--accent)}
   .refresh{float:right;font-size:12px;color:var(--accent);cursor:pointer;text-decoration:underline}
   .ico{font-size:11px}
@@ -55,14 +55,14 @@
 
   /* 搜尋框 */
   .searchwrap{position:relative;margin-bottom:10px}
-  .searchwrap input{width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:#121212;color:var(--text);font-size:14px}
+  .searchwrap input{width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:14px}
   .searchwrap input::placeholder{color:var(--muted)}
-  .suggest{position:absolute;left:0;right:0;top:100%;margin-top:4px;background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden;z-index:5}
+  .suggest{position:absolute;left:0;right:0;top:100%;margin-top:4px;background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden;z-index:5;box-shadow:var(--shadow)}
   .suggest div{padding:9px 12px;font-size:13px;cursor:pointer}
-  .suggest div:hover,.suggest div.active{background:#232323}
+  .suggest div:hover,.suggest div.active{background:#f1f0ea}
 
   /* 個股分析卡 */
-  .detail{border:1px solid var(--accent);background:#131722}
+  .detail{border:1px solid var(--accent);background:#eef4fc}
   .detail .dhead{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px}
   .detail .dname{font-size:16px;font-weight:700}
   .detail .dprice{font-size:30px;font-weight:700;font-variant-numeric:normal}
@@ -71,7 +71,7 @@
 
   /* 關鍵價位 meter(跌停-漲停整個區間) */
   .ladder{margin-top:16px}
-  .laddertrack{position:relative;height:14px;background:#1c1d1f;border-radius:7px;overflow:visible;margin:0 4px}
+  .laddertrack{position:relative;height:14px;background:#e4e2d8;border-radius:7px;overflow:visible;margin:0 4px}
   .laddertrack .fill{position:absolute;top:0;bottom:0;left:0;border-radius:7px}
   .laddertrack .tick{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--sec)}
   .laddertrack .tick.ref{background:var(--accent);width:2px}
@@ -82,15 +82,17 @@
 
   /* 關鍵價位 chips */
   .levelchips{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
-  .levelchip{flex:1;min-width:130px;background:#0f1320;border-radius:8px;padding:8px 10px;font-size:12px}
+  .levelchip{flex:1;min-width:130px;background:#ffffff;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:12px}
   .levelchip .lbl{display:flex;align-items:center;gap:4px;color:var(--muted);font-size:11px}
   .levelchip .val{font-size:15px;font-weight:700;margin-top:2px}
   .levelchip .sub{font-size:11px;color:var(--muted)}
-  .levelchip.res .lbl{color:#ff9d9c}
-  .levelchip.sup .lbl{color:#5fe0ac}
-  .levelchip.ref .lbl{color:#7fb1ef}
+  .levelchip.res{border-color:rgba(209,64,63,0.35)}
+  .levelchip.sup{border-color:rgba(24,143,99,0.35)}
+  .levelchip.res .lbl{color:var(--up)}
+  .levelchip.sup .lbl{color:var(--down)}
+  .levelchip.ref .lbl{color:var(--accent)}
 
-  .biasnote{margin-top:12px;padding:9px 10px;background:#0f1320;border-left:3px solid var(--accent);border-radius:4px;font-size:13px}
+  .biasnote{margin-top:12px;padding:9px 10px;background:#ffffff;border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:4px;font-size:13px}
 
   .sparkwrap{margin-top:14px}
   .chipbox{margin-top:12px;padding-top:10px;border-top:1px dashed var(--border);font-size:13px}
@@ -174,19 +176,30 @@ function seriesFor(code, isIndex){
   return HISTORY.points.map(p => p[key] ? p[key][code] : undefined).filter(v => v !== undefined && v !== null);
 }
 
-function sparklineSvg(series, w, h, color, fillColor){
+function sparklineSvg(series, w, h, color, fillColor, refLines){
+  const pad = 54; // 右側留白給壓力/交界/支撐標籤
+  const plotW = w - pad;
   if(!series || series.length < 2){
     return `<svg width="${w}" height="${h}"></svg>`;
   }
-  const min = Math.min(...series), max = Math.max(...series);
+  let vals = [...series];
+  (refLines||[]).forEach(r => { if(r.v != null) vals.push(r.v); });
+  const min = Math.min(...vals), max = Math.max(...vals);
   const range = (max - min) || 1;
-  const step = w / (series.length - 1);
-  const pts = series.map((v,i) => [+(i*step).toFixed(1), +(h - ((v-min)/range)*h).toFixed(1)]);
+  const step = plotW / (series.length - 1);
+  const yOf = v => +(h - ((v-min)/range)*h).toFixed(1);
+  const pts = series.map((v,i) => [+(i*step).toFixed(1), yOf(v)]);
   const lineStr = pts.map(p => p.join(',')).join(' ');
-  const areaStr = `0,${h} ` + lineStr + ` ${w},${h}`;
+  const areaStr = `0,${h} ` + lineStr + ` ${plotW},${h}`;
   const last = pts[pts.length-1];
-  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+  const refSvg = (refLines||[]).filter(r => r.v != null).map(r => {
+    const y = Math.max(5, Math.min(h-5, yOf(r.v)));
+    return `<line x1="0" y1="${y}" x2="${plotW}" y2="${y}" stroke="${r.color}" stroke-width="1" stroke-dasharray="3,3" opacity="0.8"/>
+      <text x="${plotW+3}" y="${y+3}" font-size="9" fill="${r.color}">${r.label}</text>`;
+  }).join('');
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" overflow="visible">
     <polygon points="${areaStr}" fill="${fillColor}" stroke="none"/>
+    ${refSvg}
     <polyline points="${lineStr}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
     <circle cx="${last[0]}" cy="${last[1]}" r="3.5" fill="${color}" stroke="var(--card)" stroke-width="1.5"/>
   </svg>`;
@@ -313,17 +326,17 @@ function levelChips(q, isIndex){
   return `
     <div class="levelchips">
       <div class="levelchip res">
-        <div class="lbl">▲ 壓力觀察(${resLabel})</div>
+        <div class="lbl">▲ 壓力位(${resLabel})</div>
         <div class="val">${fmtNum(resTarget)}</div>
         <div class="sub">距現價 ${dRes !== null ? '+' + dRes.toFixed(2) + '%' : '-'}</div>
       </div>
       <div class="levelchip ref">
-        <div class="lbl">● 多空分界(昨收)</div>
+        <div class="lbl">● 交界位(昨收)</div>
         <div class="val">${fmtNum(q.prev_close)}</div>
         <div class="sub">現價 ${q.last >= (q.prev_close ?? q.last) ? '在上方,偏多' : '在下方,偏空'}</div>
       </div>
       <div class="levelchip sup">
-        <div class="lbl">▼ 支撐觀察(${supLabel})</div>
+        <div class="lbl">▼ 支撐位(${supLabel})</div>
         <div class="val">${fmtNum(supTarget)}</div>
         <div class="sub">距現價 ${dSup !== null ? '-' + dSup.toFixed(2) + '%' : '-'}</div>
       </div>
@@ -363,6 +376,14 @@ function openDetail(code, isIndex){
   const series = seriesFor(code, isIndex);
   const color = q.change > 0 ? 'var(--up)' : (q.change < 0 ? 'var(--down)' : 'var(--muted)');
   const fillColor = q.change > 0 ? 'var(--up-fill)' : (q.change < 0 ? 'var(--down-fill)' : 'rgba(137,135,129,0.14)');
+  const resTarget = q.upper_limit ?? q.high;
+  const supTarget = q.lower_limit ?? q.low;
+  const refLines = [
+    {v: resTarget, color: '#d1403f', label: '壓力 ' + fmtNum(resTarget)},
+    {v: q.prev_close, color: '#9a8a2a', label: '交界 ' + fmtNum(q.prev_close)},
+    {v: supTarget, color: '#188f63', label: '支撐 ' + fmtNum(supTarget)},
+  ];
+  const volText = (q.volume !== null && q.volume !== undefined) ? Number(q.volume).toLocaleString('zh-TW') : '-';
 
   document.getElementById('detailCard').innerHTML = `
     <div class="dhead">
@@ -375,14 +396,15 @@ function openDetail(code, isIndex){
         <span class="dchg ${PCT_CLASS(q.change)}">${ARROW(q.change)} ${fmtChange(q.change)}(${fmtPct(q.pct)})</span>
       </div>
     </div>
+    ${!isIndex ? `<div class="meta">成交量 ${volText}(與昨日比較相對大小用,非委買委賣量;免費報價源無法取得買賣盤口)</div>` : ''}
 
     ${priceLadder(q)}
     ${levelChips(q, isIndex)}
     <div class="biasnote">${biasNote(q)}</div>
 
     <div class="sparkwrap">
-      <div class="meta">今日走勢(從網頁開始記錄算起,每約20分鐘一個點)</div>
-      ${sparklineSvg(series, 300, 54, color, fillColor)}
+      <div class="meta">今日走勢 + 壓力/交界/支撐參考線(從網頁開始記錄算起,每約20分鐘一個點)</div>
+      ${sparklineSvg(series, 272, 64, color, fillColor, refLines)}
     </div>
     ${!isIndex ? renderChipBox(code) : ''}
   `;
