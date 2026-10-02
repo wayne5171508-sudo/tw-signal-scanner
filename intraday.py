@@ -15,9 +15,12 @@
 解析真正的 JSON——WebFetch 是用小模型讀網頁摘要,資料量大或重複抓同一個
 網址時曾經抓到過期的快取資料,直接打 API 沒有這個問題。
 
+v2新增:順便維護 data/intraday_history.json,把每次抓到的價格疊加進去(只留當天的點、
+最多留60筆),讓網頁可以畫出「今天到目前為止」的走勢小圖,不只是單一時間點的數字。
+
 用法:
     python intraday.py
-    (會自動寫到 data/intraday_latest.json)
+    (會自動寫到 data/intraday_latest.json 跟 data/intraday_history.json)
 """
 
 import json
@@ -32,6 +35,8 @@ HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; personal-trading-dashboard/1.
 TIMEOUT = 20
 DATA_DIR = "data"
 OUT_FILE = os.path.join(DATA_DIR, "intraday_latest.json")
+HISTORY_FILE = os.path.join(DATA_DIR, "intraday_history.json")
+MAX_POINTS_PER_DAY = 60
 
 CNYES_QUOTE_URL = "https://ws.api.cnyes.com/ws/api/v1/quote/quotes/{codes}"
 
@@ -113,6 +118,34 @@ def row_to_quote(row, fallback_code, fallback_name):
     }
 
 
+def update_history(run_time, indices_out, watchlist_out):
+    """把這次抓到的價格疊加進 data/intraday_history.json。
+    只留「今天」的點(用台北日期判斷,跨到隔天自動重置),最多留 MAX_POINTS_PER_DAY 筆,
+    避免檔案越養越大。每筆只存 last 價(夠畫走勢小圖),不重複存整包報價。"""
+    today_str = run_time.strftime("%Y-%m-%d")
+
+    history = {"date": today_str, "points": []}
+    if os.path.exists(HISTORY_FILE):
+        try:
+            with open(HISTORY_FILE, "r", encoding="utf-8") as f:
+                existing = json.load(f)
+            if existing.get("date") == today_str:
+                history = existing
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    point = {
+        "t": run_time.isoformat(),
+        "idx": {q["code"]: q["last"] for q in indices_out if q.get("last") is not None},
+        "wl": {q["code"]: q["last"] for q in watchlist_out if q.get("last") is not None},
+    }
+    history["points"].append(point)
+    history["points"] = history["points"][-MAX_POINTS_PER_DAY:]
+
+    with open(HISTORY_FILE, "w", encoding="utf-8") as f:
+        json.dump(history, f, ensure_ascii=False)
+
+
 def main():
     run_time = taipei_now()
 
@@ -152,6 +185,8 @@ def main():
     os.makedirs(DATA_DIR, exist_ok=True)
     with open(OUT_FILE, "w", encoding="utf-8") as f:
         json.dump(result, f, ensure_ascii=False, indent=2)
+
+    update_history(run_time, indices_out, watchlist_out)
 
     print(json.dumps(result, ensure_ascii=False, indent=2))
 
