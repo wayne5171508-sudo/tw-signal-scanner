@@ -313,13 +313,36 @@ function priceLadder(q){
     </div>`;
 }
 
-// ---- 關鍵價位 chips:壓力(今日高/漲停) / 多空分界(昨收) / 支撐(今日低/跌停) ----
+// ---- 壓力/支撐取值規則:優先用CDP逆勢操作系統(前一個交易日高低收算出來的近高值/近低值,
+// 樞紐價當交界),這是台股看盤軟體常見、真的有依據的算法,不是當天的漲跌停也不是當天的
+// 高低點。只有「還沒有前一個交易日資料」(例如功能剛上線的第一個交易日)才會退回用今日目前
+// 為止的高低點當替代。股價真的衝到漲停/跌停鎖住時,不管哪種算法都會自然顯示成漲停/跌停。----
+function keyLevels(q){
+  const cdp = q.cdp;
+  const usingCdp = !!(cdp && cdp.nh != null && cdp.nl != null && cdp.cdp != null);
+  let resTarget, supTarget, midVal, midLabel;
+  if(usingCdp){
+    resTarget = (q.upper_limit != null) ? Math.min(cdp.nh, q.upper_limit) : cdp.nh;
+    supTarget = (q.lower_limit != null) ? Math.max(cdp.nl, q.lower_limit) : cdp.nl;
+    midVal = cdp.cdp;
+    midLabel = 'CDP樞紐價';
+  } else {
+    resTarget = q.high ?? q.upper_limit;
+    supTarget = q.low ?? q.lower_limit;
+    midVal = q.prev_close;
+    midLabel = '昨收';
+  }
+  const hitUpper = q.upper_limit != null && resTarget != null && resTarget >= q.upper_limit - 0.005;
+  const hitLower = q.lower_limit != null && supTarget != null && supTarget <= q.lower_limit + 0.005;
+  const resLabel = hitUpper ? '漲停' : (usingCdp ? 'CDP近高' : '今日高');
+  const supLabel = hitLower ? '跌停' : (usingCdp ? 'CDP近低' : '今日低');
+  return {resTarget, resLabel, supTarget, supLabel, midVal, midLabel, usingCdp};
+}
+
+// ---- 關鍵價位 chips:壓力(CDP近高,沒資料時退回今日高) / 交界(CDP樞紐價,沒資料時退回昨收) / 支撐(CDP近低,沒資料時退回今日低) ----
 function levelChips(q, isIndex){
   const distPct = (target, base) => (target != null && base) ? (((target - base) / base) * 100) : null;
-  const resTarget = q.upper_limit ?? q.high;
-  const resLabel = q.upper_limit != null ? '漲停' : '今日高';
-  const supTarget = q.lower_limit ?? q.low;
-  const supLabel = q.lower_limit != null ? '跌停' : '今日低';
+  const {resTarget, resLabel, supTarget, supLabel, midVal, midLabel, usingCdp} = keyLevels(q);
   const dRes = distPct(resTarget, q.last);
   const dSup = distPct(q.last, supTarget);
 
@@ -331,16 +354,17 @@ function levelChips(q, isIndex){
         <div class="sub">距現價 ${dRes !== null ? '+' + dRes.toFixed(2) + '%' : '-'}</div>
       </div>
       <div class="levelchip ref">
-        <div class="lbl">● 交界位(昨收)</div>
-        <div class="val">${fmtNum(q.prev_close)}</div>
-        <div class="sub">現價 ${q.last >= (q.prev_close ?? q.last) ? '在上方,偏多' : '在下方,偏空'}</div>
+        <div class="lbl">● 交界位(${midLabel})</div>
+        <div class="val">${fmtNum(midVal)}</div>
+        <div class="sub">現價 ${q.last >= (midVal ?? q.last) ? '在上方,偏多' : '在下方,偏空'}</div>
       </div>
       <div class="levelchip sup">
         <div class="lbl">▼ 支撐位(${supLabel})</div>
         <div class="val">${fmtNum(supTarget)}</div>
         <div class="sub">距現價 ${dSup !== null ? '-' + dSup.toFixed(2) + '%' : '-'}</div>
       </div>
-    </div>`;
+    </div>
+    ${!isIndex && !usingCdp ? `<div class="meta" style="margin-top:4px">今天還沒有前一個交易日資料可以算CDP樞紐價,先用今日目前為止的高低點替代,明天開始會自動換成CDP。</div>` : ''}`;
 }
 
 // ---- 機械式位置判讀(純粹描述現價在今天區間的位置,不是買賣建議) ----
@@ -376,11 +400,10 @@ function openDetail(code, isIndex){
   const series = seriesFor(code, isIndex);
   const color = q.change > 0 ? 'var(--up)' : (q.change < 0 ? 'var(--down)' : 'var(--muted)');
   const fillColor = q.change > 0 ? 'var(--up-fill)' : (q.change < 0 ? 'var(--down-fill)' : 'rgba(137,135,129,0.14)');
-  const resTarget = q.upper_limit ?? q.high;
-  const supTarget = q.lower_limit ?? q.low;
+  const {resTarget, supTarget, midVal} = keyLevels(q);
   const refLines = [
     {v: resTarget, color: '#d1403f', label: '壓力 ' + fmtNum(resTarget)},
-    {v: q.prev_close, color: '#9a8a2a', label: '交界 ' + fmtNum(q.prev_close)},
+    {v: midVal, color: '#9a8a2a', label: '交界 ' + fmtNum(midVal)},
     {v: supTarget, color: '#188f63', label: '支撐 ' + fmtNum(supTarget)},
   ];
   const volText = (q.volume !== null && q.volume !== undefined) ? Number(q.volume).toLocaleString('zh-TW') : '-';
