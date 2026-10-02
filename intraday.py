@@ -61,6 +61,12 @@ v6新增(職業操盤手複檢抓出的兩個資料正確性問題,加抓取韌�
   漏掉一個資料點;真的連續失敗才會讓這次執行失敗(GitHub Actions會顯示紅叉),這是刻意的,
   因為「完全抓不到資料」時寧可讓這次排程明顯失敗,也不要默默寫出一份空的/半套資料蓋掉舊檔。
 
+v7新增(個股K線圖要用的成交量):
+- data/intraday_history.json 每個時間點除了原本的成交價(wl),多存一份「當下累積成交量」
+  (wlv)。網頁端用「這一點的量 - 上一點的量」算出每個5分鐘區間自己的成交量,疊成K線圖下方
+  的量能長條圖。免費報價源沒有逐筆K棒資料,網頁是用每5分鐘一次的收盤價堆疊出近似K棒(開盤
+  價=上一次的價,收盤價=這一次的價,沒有真正的分鐘內最高最低),圖上有誠實標註這件事。
+
 用法:
     python intraday.py
     (會自動寫到 data/intraday_latest.json、data/intraday_history.json、
@@ -193,7 +199,8 @@ def row_to_quote(row, fallback_code, fallback_name):
 def update_history(run_time, indices_out, watchlist_out):
     """把這次抓到的價格疊加進 data/intraday_history.json。
     只留「今天」的點(用台北日期判斷,跨到隔天自動重置),最多留 MAX_POINTS_PER_DAY 筆,
-    避免檔案越養越大。每筆只存 last 價(夠畫走勢小圖),不重複存整包報價。"""
+    避免檔案越養越大。每筆存 last 價(夠畫走勢小圖),自選股另外存當下的累積成交量(wlv),
+    讓網頁可以用「這次量-上次量」算出每個5分鐘區間自己的量,疊出近似K線圖的量能長條。"""
     today_str = run_time.strftime("%Y-%m-%d")
 
     history = {"date": today_str, "points": []}
@@ -210,6 +217,7 @@ def update_history(run_time, indices_out, watchlist_out):
         "t": run_time.isoformat(),
         "idx": {q["code"]: q["last"] for q in indices_out if q.get("last") is not None},
         "wl": {q["code"]: q["last"] for q in watchlist_out if q.get("last") is not None},
+        "wlv": {q["code"]: q["volume"] for q in watchlist_out if q.get("volume") is not None},
     }
     history["points"].append(point)
     history["points"] = history["points"][-MAX_POINTS_PER_DAY:]
