@@ -6,27 +6,29 @@
 <title>爆量雷達</title>
 <style>
   :root{
-    --bg:#0f1115; --card:#171a21; --border:#262b36; --text:#e8eaed; --muted:#8b92a3;
-    --up:#ff4d4f; --down:#2fbf71; --accent:#5b8cff;
+    --bg:#0d0d0d; --card:#17181a; --border:#2c2c2a; --text:#ffffff; --muted:#898781; --sec:#c3c2b7;
+    --up:#e34948; --down:#1baf7a; --up-fill:rgba(227,73,72,0.14); --down-fill:rgba(27,175,122,0.14);
+    --accent:#3987e5; --accent-fill:rgba(57,135,229,0.16);
+    --grid:#2c2c2a;
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Microsoft JhengHei",sans-serif;padding:16px;line-height:1.5}
-  h1{font-size:20px;margin:0 0 4px}
-  h2{font-size:15px;margin:24px 0 10px;color:var(--accent)}
+  h1{font-size:19px;margin:0 0 4px;font-weight:700}
+  h2{font-size:14px;margin:22px 0 8px;color:var(--sec);font-weight:600}
   .meta{font-size:12px;color:var(--muted);margin-bottom:2px}
   .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:12px}
   table{width:100%;border-collapse:collapse;font-size:13px}
-  th,td{padding:7px 6px;text-align:right;white-space:nowrap}
+  th,td{padding:8px 6px;text-align:right;white-space:nowrap}
   th:first-child,td:first-child{text-align:left}
-  th{color:var(--muted);font-weight:500;border-bottom:1px solid var(--border)}
+  th{color:var(--muted);font-weight:500;font-size:11px;border-bottom:1px solid var(--border)}
   tr+tr td{border-top:1px solid var(--border)}
   tbody tr{cursor:pointer}
-  tbody tr:active{background:#1d2230}
+  tbody tr:active{background:#1f2023}
   .up{color:var(--up)}
   .down{color:var(--down)}
   .flat{color:var(--muted)}
   .tablewrap{overflow-x:auto}
-  .tag{display:inline-block;font-size:11px;padding:1px 6px;border-radius:4px;background:#232838;color:var(--muted);margin-left:4px}
+  .tag{display:inline-block;font-size:11px;padding:1px 7px;border-radius:10px;background:#232323;color:var(--sec);margin-left:4px}
   .tag.warn{background:#3a2420;color:#ffb199}
   .note{font-size:12px;color:var(--muted);margin-top:8px}
   .err{color:#ffb199;font-size:13px}
@@ -34,41 +36,63 @@
   .stockcard:first-child{border-top:none}
   .stockcard .row1{display:flex;justify-content:space-between;font-weight:600}
   .stockcard .row2{font-size:12px;color:var(--muted);margin-top:2px}
-  .badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:12px;font-weight:600}
+  .badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600}
   .badge.bull{background:#3d1f22;color:#ff8080}
-  .badge.bear{background:#1f3d2b;color:#5fd98a}
-  .badge.flat{background:#2a2e38;color:var(--muted)}
+  .badge.bear{background:#17352a;color:#4fd999}
+  .badge.flat{background:#232323;color:var(--muted)}
   a{color:var(--accent)}
   .refresh{float:right;font-size:12px;color:var(--accent);cursor:pointer;text-decoration:underline}
+  .ico{font-size:11px}
 
-  /* 漲跌幅迷你長條 */
-  .pctcell{display:flex;align-items:center;justify-content:flex-end;gap:6px}
-  .pctbar{width:46px;height:8px;background:#1c2029;border-radius:4px;overflow:hidden;position:relative;flex-shrink:0}
-  .pctbar i{position:absolute;top:0;bottom:0;display:block}
-  .pctbar i.up{background:var(--up);right:50%}
-  .pctbar i.down{background:var(--down);left:50%}
+  /* 漲跌幅發散長條(diverging bar):0在中間,往左是跌,往右是漲 */
+  .divrow{display:flex;align-items:center;gap:8px;justify-content:flex-end}
+  .divtrack{position:relative;width:88px;height:6px;flex-shrink:0}
+  .divtrack .mid{position:absolute;left:50%;top:-3px;bottom:-3px;width:1px;background:var(--grid)}
+  .divtrack .fill{position:absolute;top:0;bottom:0;border-radius:3px}
+  .divtrack .fill.up{background:var(--up);left:50%}
+  .divtrack .fill.down{background:var(--down);right:50%}
+  .divlabel{min-width:56px;text-align:right;font-variant-numeric:tabular-nums}
 
   /* 搜尋框 */
   .searchwrap{position:relative;margin-bottom:10px}
-  .searchwrap input{width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:#11141b;color:var(--text);font-size:14px}
+  .searchwrap input{width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:#121212;color:var(--text);font-size:14px}
   .searchwrap input::placeholder{color:var(--muted)}
   .suggest{position:absolute;left:0;right:0;top:100%;margin-top:4px;background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden;z-index:5}
-  .suggest div{padding:8px 12px;font-size:13px;cursor:pointer}
-  .suggest div:hover,.suggest div.active{background:#232838}
+  .suggest div{padding:9px 12px;font-size:13px;cursor:pointer}
+  .suggest div:hover,.suggest div.active{background:#232323}
 
   /* 個股分析卡 */
-  .detail{border:1px solid var(--accent);background:#141a2b}
-  .detail .dhead{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px}
-  .detail .dname{font-size:17px;font-weight:700}
-  .detail .dprice{font-size:26px;font-weight:700}
-  .detail .dchg{font-size:14px}
-  .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px;font-size:12px}
-  .grid4 div{background:#0f1320;border-radius:6px;padding:6px 8px}
-  .grid4 b{display:block;font-size:13px;color:var(--text);font-weight:600}
-  .gaugewrap{margin-top:14px}
-  .gaugelabels{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:2px}
+  .detail{border:1px solid var(--accent);background:#131722}
+  .detail .dhead{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px}
+  .detail .dname{font-size:16px;font-weight:700}
+  .detail .dprice{font-size:30px;font-weight:700;font-variant-numeric:normal}
+  .detail .dchg{font-size:13px;display:block;text-align:right}
+  .close{color:var(--muted);cursor:pointer;font-size:13px}
+
+  /* 關鍵價位 meter(跌停-漲停整個區間) */
+  .ladder{margin-top:16px}
+  .laddertrack{position:relative;height:14px;background:#1c1d1f;border-radius:7px;overflow:visible;margin:0 4px}
+  .laddertrack .fill{position:absolute;top:0;bottom:0;left:0;border-radius:7px}
+  .laddertrack .tick{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--sec)}
+  .laddertrack .tick.ref{background:var(--accent);width:2px}
+  .laddertrack .now{position:absolute;top:-5px;width:14px;height:14px;margin-left:-7px;border-radius:50%;border:3px solid var(--bg)}
+  .laddertoplabels,.ladderbottomlabels{position:relative;height:16px;font-size:10px;color:var(--muted);margin:2px 4px}
+  .laddertoplabels span,.ladderbottomlabels span{position:absolute;transform:translateX(-50%);white-space:nowrap}
+  .ladderends{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:6px;padding:0 4px}
+
+  /* 關鍵價位 chips */
+  .levelchips{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+  .levelchip{flex:1;min-width:130px;background:#0f1320;border-radius:8px;padding:8px 10px;font-size:12px}
+  .levelchip .lbl{display:flex;align-items:center;gap:4px;color:var(--muted);font-size:11px}
+  .levelchip .val{font-size:15px;font-weight:700;margin-top:2px}
+  .levelchip .sub{font-size:11px;color:var(--muted)}
+  .levelchip.res .lbl{color:#ff9d9c}
+  .levelchip.sup .lbl{color:#5fe0ac}
+  .levelchip.ref .lbl{color:#7fb1ef}
+
+  .biasnote{margin-top:12px;padding:9px 10px;background:#0f1320;border-left:3px solid var(--accent);border-radius:4px;font-size:13px}
+
   .sparkwrap{margin-top:14px}
-  .close{float:right;color:var(--muted);cursor:pointer;font-size:13px}
   .chipbox{margin-top:12px;padding-top:10px;border-top:1px dashed var(--border);font-size:13px}
   .chipbox .none{color:var(--muted)}
 </style>
@@ -91,7 +115,7 @@
   <div class="note" id="intradayNote"></div>
 </div>
 
-<h2>自選股即時報價</h2>
+<h2>自選股即時報價(依漲跌幅排序)</h2>
 <div class="card tablewrap">
   <div id="watchlistTable">載入中...</div>
 </div>
@@ -111,7 +135,7 @@
 
 <div class="note" style="margin-top:20px">
   資料來源:大盤與自選股報價每約20分鐘由 GitHub Actions 直接向交易所/報價商 API 抓取一次,非逐秒即時;
-  走勢小圖只畫「今天這個網頁開始記錄之後」抓到的幾個時間點,不是逐秒K線;
+  個股分析卡裡的「觀察重點」是用今天抓到的高低開收跟漲跌停價機械式算出來的參考位置,不是買賣建議;
   籌碼訊號為每日收盤後計算一次。程式碼見
   <a href="https://github.com/wayne5171508-sudo/tw-signal-scanner" target="_blank">tw-signal-scanner</a>。
 </div>
@@ -120,44 +144,51 @@
 let INTRADAY = null, HISTORY = null, CHIP = null;
 
 const PCT_CLASS = p => p > 0 ? 'up' : (p < 0 ? 'down' : 'flat');
+const ARROW = p => p > 0 ? '▲' : (p < 0 ? '▼' : '—');
 const fmtPct = p => (p === null || p === undefined) ? '-' : (p > 0 ? '+' : '') + p.toFixed(2) + '%';
-const fmtNum = n => (n === null || n === undefined) ? '-' : (Number.isInteger(n) ? n : n.toFixed(2));
+const fmtNum = n => (n === null || n === undefined) ? '-' : (Number.isInteger(n) ? String(n) : n.toFixed(2));
 const fmtChange = c => (c === null || c === undefined) ? '-' : (c > 0 ? '+' : '') + fmtNum(c);
 const fmtTime = iso => {
   if(!iso) return '-';
   const d = new Date(iso);
   return d.toLocaleString('zh-TW', {month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', hour12:false});
 };
-const fmtTimeShort = iso => {
-  if(!iso) return '-';
-  const d = new Date(iso);
-  return d.toLocaleString('zh-TW', {hour:'2-digit', minute:'2-digit', hour12:false});
-};
 
-function pctBar(pct){
-  if(pct === null || pct === undefined) return '<span class="pctbar"></span>';
-  const mag = Math.min(Math.abs(pct), 10) / 10 * 50; // 最大視覺化到±10%
+// ---- 漲跌幅發散長條(diverging bar):紅漲綠跌,中間0為基準線,附方向箭頭做第二層辨識(不只靠顏色) ----
+function divBar(pct){
+  if(pct === null || pct === undefined){
+    return `<div class="divrow"><span class="divtrack"><span class="mid"></span></span><span class="divlabel flat">-</span></div>`;
+  }
+  const mag = Math.min(Math.abs(pct), 10) / 10 * 50; // ±10% 封顶,避免單一離群值把整排尺度拉爛
   const cls = pct >= 0 ? 'up' : 'down';
-  return `<span class="pctbar"><i class="${cls}" style="width:${mag}%"></i></span>`;
+  return `
+    <div class="divrow">
+      <span class="divtrack"><span class="mid"></span><span class="fill ${cls}" style="width:${mag}%"></span></span>
+      <span class="divlabel ${PCT_CLASS(pct)}"><span class="ico">${ARROW(pct)}</span> ${fmtPct(pct)}</span>
+    </div>`;
 }
 
-// 從 HISTORY 取某代碼今天的價格序列(indices用code原樣,watchlist用4碼)
 function seriesFor(code, isIndex){
   if(!HISTORY || !HISTORY.points || !HISTORY.points.length) return [];
   const key = isIndex ? 'idx' : 'wl';
   return HISTORY.points.map(p => p[key] ? p[key][code] : undefined).filter(v => v !== undefined && v !== null);
 }
 
-function sparklineSvg(series, w, h, color){
+function sparklineSvg(series, w, h, color, fillColor){
   if(!series || series.length < 2){
     return `<svg width="${w}" height="${h}"></svg>`;
   }
   const min = Math.min(...series), max = Math.max(...series);
   const range = (max - min) || 1;
   const step = w / (series.length - 1);
-  const pts = series.map((v,i) => `${(i*step).toFixed(1)},${(h - ((v-min)/range)*h).toFixed(1)}`).join(' ');
+  const pts = series.map((v,i) => [+(i*step).toFixed(1), +(h - ((v-min)/range)*h).toFixed(1)]);
+  const lineStr = pts.map(p => p.join(',')).join(' ');
+  const areaStr = `0,${h} ` + lineStr + ` ${w},${h}`;
+  const last = pts[pts.length-1];
   return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
-    <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+    <polygon points="${areaStr}" fill="${fillColor}" stroke="none"/>
+    <polyline points="${lineStr}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="${last[0]}" cy="${last[1]}" r="3.5" fill="${color}" stroke="var(--card)" stroke-width="1.5"/>
   </svg>`;
 }
 
@@ -166,20 +197,14 @@ function renderIndices(data){
     document.getElementById('indicesTable').innerHTML = '<div class="err">暫無大盤資料</div>';
     return;
   }
-  let rows = data.indices.map(q => {
-    const series = seriesFor(q.code, true);
-    const color = q.change > 0 ? 'var(--up)' : (q.change < 0 ? 'var(--down)' : 'var(--muted)');
-    return `
+  let rows = data.indices.map(q => `
     <tr onclick="openDetail('${q.code}', true)">
       <td>${q.name}</td>
       <td class="${PCT_CLASS(q.change)}">${fmtNum(q.last)}</td>
-      <td class="${PCT_CLASS(q.change)}">${fmtChange(q.change)}</td>
-      <td><div class="pctcell">${fmtPct(q.pct)}${pctBar(q.pct)}</div></td>
-      <td>${sparklineSvg(series, 60, 22, color)}</td>
-    </tr>`;
-  }).join('');
+      <td>${divBar(q.pct)}</td>
+    </tr>`).join('');
   document.getElementById('indicesTable').innerHTML = `
-    <table><thead><tr><th>指數</th><th>最新</th><th>漲跌</th><th>漲跌幅</th><th>今日走勢</th></tr></thead>
+    <table><thead><tr><th>指數</th><th>最新</th><th>漲跌幅</th></tr></thead>
     <tbody>${rows}</tbody></table>`;
   document.getElementById('intradayNote').textContent =
     `資料時間約 ${fmtTime(data.data_as_of)} · ${data.check_frequency_note || ''}`;
@@ -202,18 +227,15 @@ function renderWatchlist(data, filterText){
   }
   let rows = list.map(q => {
     const nearLimit = q.pct !== null && q.pct !== undefined && Math.abs(q.pct) >= 9.5;
-    const series = seriesFor(q.code, false);
-    const color = q.change > 0 ? 'var(--up)' : (q.change < 0 ? 'var(--down)' : 'var(--muted)');
     return `
     <tr onclick="openDetail('${q.code}', false)">
       <td>${q.code} ${q.name}${nearLimit ? '<span class="tag warn">近停板</span>' : ''}</td>
       <td class="${PCT_CLASS(q.change)}">${fmtNum(q.last)}</td>
-      <td><div class="pctcell">${fmtPct(q.pct)}${pctBar(q.pct)}</div></td>
-      <td>${sparklineSvg(series, 60, 22, color)}</td>
+      <td>${divBar(q.pct)}</td>
     </tr>`;
   }).join('');
   document.getElementById('watchlistTable').innerHTML = `
-    <table><thead><tr><th>代碼/名稱</th><th>成交</th><th>漲跌幅</th><th>今日走勢</th></tr></thead>
+    <table><thead><tr><th>代碼/名稱</th><th>成交</th><th>漲跌幅</th></tr></thead>
     <tbody>${rows}</tbody></table>`;
 }
 
@@ -247,26 +269,89 @@ function renderChipBox(code){
   </div>`;
 }
 
-function rangeGauge(q){
-  const low = q.low, high = q.high, last = q.last, prev = q.prev_close;
-  if(low === null || high === null || last === null || low === undefined || high === undefined){
-    return '<div class="note">今日高低資料不足,無法畫區間圖</div>';
-  }
-  const lo = Math.min(low, prev ?? low), hi = Math.max(high, prev ?? high);
+// ---- 關鍵價位 meter:整個跌停-漲停區間當作量尺,標出低/昨收/高跟現價 ----
+function priceLadder(q){
+  const hasLimits = q.upper_limit != null && q.lower_limit != null;
+  const lo = hasLimits ? q.lower_limit : Math.min(q.low ?? q.last, q.prev_close ?? q.last);
+  const hi = hasLimits ? q.upper_limit : Math.max(q.high ?? q.last, q.prev_close ?? q.last);
   const range = (hi - lo) || 1;
   const pos = v => Math.max(0, Math.min(100, ((v - lo) / range) * 100));
-  const lastPos = pos(last);
-  const prevPos = prev !== null && prev !== undefined ? pos(prev) : null;
-  const color = last >= (prev ?? last) ? 'var(--up)' : 'var(--down)';
+  const lastPos = pos(q.last);
+  const color = (q.last >= (q.prev_close ?? q.last)) ? 'var(--up)' : 'var(--down)';
+
+  const ticks = [];
+  if(q.low != null) ticks.push({v:q.low, label:'今日低 ' + fmtNum(q.low), where:'bottom'});
+  if(q.prev_close != null) ticks.push({v:q.prev_close, label:'昨收 ' + fmtNum(q.prev_close), where:'top', ref:true});
+  if(q.high != null) ticks.push({v:q.high, label:'今日高 ' + fmtNum(q.high), where:'bottom'});
+
+  const topTicks = ticks.filter(t => t.where==='top');
+  const botTicks = ticks.filter(t => t.where==='bottom');
+
   return `
-    <div class="gaugewrap">
-      <div style="position:relative;height:10px;background:#1c2029;border-radius:5px">
-        <div style="position:absolute;left:0;top:0;bottom:0;width:${lastPos}%;background:${color};opacity:0.35;border-radius:5px"></div>
-        ${prevPos !== null ? `<div style="position:absolute;left:${prevPos}%;top:-3px;bottom:-3px;width:2px;background:var(--muted)"></div>` : ''}
-        <div style="position:absolute;left:calc(${lastPos}% - 5px);top:-3px;width:10px;height:10px;border-radius:50%;background:${color};border:2px solid var(--card)"></div>
+    <div class="ladder">
+      <div class="laddertoplabels">${topTicks.map(t => `<span style="left:${pos(t.v)}%">${t.label}</span>`).join('')}</div>
+      <div class="laddertrack">
+        <div class="fill" style="width:${lastPos}%;background:${color};opacity:0.5"></div>
+        ${ticks.map(t => `<div class="tick${t.ref?' ref':''}" style="left:${pos(t.v)}%"></div>`).join('')}
+        <div class="now" style="left:${lastPos}%;background:${color}"></div>
       </div>
-      <div class="gaugelabels"><span>低 ${fmtNum(low)}</span><span>昨收 ${fmtNum(prev)}</span><span>高 ${fmtNum(high)}</span></div>
+      <div class="ladderbottomlabels">${botTicks.map(t => `<span style="left:${pos(t.v)}%">${t.label}</span>`).join('')}</div>
+      ${hasLimits ? `<div class="ladderends"><span>跌停 ${fmtNum(lo)}</span><span>漲停 ${fmtNum(hi)}</span></div>` : ''}
     </div>`;
+}
+
+// ---- 關鍵價位 chips:壓力(今日高/漲停) / 多空分界(昨收) / 支撐(今日低/跌停) ----
+function levelChips(q, isIndex){
+  const distPct = (target, base) => (target != null && base) ? (((target - base) / base) * 100) : null;
+  const resTarget = q.upper_limit ?? q.high;
+  const resLabel = q.upper_limit != null ? '漲停' : '今日高';
+  const supTarget = q.lower_limit ?? q.low;
+  const supLabel = q.lower_limit != null ? '跌停' : '今日低';
+  const dRes = distPct(resTarget, q.last);
+  const dSup = distPct(q.last, supTarget);
+
+  return `
+    <div class="levelchips">
+      <div class="levelchip res">
+        <div class="lbl">▲ 壓力觀察(${resLabel})</div>
+        <div class="val">${fmtNum(resTarget)}</div>
+        <div class="sub">距現價 ${dRes !== null ? '+' + dRes.toFixed(2) + '%' : '-'}</div>
+      </div>
+      <div class="levelchip ref">
+        <div class="lbl">● 多空分界(昨收)</div>
+        <div class="val">${fmtNum(q.prev_close)}</div>
+        <div class="sub">現價 ${q.last >= (q.prev_close ?? q.last) ? '在上方,偏多' : '在下方,偏空'}</div>
+      </div>
+      <div class="levelchip sup">
+        <div class="lbl">▼ 支撐觀察(${supLabel})</div>
+        <div class="val">${fmtNum(supTarget)}</div>
+        <div class="sub">距現價 ${dSup !== null ? '-' + dSup.toFixed(2) + '%' : '-'}</div>
+      </div>
+    </div>`;
+}
+
+// ---- 機械式位置判讀(純粹描述現價在今天區間的位置,不是買賣建議) ----
+function biasNote(q){
+  if(q.last == null || q.prev_close == null) return '';
+  const nearUpper = q.pct !== null && q.pct >= 9.5;
+  const nearLower = q.pct !== null && q.pct <= -9.5;
+  if(nearUpper) return '鎖在漲停附近,留意是否打開、打開後量能怎麼變化。';
+  if(nearLower) return '鎖在跌停附近,留意是否打開、打開後賣壓怎麼變化。';
+
+  const vsHigh = q.high != null ? (q.high - q.last) : null;
+  const vsLow = q.low != null ? (q.last - q.low) : null;
+  const dayRange = (q.high != null && q.low != null) ? (q.high - q.low) : null;
+  const nearHigh = dayRange && vsHigh !== null && vsHigh <= dayRange * 0.15;
+  const nearLow = dayRange && vsLow !== null && vsLow <= dayRange * 0.15;
+
+  if(q.last > q.prev_close){
+    if(nearHigh) return '站上昨收,且貼近今天高點,屬於偏多但追價區,拉回看昨收守不守得住。';
+    return '站上昨收,偏多格局,觀察能不能繼續墊高今天高點。';
+  } else if(q.last < q.prev_close){
+    if(nearLow) return '跌破昨收,且貼近今天低點,屬於偏空且破底區,反彈看能不能站回昨收。';
+    return '跌破昨收,偏空格局,觀察昨收那條線有沒有機會站回去。';
+  }
+  return '剛好卡在昨收價位,方向還沒出來,觀察往上或往下先突破哪一邊。';
 }
 
 function openDetail(code, isIndex){
@@ -277,35 +362,27 @@ function openDetail(code, isIndex){
 
   const series = seriesFor(code, isIndex);
   const color = q.change > 0 ? 'var(--up)' : (q.change < 0 ? 'var(--down)' : 'var(--muted)');
-  const distUpper = (q.upper_limit && q.last) ? (((q.upper_limit - q.last) / q.last) * 100).toFixed(2) : null;
-  const distLower = (q.lower_limit && q.last) ? (((q.last - q.lower_limit) / q.last) * 100).toFixed(2) : null;
+  const fillColor = q.change > 0 ? 'var(--up-fill)' : (q.change < 0 ? 'var(--down-fill)' : 'rgba(137,135,129,0.14)');
 
   document.getElementById('detailCard').innerHTML = `
-    <span class="close" onclick="closeDetail()">收合 ✕</span>
     <div class="dhead">
-      <div><span class="dname">${q.code !== q.name ? q.code + ' ' : ''}${q.name}</span></div>
+      <div>
+        <span class="dname">${q.code !== q.name ? q.code + ' ' : ''}${q.name}</span>
+      </div>
       <div style="text-align:right">
-        <span class="dprice ${PCT_CLASS(q.change)}">${fmtNum(q.last)}</span>
-        <span class="dchg ${PCT_CLASS(q.change)}">${fmtChange(q.change)} (${fmtPct(q.pct)})</span>
+        <span class="close" onclick="closeDetail()">收合 ✕</span>
+        <div><span class="dprice ${PCT_CLASS(q.change)}">${fmtNum(q.last)}</span></div>
+        <span class="dchg ${PCT_CLASS(q.change)}">${ARROW(q.change)} ${fmtChange(q.change)}(${fmtPct(q.pct)})</span>
       </div>
     </div>
-    <div class="grid4">
-      <div>開盤<b>${fmtNum(q.open)}</b></div>
-      <div>最高<b>${fmtNum(q.high)}</b></div>
-      <div>最低<b>${fmtNum(q.low)}</b></div>
-      <div>昨收<b>${fmtNum(q.prev_close)}</b></div>
-    </div>
-    ${!isIndex ? `
-    <div class="grid4">
-      <div>漲停價<b>${fmtNum(q.upper_limit)}</b></div>
-      <div>距漲停<b>${distUpper !== null ? distUpper + '%' : '-'}</b></div>
-      <div>跌停價<b>${fmtNum(q.lower_limit)}</b></div>
-      <div>距跌停<b>${distLower !== null ? distLower + '%' : '-'}</b></div>
-    </div>` : ''}
-    ${rangeGauge(q)}
+
+    ${priceLadder(q)}
+    ${levelChips(q, isIndex)}
+    <div class="biasnote">${biasNote(q)}</div>
+
     <div class="sparkwrap">
-      <div class="meta">今日走勢(從網頁開始記錄算起)</div>
-      ${sparklineSvg(series, 280, 50, color)}
+      <div class="meta">今日走勢(從網頁開始記錄算起,每約20分鐘一個點)</div>
+      ${sparklineSvg(series, 300, 54, color, fillColor)}
     </div>
     ${!isIndex ? renderChipBox(code) : ''}
   `;
