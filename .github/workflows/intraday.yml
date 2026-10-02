@@ -6,6 +6,13 @@ on:
     - cron: "*/5 1-5 * * 1-5"
   workflow_dispatch: {}
 
+# 排程改成5分鐘一次後,手動按「Run workflow」有機會跟排程本身的執行時間重疊;加這個讓同一個
+# workflow不要同時跑兩份(排隊等上一個跑完再跑,不取消正在跑的那個),避免兩邊同時git push
+# 互搶造成失敗。
+concurrency:
+  group: intraday-scan
+  cancel-in-progress: false
+
 permissions:
   contents: write
 
@@ -13,8 +20,8 @@ jobs:
   intraday:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
       - name: 安裝套件
@@ -29,4 +36,6 @@ jobs:
           git config user.email "actions@users.noreply.github.com"
           git add data/intraday_latest.json data/intraday_history.json data/alerts_state.json data/daily_bars.json
           git diff --quiet --cached || git commit -m "盤中報價更新 $(date -u -d '+8 hours' +'%Y-%m-%d %H:%M')"
-          git push
+          # 萬一偶爾還是跟別的執行撞在一起導致push被拒絕,先拉一次再重推一次,
+          # 真的還是不行才讓這步驟失敗(紅叉),不要默默放棄這次的資料。
+          git push || (git pull --rebase origin main && git push)
