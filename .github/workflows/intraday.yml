@@ -19,12 +19,14 @@ jobs:
           python-version: "3.11"
       - name: 安裝套件
         run: pip install requests
-      - name: 抓即時報價
+      - name: 抓即時報價 + 檢查觸價通知
+        env:
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
         run: python intraday.py
       - name: 把結果存回repo
         run: |
           git config user.name "tw-signal-scanner-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add data/intraday_latest.json data/intraday_history.json
+          git add data/intraday_latest.json data/intraday_history.json data/alerts_state.json
           git diff --quiet --cached || git commit -m "盤中報價更新 $(date -u -d '+8 hours' +'%Y-%m-%d %H:%M')"
           git push
