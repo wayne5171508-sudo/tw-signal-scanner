@@ -1,5 +1,5 @@
 {
-  "checked_at": "2026-10-02T19:33:46.877643+08:00",
+  "checked_at": "2026-10-02T20:27:55.266512+08:00",
   "data_as_of": "2026-10-02T13:33:15+08:00",
   "check_frequency_note": "開盤期間每約20分鐘由GitHub Actions排程抓一次,非逐秒即時報價",
   "indices": [
@@ -115,7 +115,8 @@
       "upper_limit": 600.0,
       "lower_limit": 491.5,
       "limit_flag": 1,
-      "ts": 1790919000
+      "ts": 1790919000,
+      "cdp": null
     },
     {
       "code": "3374",
@@ -131,7 +132,8 @@
       "upper_limit": 501.0,
       "lower_limit": 410.5,
       "limit_flag": 1,
-      "ts": 1790919000
+      "ts": 1790919000,
+      "cdp": null
     },
     {
       "code": "2408",
@@ -147,7 +149,8 @@
       "upper_limit": 570.0,
       "lower_limit": 467.5,
       "limit_flag": 1,
-      "ts": 1790919000
+      "ts": 1790919000,
+      "cdp": null
     },
     {
       "code": "2344",
@@ -163,7 +166,8 @@
       "upper_limit": 198.0,
       "lower_limit": 162.0,
       "limit_flag": 2,
-      "ts": 1790919000
+      "ts": 1790919000,
+      "cdp": null
     },
     {
       "code": "6147",
@@ -179,7 +183,8 @@
       "upper_limit": 248.0,
       "lower_limit": 203.0,
       "limit_flag": 2,
-      "ts": 1790919000
+      "ts": 1790919000,
+      "cdp": null
     },
     {
       "code": "8021",
@@ -195,7 +200,8 @@
       "upper_limit": 553.0,
       "lower_limit": 453.0,
       "limit_flag": 3,
-      "ts": 1790919000
+      "ts": 1790919000,
+      "cdp": null
     },
     {
       "code": "8039",
@@ -211,7 +217,8 @@
       "upper_limit": 317.0,
       "lower_limit": 260.0,
       "limit_flag": 1,
-      "ts": 1790919000
+      "ts": 1790919000,
+      "cdp": null
     },
     {
       "code": "8358",
@@ -227,7 +234,8 @@
       "upper_limit": 555.0,
       "lower_limit": 454.5,
       "limit_flag": 1,
-      "ts": 1790919000
+      "ts": 1790919000,
+      "cdp": null
     },
     {
       "code": "3264",
@@ -243,7 +251,8 @@
       "upper_limit": 270.0,
       "lower_limit": 221.0,
       "limit_flag": 2,
-      "ts": 1790919000
+      "ts": 1790919000,
+      "cdp": null
     },
     {
       "code": "4979",
@@ -259,7 +268,8 @@
       "upper_limit": 612.0,
       "lower_limit": 502.0,
       "limit_flag": 1,
-      "ts": 1790919000
+      "ts": 1790919000,
+      "cdp": null
     },
     {
       "code": "3105",
@@ -275,7 +285,8 @@
       "upper_limit": 591.0,
       "lower_limit": 484.5,
       "limit_flag": 3,
-      "ts": 1790919000
+      "ts": 1790919000,
+      "cdp": null
     },
     {
       "code": "6173",
@@ -291,7 +302,8 @@
       "upper_limit": 332.5,
       "lower_limit": 272.5,
       "limit_flag": 1,
-      "ts": 1790919000
+      "ts": 1790919000,
+      "cdp": null
     },
     {
       "code": "3016",
@@ -307,7 +319,8 @@
       "upper_limit": 184.5,
       "lower_limit": 151.5,
       "limit_flag": 1,
-      "ts": 1790919000
+      "ts": 1790919000,
+      "cdp": null
     },
     {
       "code": "1727",
@@ -323,7 +336,8 @@
       "upper_limit": 123.0,
       "lower_limit": 101.0,
       "limit_flag": 3,
-      "ts": 1790919000
+      "ts": 1790919000,
+      "cdp": null
     },
     {
       "code": "8042",
@@ -339,7 +353,8 @@
       "upper_limit": 129.5,
       "lower_limit": 106.5,
       "limit_flag": 1,
-      "ts": 1790919000
+      "ts": 1790919000,
+      "cdp": null
     },
     {
       "code": "3027",
@@ -355,7 +370,8 @@
       "upper_limit": 20.55,
       "lower_limit": 16.85,
       "limit_flag": 2,
-      "ts": 1790919000
+      "ts": 1790919000,
+      "cdp": null
     },
     {
       "code": "4303",
@@ -371,7 +387,8 @@
       "upper_limit": 36.65,
       "lower_limit": 30.05,
       "limit_flag": 0,
-      "ts": 1790919000
+      "ts": 1790919000,
+      "cdp": null
     },
     {
       "code": "8111",
@@ -387,7 +404,8 @@
       "upper_limit": 85.8,
       "lower_limit": 70.2,
       "limit_flag": 3,
-      "ts": 1790919000
+      "ts": 1790919000,
+      "cdp": null
     },
     {
       "code": "1815",
@@ -403,7 +421,8 @@
       "upper_limit": 127.5,
       "lower_limit": 104.5,
       "limit_flag": 1,
-      "ts": 1790919000
+      "ts": 1790919000,
+      "cdp": null
     },
     {
       "code": "2630",
@@ -419,7 +438,8 @@
       "upper_limit": 51.5,
       "lower_limit": 42.2,
       "limit_flag": 2,
-      "ts": 1790919000
+      "ts": 1790919000,
+      "cdp": null
     },
     {
       "code": "2883",
@@ -435,7 +455,8 @@
       "upper_limit": 40.55,
       "lower_limit": 33.25,
       "limit_flag": 1,
-      "ts": 1790919000
+      "ts": 1790919000,
+      "cdp": null
     },
     {
       "code": "2881",
@@ -451,7 +472,8 @@
       "upper_limit": 165.5,
       "lower_limit": 135.5,
       "limit_flag": 0,
-      "ts": 1790919000
+      "ts": 1790919000,
+      "cdp": null
     },
     {
       "code": "2313",
@@ -467,7 +489,8 @@
       "upper_limit": 246.5,
       "lower_limit": 202.5,
       "limit_flag": 1,
-      "ts": 1790919000
+      "ts": 1790919000,
+      "cdp": null
     },
     {
       "code": "4919",
@@ -483,7 +506,8 @@
       "upper_limit": 167.0,
       "lower_limit": 137.0,
       "limit_flag": 1,
-      "ts": 1790919000
+      "ts": 1790919000,
+      "cdp": null
     },
     {
       "code": "6217",
@@ -499,7 +523,8 @@
       "upper_limit": 191.5,
       "lower_limit": 157.5,
       "limit_flag": 1,
-      "ts": 1790919000
+      "ts": 1790919000,
+      "cdp": null
     },
     {
       "code": "1303",
@@ -515,7 +540,8 @@
       "upper_limit": 279.0,
       "lower_limit": 229.0,
       "limit_flag": 1,
-      "ts": 1790919000
+      "ts": 1790919000,
+      "cdp": null
     },
     {
       "code": "3051",
@@ -531,7 +557,8 @@
       "upper_limit": 25.3,
       "lower_limit": 20.7,
       "limit_flag": 1,
-      "ts": 1790919000
+      "ts": 1790919000,
+      "cdp": null
     },
     {
       "code": "6937",
@@ -547,7 +574,8 @@
       "upper_limit": 331.5,
       "lower_limit": 271.5,
       "limit_flag": 1,
-      "ts": 1790919000
+      "ts": 1790919000,
+      "cdp": null
     },
     {
       "code": "2337",
@@ -563,7 +591,8 @@
       "upper_limit": 133.0,
       "lower_limit": 109.0,
       "limit_flag": 1,
-      "ts": 1790919000
+      "ts": 1790919000,
+      "cdp": null
     },
     {
       "code": "6257",
@@ -579,7 +608,8 @@
       "upper_limit": 282.0,
       "lower_limit": 231.0,
       "limit_flag": 1,
-      "ts": 1790919000
+      "ts": 1790919000,
+      "cdp": null
     },
     {
       "code": "3090",
@@ -595,7 +625,8 @@
       "upper_limit": 185.5,
       "lower_limit": 152.5,
       "limit_flag": 1,
-      "ts": 1790919000
+      "ts": 1790919000,
+      "cdp": null
     },
     {
       "code": "2303",
@@ -611,7 +642,8 @@
       "upper_limit": 177.5,
       "lower_limit": 145.5,
       "limit_flag": 0,
-      "ts": 1790919000
+      "ts": 1790919000,
+      "cdp": null
     },
     {
       "code": "2379",
@@ -627,7 +659,8 @@
       "upper_limit": 838.0,
       "lower_limit": 686.0,
       "limit_flag": 2,
-      "ts": 1790919000
+      "ts": 1790919000,
+      "cdp": null
     },
     {
       "code": "2609",
@@ -643,7 +676,8 @@
       "upper_limit": 64.6,
       "lower_limit": 53.0,
       "limit_flag": 1,
-      "ts": 1790919000
+      "ts": 1790919000,
+      "cdp": null
     },
     {
       "code": "3231",
@@ -659,7 +693,8 @@
       "upper_limit": 209.5,
       "lower_limit": 171.5,
       "limit_flag": 2,
-      "ts": 1790919000
+      "ts": 1790919000,
+      "cdp": null
     },
     {
       "code": "3707",
@@ -675,7 +710,8 @@
       "upper_limit": 85.2,
       "lower_limit": 69.8,
       "limit_flag": 3,
-      "ts": 1790919000
+      "ts": 1790919000,
+      "cdp": null
     },
     {
       "code": "5425",
@@ -691,7 +727,8 @@
       "upper_limit": 107.0,
       "lower_limit": 87.8,
       "limit_flag": 1,
-      "ts": 1790919000
+      "ts": 1790919000,
+      "cdp": null
     },
     {
       "code": "2481",
@@ -707,7 +744,8 @@
       "upper_limit": 195.0,
       "lower_limit": 160.0,
       "limit_flag": 2,
-      "ts": 1790919000
+      "ts": 1790919000,
+      "cdp": null
     },
     {
       "code": "3588",
@@ -723,7 +761,8 @@
       "upper_limit": 65.1,
       "lower_limit": 53.3,
       "limit_flag": 2,
-      "ts": 1790919000
+      "ts": 1790919000,
+      "cdp": null
     },
     {
       "code": "5347",
@@ -739,7 +778,8 @@
       "upper_limit": 202.5,
       "lower_limit": 166.5,
       "limit_flag": 1,
-      "ts": 1790919000
+      "ts": 1790919000,
+      "cdp": null
     },
     {
       "code": "6182",
@@ -755,7 +795,8 @@
       "upper_limit": 143.0,
       "lower_limit": 117.0,
       "limit_flag": 1,
-      "ts": 1790919000
+      "ts": 1790919000,
+      "cdp": null
     },
     {
       "code": "2351",
@@ -771,7 +812,8 @@
       "upper_limit": 233.5,
       "lower_limit": 191.5,
       "limit_flag": 2,
-      "ts": 1790919000
+      "ts": 1790919000,
+      "cdp": null
     },
     {
       "code": "2449",
@@ -787,7 +829,8 @@
       "upper_limit": 325.5,
       "lower_limit": 266.5,
       "limit_flag": 2,
-      "ts": 1790919000
+      "ts": 1790919000,
+      "cdp": null
     },
     {
       "code": "6239",
@@ -803,7 +846,8 @@
       "upper_limit": 321.5,
       "lower_limit": 263.5,
       "limit_flag": 1,
-      "ts": 1790919000
+      "ts": 1790919000,
+      "cdp": null
     },
     {
       "code": "8150",
@@ -819,7 +863,8 @@
       "upper_limit": 127.0,
       "lower_limit": 104.0,
       "limit_flag": 3,
-      "ts": 1790919000
+      "ts": 1790919000,
+      "cdp": null
     },
     {
       "code": "4958",
@@ -835,7 +880,8 @@
       "upper_limit": 561.0,
       "lower_limit": 459.0,
       "limit_flag": 3,
-      "ts": 1790919000
+      "ts": 1790919000,
+      "cdp": null
     },
     {
       "code": "3037",
@@ -851,7 +897,8 @@
       "upper_limit": 1335.0,
       "lower_limit": 1095.0,
       "limit_flag": 1,
-      "ts": 1790919000
+      "ts": 1790919000,
+      "cdp": null
     },
     {
       "code": "6488",
@@ -867,7 +914,8 @@
       "upper_limit": 1190.0,
       "lower_limit": 977.0,
       "limit_flag": 3,
-      "ts": 1790919000
+      "ts": 1790919000,
+      "cdp": null
     },
     {
       "code": "3490",
@@ -883,7 +931,8 @@
       "upper_limit": 53.6,
       "lower_limit": 43.9,
       "limit_flag": 1,
-      "ts": 1790919000
+      "ts": 1790919000,
+      "cdp": null
     },
     {
       "code": "2409",
@@ -899,7 +948,8 @@
       "upper_limit": 42.1,
       "lower_limit": 34.5,
       "limit_flag": 1,
-      "ts": 1790919000
+      "ts": 1790919000,
+      "cdp": null
     }
   ]
 }
