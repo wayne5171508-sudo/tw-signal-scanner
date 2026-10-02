@@ -1,5 +1,5 @@
 {
-  "checked_at": "2026-10-02T20:27:55.266512+08:00",
+  "checked_at": "2026-10-02T20:54:40.835329+08:00",
   "data_as_of": "2026-10-02T13:33:15+08:00",
   "check_frequency_note": "開盤期間每約20分鐘由GitHub Actions排程抓一次,非逐秒即時報價",
   "indices": [
@@ -116,7 +116,9 @@
       "lower_limit": 491.5,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null
+      "cdp": null,
+      "volume_multiple": null,
+      "cdp_trend": []
     },
     {
       "code": "3374",
@@ -133,7 +135,9 @@
       "lower_limit": 410.5,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null
+      "cdp": null,
+      "volume_multiple": null,
+      "cdp_trend": []
     },
     {
       "code": "2408",
@@ -150,7 +154,9 @@
       "lower_limit": 467.5,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null
+      "cdp": null,
+      "volume_multiple": null,
+      "cdp_trend": []
     },
     {
       "code": "2344",
@@ -167,7 +173,9 @@
       "lower_limit": 162.0,
       "limit_flag": 2,
       "ts": 1790919000,
-      "cdp": null
+      "cdp": null,
+      "volume_multiple": null,
+      "cdp_trend": []
     },
     {
       "code": "6147",
@@ -184,7 +192,9 @@
       "lower_limit": 203.0,
       "limit_flag": 2,
       "ts": 1790919000,
-      "cdp": null
+      "cdp": null,
+      "volume_multiple": null,
+      "cdp_trend": []
     },
     {
       "code": "8021",
@@ -201,7 +211,9 @@
       "lower_limit": 453.0,
       "limit_flag": 3,
       "ts": 1790919000,
-      "cdp": null
+      "cdp": null,
+      "volume_multiple": null,
+      "cdp_trend": []
     },
     {
       "code": "8039",
@@ -218,7 +230,9 @@
       "lower_limit": 260.0,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null
+      "cdp": null,
+      "volume_multiple": null,
+      "cdp_trend": []
     },
     {
       "code": "8358",
@@ -235,7 +249,9 @@
       "lower_limit": 454.5,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null
+      "cdp": null,
+      "volume_multiple": null,
+      "cdp_trend": []
     },
     {
       "code": "3264",
@@ -252,7 +268,9 @@
       "lower_limit": 221.0,
       "limit_flag": 2,
       "ts": 1790919000,
-      "cdp": null
+      "cdp": null,
+      "volume_multiple": null,
+      "cdp_trend": []
     },
     {
       "code": "4979",
@@ -269,7 +287,9 @@
       "lower_limit": 502.0,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null
+      "cdp": null,
+      "volume_multiple": null,
+      "cdp_trend": []
     },
     {
       "code": "3105",
@@ -286,7 +306,9 @@
       "lower_limit": 484.5,
       "limit_flag": 3,
       "ts": 1790919000,
-      "cdp": null
+      "cdp": null,
+      "volume_multiple": null,
+      "cdp_trend": []
     },
     {
       "code": "6173",
@@ -303,7 +325,9 @@
       "lower_limit": 272.5,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null
+      "cdp": null,
+      "volume_multiple": null,
+      "cdp_trend": []
     },
     {
       "code": "3016",
@@ -320,7 +344,9 @@
       "lower_limit": 151.5,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null
+      "cdp": null,
+      "volume_multiple": null,
+      "cdp_trend": []
     },
     {
       "code": "1727",
@@ -337,7 +363,9 @@
       "lower_limit": 101.0,
       "limit_flag": 3,
       "ts": 1790919000,
-      "cdp": null
+      "cdp": null,
+      "volume_multiple": null,
+      "cdp_trend": []
     },
     {
       "code": "8042",
@@ -354,7 +382,9 @@
       "lower_limit": 106.5,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null
+      "cdp": null,
+      "volume_multiple": null,
+      "cdp_trend": []
     },
     {
       "code": "3027",
@@ -371,7 +401,9 @@
       "lower_limit": 16.85,
       "limit_flag": 2,
       "ts": 1790919000,
-      "cdp": null
+      "cdp": null,
+      "volume_multiple": null,
+      "cdp_trend": []
     },
     {
       "code": "4303",
@@ -388,7 +420,9 @@
       "lower_limit": 30.05,
       "limit_flag": 0,
       "ts": 1790919000,
-      "cdp": null
+      "cdp": null,
+      "volume_multiple": null,
+      "cdp_trend": []
     },
     {
       "code": "8111",
@@ -405,7 +439,9 @@
       "lower_limit": 70.2,
       "limit_flag": 3,
       "ts": 1790919000,
-      "cdp": null
+      "cdp": null,
+      "volume_multiple": null,
+      "cdp_trend": []
     },
     {
       "code": "1815",
@@ -422,7 +458,9 @@
       "lower_limit": 104.5,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null
+      "cdp": null,
+      "volume_multiple": null,
+      "cdp_trend": []
     },
     {
       "code": "2630",
@@ -439,7 +477,9 @@
       "lower_limit": 42.2,
       "limit_flag": 2,
       "ts": 1790919000,
-      "cdp": null
+      "cdp": null,
+      "volume_multiple": null,
+      "cdp_trend": []
     },
     {
       "code": "2883",
@@ -456,7 +496,9 @@
       "lower_limit": 33.25,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null
+      "cdp": null,
+      "volume_multiple": null,
+      "cdp_trend": []
     },
     {
       "code": "2881",
@@ -473,7 +515,9 @@
       "lower_limit": 135.5,
       "limit_flag": 0,
       "ts": 1790919000,
-      "cdp": null
+      "cdp": null,
+      "volume_multiple": null,
+      "cdp_trend": []
     },
     {
       "code": "2313",
@@ -490,7 +534,9 @@
       "lower_limit": 202.5,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null
+      "cdp": null,
+      "volume_multiple": null,
+      "cdp_trend": []
     },
     {
       "code": "4919",
@@ -507,7 +553,9 @@
       "lower_limit": 137.0,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null
+      "cdp": null,
+      "volume_multiple": null,
+      "cdp_trend": []
     },
     {
       "code": "6217",
@@ -524,7 +572,9 @@
       "lower_limit": 157.5,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null
+      "cdp": null,
+      "volume_multiple": null,
+      "cdp_trend": []
     },
     {
       "code": "1303",
@@ -541,7 +591,9 @@
       "lower_limit": 229.0,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null
+      "cdp": null,
+      "volume_multiple": null,
+      "cdp_trend": []
     },
     {
       "code": "3051",
@@ -558,7 +610,9 @@
       "lower_limit": 20.7,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null
+      "cdp": null,
+      "volume_multiple": null,
+      "cdp_trend": []
     },
     {
       "code": "6937",
@@ -575,7 +629,9 @@
       "lower_limit": 271.5,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null
+      "cdp": null,
+      "volume_multiple": null,
+      "cdp_trend": []
     },
     {
       "code": "2337",
@@ -592,7 +648,9 @@
       "lower_limit": 109.0,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null
+      "cdp": null,
+      "volume_multiple": null,
+      "cdp_trend": []
     },
     {
       "code": "6257",
@@ -609,7 +667,9 @@
       "lower_limit": 231.0,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null
+      "cdp": null,
+      "volume_multiple": null,
+      "cdp_trend": []
     },
     {
       "code": "3090",
@@ -626,7 +686,9 @@
       "lower_limit": 152.5,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null
+      "cdp": null,
+      "volume_multiple": null,
+      "cdp_trend": []
     },
     {
       "code": "2303",
@@ -643,7 +705,9 @@
       "lower_limit": 145.5,
       "limit_flag": 0,
       "ts": 1790919000,
-      "cdp": null
+      "cdp": null,
+      "volume_multiple": null,
+      "cdp_trend": []
     },
     {
       "code": "2379",
@@ -660,7 +724,9 @@
       "lower_limit": 686.0,
       "limit_flag": 2,
       "ts": 1790919000,
-      "cdp": null
+      "cdp": null,
+      "volume_multiple": null,
+      "cdp_trend": []
     },
     {
       "code": "2609",
@@ -677,7 +743,9 @@
       "lower_limit": 53.0,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null
+      "cdp": null,
+      "volume_multiple": null,
+      "cdp_trend": []
     },
     {
       "code": "3231",
@@ -694,7 +762,9 @@
       "lower_limit": 171.5,
       "limit_flag": 2,
       "ts": 1790919000,
-      "cdp": null
+      "cdp": null,
+      "volume_multiple": null,
+      "cdp_trend": []
     },
     {
       "code": "3707",
@@ -711,7 +781,9 @@
       "lower_limit": 69.8,
       "limit_flag": 3,
       "ts": 1790919000,
-      "cdp": null
+      "cdp": null,
+      "volume_multiple": null,
+      "cdp_trend": []
     },
     {
       "code": "5425",
@@ -728,7 +800,9 @@
       "lower_limit": 87.8,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null
+      "cdp": null,
+      "volume_multiple": null,
+      "cdp_trend": []
     },
     {
       "code": "2481",
@@ -745,7 +819,9 @@
       "lower_limit": 160.0,
       "limit_flag": 2,
       "ts": 1790919000,
-      "cdp": null
+      "cdp": null,
+      "volume_multiple": null,
+      "cdp_trend": []
     },
     {
       "code": "3588",
@@ -762,7 +838,9 @@
       "lower_limit": 53.3,
       "limit_flag": 2,
       "ts": 1790919000,
-      "cdp": null
+      "cdp": null,
+      "volume_multiple": null,
+      "cdp_trend": []
     },
     {
       "code": "5347",
@@ -779,7 +857,9 @@
       "lower_limit": 166.5,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null
+      "cdp": null,
+      "volume_multiple": null,
+      "cdp_trend": []
     },
     {
       "code": "6182",
@@ -796,7 +876,9 @@
       "lower_limit": 117.0,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null
+      "cdp": null,
+      "volume_multiple": null,
+      "cdp_trend": []
     },
     {
       "code": "2351",
@@ -813,7 +895,9 @@
       "lower_limit": 191.5,
       "limit_flag": 2,
       "ts": 1790919000,
-      "cdp": null
+      "cdp": null,
+      "volume_multiple": null,
+      "cdp_trend": []
     },
     {
       "code": "2449",
@@ -830,7 +914,9 @@
       "lower_limit": 266.5,
       "limit_flag": 2,
       "ts": 1790919000,
-      "cdp": null
+      "cdp": null,
+      "volume_multiple": null,
+      "cdp_trend": []
     },
     {
       "code": "6239",
@@ -847,7 +933,9 @@
       "lower_limit": 263.5,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null
+      "cdp": null,
+      "volume_multiple": null,
+      "cdp_trend": []
     },
     {
       "code": "8150",
@@ -864,7 +952,9 @@
       "lower_limit": 104.0,
       "limit_flag": 3,
       "ts": 1790919000,
-      "cdp": null
+      "cdp": null,
+      "volume_multiple": null,
+      "cdp_trend": []
     },
     {
       "code": "4958",
@@ -881,7 +971,9 @@
       "lower_limit": 459.0,
       "limit_flag": 3,
       "ts": 1790919000,
-      "cdp": null
+      "cdp": null,
+      "volume_multiple": null,
+      "cdp_trend": []
     },
     {
       "code": "3037",
@@ -898,7 +990,9 @@
       "lower_limit": 1095.0,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null
+      "cdp": null,
+      "volume_multiple": null,
+      "cdp_trend": []
     },
     {
       "code": "6488",
@@ -915,7 +1009,9 @@
       "lower_limit": 977.0,
       "limit_flag": 3,
       "ts": 1790919000,
-      "cdp": null
+      "cdp": null,
+      "volume_multiple": null,
+      "cdp_trend": []
     },
     {
       "code": "3490",
@@ -932,7 +1028,9 @@
       "lower_limit": 43.9,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null
+      "cdp": null,
+      "volume_multiple": null,
+      "cdp_trend": []
     },
     {
       "code": "2409",
@@ -949,7 +1047,9 @@
       "lower_limit": 34.5,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null
+      "cdp": null,
+      "volume_multiple": null,
+      "cdp_trend": []
     }
   ]
 }
