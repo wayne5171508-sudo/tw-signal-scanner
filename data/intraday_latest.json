@@ -1,5 +1,5 @@
 {
-  "checked_at": "2026-10-02T22:15:58.223833+08:00",
+  "checked_at": "2026-10-03T12:26:03.553401+08:00",
   "data_as_of": "2026-10-02T13:33:15+08:00",
   "check_frequency_note": "開盤期間每約5分鐘由GitHub Actions排程抓一次,非逐秒即時報價",
   "indices": [
@@ -38,66 +38,66 @@
     {
       "code": "GI:DJI:INDEX",
       "name": "道瓊指數",
-      "last": 51249.88,
-      "change": 323.32,
-      "pct": 0.63,
+      "last": 51176.96,
+      "change": 250.4,
+      "pct": 0.49,
       "open": 51241.18,
       "high": 51382.88,
-      "low": 51093.56,
+      "low": 50950.61,
       "prev_close": 50926.56,
-      "volume": 131395766.0,
+      "volume": 548953568.0,
       "upper_limit": null,
       "lower_limit": null,
       "limit_flag": 1,
-      "ts": 1790949954
+      "ts": 1790971861
     },
     {
       "code": "GI:IXIC:INDEX",
       "name": "NASDAQ",
-      "last": 27259.954,
-      "change": 388.36,
-      "pct": 1.45,
+      "last": 27190.864,
+      "change": 319.27,
+      "pct": 1.19,
       "open": 27216.907,
-      "high": 27280.281,
-      "low": 27172.287,
+      "high": 27353.68,
+      "low": 27112.241,
       "prev_close": 26871.595,
-      "volume": 207786552.0,
+      "volume": 1386146986.0,
       "upper_limit": null,
       "lower_limit": null,
       "limit_flag": 1,
-      "ts": 1790949657
+      "ts": 1790971560
     },
     {
       "code": "GI:INX:INDEX",
       "name": "S&P 500",
-      "last": 7743.69,
-      "change": 77.24,
-      "pct": 1.01,
+      "last": 7722.72,
+      "change": 56.27,
+      "pct": 0.73,
       "open": 7726.24,
-      "high": 7750.08,
-      "low": 7720.14,
+      "high": 7754.67,
+      "low": 7700.51,
       "prev_close": 7666.45,
-      "volume": 502034.0,
+      "volume": 3130029.0,
       "upper_limit": null,
       "lower_limit": null,
       "limit_flag": 1,
-      "ts": 1790949954
+      "ts": 1790971405
     },
     {
       "code": "GI:SOX:INDEX",
       "name": "費城半導體",
-      "last": 13216.912,
-      "change": 387.91,
-      "pct": 3.02,
+      "last": 13136.675,
+      "change": 307.67,
+      "pct": 2.4,
       "open": 13130.759,
-      "high": 13239.555,
+      "high": 13269.334,
       "low": 13082.006,
       "prev_close": 12829.0,
       "volume": null,
       "upper_limit": null,
       "lower_limit": null,
       "limit_flag": 1,
-      "ts": 1790949657
+      "ts": 1790971560
     }
   ],
   "watchlist_quotes": [
@@ -116,9 +116,27 @@
       "lower_limit": 491.5,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null,
+      "cdp": {
+        "cdp": 572.75,
+        "nh": 594.5,
+        "nl": 565.5,
+        "ah": 601.75,
+        "al": 543.75,
+        "basis": {
+          "h": 580.0,
+          "l": 551.0,
+          "c": 580.0
+        }
+      },
       "volume_multiple": null,
-      "cdp_trend": []
+      "cdp_trend": [
+        {
+          "date": "今天",
+          "nh": 594.5,
+          "nl": 565.5,
+          "cdp": 572.75
+        }
+      ]
     },
     {
       "code": "3374",
@@ -135,9 +153,27 @@
       "lower_limit": 410.5,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null,
+      "cdp": {
+        "cdp": 464.125,
+        "nh": 474.25,
+        "nl": 460.75,
+        "ah": 477.625,
+        "al": 450.625,
+        "basis": {
+          "h": 467.5,
+          "l": 454.0,
+          "c": 467.5
+        }
+      },
       "volume_multiple": null,
-      "cdp_trend": []
+      "cdp_trend": [
+        {
+          "date": "今天",
+          "nh": 474.25,
+          "nl": 460.75,
+          "cdp": 464.125
+        }
+      ]
     },
     {
       "code": "2408",
@@ -154,9 +190,27 @@
       "lower_limit": 467.5,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null,
+      "cdp": {
+        "cdp": 526.75,
+        "nh": 532.5,
+        "nl": 519.5,
+        "ah": 539.75,
+        "al": 513.75,
+        "basis": {
+          "h": 534.0,
+          "l": 521.0,
+          "c": 526.0
+        }
+      },
       "volume_multiple": null,
-      "cdp_trend": []
+      "cdp_trend": [
+        {
+          "date": "今天",
+          "nh": 532.5,
+          "nl": 519.5,
+          "cdp": 526.75
+        }
+      ]
     },
     {
       "code": "2344",
@@ -173,9 +227,27 @@
       "lower_limit": 162.0,
       "limit_flag": 2,
       "ts": 1790919000,
-      "cdp": null,
+      "cdp": {
+        "cdp": 179.875,
+        "nh": 182.25,
+        "nl": 175.75,
+        "ah": 186.375,
+        "al": 173.375,
+        "basis": {
+          "h": 184.0,
+          "l": 177.5,
+          "c": 179.0
+        }
+      },
       "volume_multiple": null,
-      "cdp_trend": []
+      "cdp_trend": [
+        {
+          "date": "今天",
+          "nh": 182.25,
+          "nl": 175.75,
+          "cdp": 179.875
+        }
+      ]
     },
     {
       "code": "6147",
@@ -192,9 +264,27 @@
       "lower_limit": 203.0,
       "limit_flag": 2,
       "ts": 1790919000,
-      "cdp": null,
+      "cdp": {
+        "cdp": 223.5,
+        "nh": 226.0,
+        "nl": 220.0,
+        "ah": 229.5,
+        "al": 217.5,
+        "basis": {
+          "h": 227.0,
+          "l": 221.0,
+          "c": 223.0
+        }
+      },
       "volume_multiple": null,
-      "cdp_trend": []
+      "cdp_trend": [
+        {
+          "date": "今天",
+          "nh": 226.0,
+          "nl": 220.0,
+          "cdp": 223.5
+        }
+      ]
     },
     {
       "code": "8021",
@@ -211,9 +301,27 @@
       "lower_limit": 453.0,
       "limit_flag": 3,
       "ts": 1790919000,
-      "cdp": null,
+      "cdp": {
+        "cdp": 540.0,
+        "nh": 579.0,
+        "nl": 527.0,
+        "ah": 592.0,
+        "al": 488.0,
+        "basis": {
+          "h": 553.0,
+          "l": 501.0,
+          "c": 553.0
+        }
+      },
       "volume_multiple": null,
-      "cdp_trend": []
+      "cdp_trend": [
+        {
+          "date": "今天",
+          "nh": 579.0,
+          "nl": 527.0,
+          "cdp": 540.0
+        }
+      ]
     },
     {
       "code": "8039",
@@ -230,9 +338,27 @@
       "lower_limit": 260.0,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null,
+      "cdp": {
+        "cdp": 292.125,
+        "nh": 303.75,
+        "nl": 288.25,
+        "ah": 307.625,
+        "al": 276.625,
+        "basis": {
+          "h": 296.0,
+          "l": 280.5,
+          "c": 296.0
+        }
+      },
       "volume_multiple": null,
-      "cdp_trend": []
+      "cdp_trend": [
+        {
+          "date": "今天",
+          "nh": 303.75,
+          "nl": 288.25,
+          "cdp": 292.125
+        }
+      ]
     },
     {
       "code": "8358",
@@ -249,9 +375,27 @@
       "lower_limit": 454.5,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null,
+      "cdp": {
+        "cdp": 521.25,
+        "nh": 531.5,
+        "nl": 506.5,
+        "ah": 546.25,
+        "al": 496.25,
+        "basis": {
+          "h": 536.0,
+          "l": 511.0,
+          "c": 519.0
+        }
+      },
       "volume_multiple": null,
-      "cdp_trend": []
+      "cdp_trend": [
+        {
+          "date": "今天",
+          "nh": 531.5,
+          "nl": 506.5,
+          "cdp": 521.25
+        }
+      ]
     },
     {
       "code": "3264",
@@ -268,9 +412,27 @@
       "lower_limit": 221.0,
       "limit_flag": 2,
       "ts": 1790919000,
-      "cdp": null,
+      "cdp": {
+        "cdp": 244.75,
+        "nh": 248.0,
+        "nl": 242.0,
+        "ah": 250.75,
+        "al": 238.75,
+        "basis": {
+          "h": 247.5,
+          "l": 241.5,
+          "c": 245.0
+        }
+      },
       "volume_multiple": null,
-      "cdp_trend": []
+      "cdp_trend": [
+        {
+          "date": "今天",
+          "nh": 248.0,
+          "nl": 242.0,
+          "cdp": 244.75
+        }
+      ]
     },
     {
       "code": "4979",
@@ -287,9 +449,27 @@
       "lower_limit": 502.0,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null,
+      "cdp": {
+        "cdp": 579.75,
+        "nh": 595.5,
+        "nl": 574.5,
+        "ah": 600.75,
+        "al": 558.75,
+        "basis": {
+          "h": 585.0,
+          "l": 564.0,
+          "c": 585.0
+        }
+      },
       "volume_multiple": null,
-      "cdp_trend": []
+      "cdp_trend": [
+        {
+          "date": "今天",
+          "nh": 595.5,
+          "nl": 574.5,
+          "cdp": 579.75
+        }
+      ]
     },
     {
       "code": "3105",
@@ -306,9 +486,27 @@
       "lower_limit": 484.5,
       "limit_flag": 3,
       "ts": 1790919000,
-      "cdp": null,
+      "cdp": {
+        "cdp": 586.25,
+        "nh": 600.5,
+        "nl": 581.5,
+        "ah": 605.25,
+        "al": 567.25,
+        "basis": {
+          "h": 591.0,
+          "l": 572.0,
+          "c": 591.0
+        }
+      },
       "volume_multiple": null,
-      "cdp_trend": []
+      "cdp_trend": [
+        {
+          "date": "今天",
+          "nh": 600.5,
+          "nl": 581.5,
+          "cdp": 586.25
+        }
+      ]
     },
     {
       "code": "6173",
@@ -325,9 +523,27 @@
       "lower_limit": 272.5,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null,
+      "cdp": {
+        "cdp": 306.875,
+        "nh": 314.75,
+        "nl": 291.25,
+        "ah": 330.375,
+        "al": 283.375,
+        "basis": {
+          "h": 322.5,
+          "l": 299.0,
+          "c": 303.0
+        }
+      },
       "volume_multiple": null,
-      "cdp_trend": []
+      "cdp_trend": [
+        {
+          "date": "今天",
+          "nh": 314.75,
+          "nl": 291.25,
+          "cdp": 306.875
+        }
+      ]
     },
     {
       "code": "3016",
@@ -344,9 +560,27 @@
       "lower_limit": 151.5,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null,
+      "cdp": {
+        "cdp": 178.125,
+        "nh": 186.75,
+        "nl": 174.25,
+        "ah": 190.625,
+        "al": 165.625,
+        "basis": {
+          "h": 182.0,
+          "l": 169.5,
+          "c": 180.5
+        }
+      },
       "volume_multiple": null,
-      "cdp_trend": []
+      "cdp_trend": [
+        {
+          "date": "今天",
+          "nh": 186.75,
+          "nl": 174.25,
+          "cdp": 178.125
+        }
+      ]
     },
     {
       "code": "1727",
@@ -363,9 +597,27 @@
       "lower_limit": 101.0,
       "limit_flag": 3,
       "ts": 1790919000,
-      "cdp": null,
+      "cdp": {
+        "cdp": 120.0,
+        "nh": 129.0,
+        "nl": 117.0,
+        "ah": 132.0,
+        "al": 108.0,
+        "basis": {
+          "h": 123.0,
+          "l": 111.0,
+          "c": 123.0
+        }
+      },
       "volume_multiple": null,
-      "cdp_trend": []
+      "cdp_trend": [
+        {
+          "date": "今天",
+          "nh": 129.0,
+          "nl": 117.0,
+          "cdp": 120.0
+        }
+      ]
     },
     {
       "code": "8042",
@@ -382,9 +634,27 @@
       "lower_limit": 106.5,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null,
+      "cdp": {
+        "cdp": 120.5,
+        "nh": 125.0,
+        "nl": 117.0,
+        "ah": 128.5,
+        "al": 112.5,
+        "basis": {
+          "h": 124.0,
+          "l": 116.0,
+          "c": 121.0
+        }
+      },
       "volume_multiple": null,
-      "cdp_trend": []
+      "cdp_trend": [
+        {
+          "date": "今天",
+          "nh": 125.0,
+          "nl": 117.0,
+          "cdp": 120.5
+        }
+      ]
     },
     {
       "code": "3027",
@@ -401,9 +671,27 @@
       "lower_limit": 16.85,
       "limit_flag": 2,
       "ts": 1790919000,
-      "cdp": null,
+      "cdp": {
+        "cdp": 18.6375,
+        "nh": 18.775,
+        "nl": 18.425,
+        "ah": 18.9875,
+        "al": 18.2875,
+        "basis": {
+          "h": 18.85,
+          "l": 18.5,
+          "c": 18.6
+        }
+      },
       "volume_multiple": null,
-      "cdp_trend": []
+      "cdp_trend": [
+        {
+          "date": "今天",
+          "nh": 18.775,
+          "nl": 18.425,
+          "cdp": 18.6375
+        }
+      ]
     },
     {
       "code": "4303",
@@ -420,9 +708,27 @@
       "lower_limit": 30.05,
       "limit_flag": 0,
       "ts": 1790919000,
-      "cdp": null,
+      "cdp": {
+        "cdp": 33.3,
+        "nh": 33.55,
+        "nl": 33.15,
+        "ah": 33.7,
+        "al": 32.9,
+        "basis": {
+          "h": 33.45,
+          "l": 33.05,
+          "c": 33.35
+        }
+      },
       "volume_multiple": null,
-      "cdp_trend": []
+      "cdp_trend": [
+        {
+          "date": "今天",
+          "nh": 33.55,
+          "nl": 33.15,
+          "cdp": 33.3
+        }
+      ]
     },
     {
       "code": "8111",
@@ -439,9 +745,27 @@
       "lower_limit": 70.2,
       "limit_flag": 3,
       "ts": 1790919000,
-      "cdp": null,
+      "cdp": {
+        "cdp": 84.375,
+        "nh": 88.65,
+        "nl": 82.95,
+        "ah": 90.075,
+        "al": 78.675,
+        "basis": {
+          "h": 85.8,
+          "l": 80.1,
+          "c": 85.8
+        }
+      },
       "volume_multiple": null,
-      "cdp_trend": []
+      "cdp_trend": [
+        {
+          "date": "今天",
+          "nh": 88.65,
+          "nl": 82.95,
+          "cdp": 84.375
+        }
+      ]
     },
     {
       "code": "1815",
@@ -458,9 +782,27 @@
       "lower_limit": 104.5,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null,
+      "cdp": {
+        "cdp": 120.0,
+        "nh": 124.0,
+        "nl": 118.0,
+        "ah": 126.0,
+        "al": 114.0,
+        "basis": {
+          "h": 122.0,
+          "l": 116.0,
+          "c": 121.0
+        }
+      },
       "volume_multiple": null,
-      "cdp_trend": []
+      "cdp_trend": [
+        {
+          "date": "今天",
+          "nh": 124.0,
+          "nl": 118.0,
+          "cdp": 120.0
+        }
+      ]
     },
     {
       "code": "2630",
@@ -477,9 +819,27 @@
       "lower_limit": 42.2,
       "limit_flag": 2,
       "ts": 1790919000,
-      "cdp": null,
+      "cdp": {
+        "cdp": 46.8375,
+        "nh": 47.075,
+        "nl": 46.525,
+        "ah": 47.3875,
+        "al": 46.2875,
+        "basis": {
+          "h": 47.15,
+          "l": 46.6,
+          "c": 46.8
+        }
+      },
       "volume_multiple": null,
-      "cdp_trend": []
+      "cdp_trend": [
+        {
+          "date": "今天",
+          "nh": 47.075,
+          "nl": 46.525,
+          "cdp": 46.8375
+        }
+      ]
     },
     {
       "code": "2883",
@@ -496,9 +856,27 @@
       "lower_limit": 33.25,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null,
+      "cdp": {
+        "cdp": 37.25,
+        "nh": 37.9,
+        "nl": 36.8,
+        "ah": 38.35,
+        "al": 36.15,
+        "basis": {
+          "h": 37.7,
+          "l": 36.6,
+          "c": 37.35
+        }
+      },
       "volume_multiple": null,
-      "cdp_trend": []
+      "cdp_trend": [
+        {
+          "date": "今天",
+          "nh": 37.9,
+          "nl": 36.8,
+          "cdp": 37.25
+        }
+      ]
     },
     {
       "code": "2881",
@@ -515,9 +893,27 @@
       "lower_limit": 135.5,
       "limit_flag": 0,
       "ts": 1790919000,
-      "cdp": null,
+      "cdp": {
+        "cdp": 150.375,
+        "nh": 151.75,
+        "nl": 149.25,
+        "ah": 152.875,
+        "al": 147.875,
+        "basis": {
+          "h": 151.5,
+          "l": 149.0,
+          "c": 150.5
+        }
+      },
       "volume_multiple": null,
-      "cdp_trend": []
+      "cdp_trend": [
+        {
+          "date": "今天",
+          "nh": 151.75,
+          "nl": 149.25,
+          "cdp": 150.375
+        }
+      ]
     },
     {
       "code": "2313",
@@ -534,9 +930,27 @@
       "lower_limit": 202.5,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null,
+      "cdp": {
+        "cdp": 226.0,
+        "nh": 228.0,
+        "nl": 224.0,
+        "ah": 230.0,
+        "al": 222.0,
+        "basis": {
+          "h": 228.0,
+          "l": 224.0,
+          "c": 226.0
+        }
+      },
       "volume_multiple": null,
-      "cdp_trend": []
+      "cdp_trend": [
+        {
+          "date": "今天",
+          "nh": 228.0,
+          "nl": 224.0,
+          "cdp": 226.0
+        }
+      ]
     },
     {
       "code": "4919",
@@ -553,9 +967,27 @@
       "lower_limit": 137.0,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null,
+      "cdp": {
+        "cdp": 159.625,
+        "nh": 173.75,
+        "nl": 152.25,
+        "ah": 181.125,
+        "al": 138.125,
+        "basis": {
+          "h": 167.0,
+          "l": 145.5,
+          "c": 163.0
+        }
+      },
       "volume_multiple": null,
-      "cdp_trend": []
+      "cdp_trend": [
+        {
+          "date": "今天",
+          "nh": 173.75,
+          "nl": 152.25,
+          "cdp": 159.625
+        }
+      ]
     },
     {
       "code": "6217",
@@ -572,9 +1004,27 @@
       "lower_limit": 157.5,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null,
+      "cdp": {
+        "cdp": 178.25,
+        "nh": 182.5,
+        "nl": 172.5,
+        "ah": 188.25,
+        "al": 168.25,
+        "basis": {
+          "h": 184.0,
+          "l": 174.0,
+          "c": 177.5
+        }
+      },
       "volume_multiple": null,
-      "cdp_trend": []
+      "cdp_trend": [
+        {
+          "date": "今天",
+          "nh": 182.5,
+          "nl": 172.5,
+          "cdp": 178.25
+        }
+      ]
     },
     {
       "code": "1303",
@@ -591,9 +1041,27 @@
       "lower_limit": 229.0,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null,
+      "cdp": {
+        "cdp": 258.125,
+        "nh": 264.75,
+        "nl": 255.25,
+        "ah": 267.625,
+        "al": 248.625,
+        "basis": {
+          "h": 261.0,
+          "l": 251.5,
+          "c": 260.0
+        }
+      },
       "volume_multiple": null,
-      "cdp_trend": []
+      "cdp_trend": [
+        {
+          "date": "今天",
+          "nh": 264.75,
+          "nl": 255.25,
+          "cdp": 258.125
+        }
+      ]
     },
     {
       "code": "3051",
@@ -610,9 +1078,27 @@
       "lower_limit": 20.7,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null,
+      "cdp": {
+        "cdp": 23.5,
+        "nh": 24.0,
+        "nl": 23.2,
+        "ah": 24.3,
+        "al": 22.7,
+        "basis": {
+          "h": 23.8,
+          "l": 23.0,
+          "c": 23.6
+        }
+      },
       "volume_multiple": null,
-      "cdp_trend": []
+      "cdp_trend": [
+        {
+          "date": "今天",
+          "nh": 24.0,
+          "nl": 23.2,
+          "cdp": 23.5
+        }
+      ]
     },
     {
       "code": "6937",
@@ -629,9 +1115,27 @@
       "lower_limit": 271.5,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null,
+      "cdp": {
+        "cdp": 304.25,
+        "nh": 307.0,
+        "nl": 300.0,
+        "ah": 311.25,
+        "al": 297.25,
+        "basis": {
+          "h": 308.5,
+          "l": 301.5,
+          "c": 303.5
+        }
+      },
       "volume_multiple": null,
-      "cdp_trend": []
+      "cdp_trend": [
+        {
+          "date": "今天",
+          "nh": 307.0,
+          "nl": 300.0,
+          "cdp": 304.25
+        }
+      ]
     },
     {
       "code": "2337",
@@ -648,9 +1152,27 @@
       "lower_limit": 109.0,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null,
+      "cdp": {
+        "cdp": 122.0,
+        "nh": 123.0,
+        "nl": 121.0,
+        "ah": 124.0,
+        "al": 120.0,
+        "basis": {
+          "h": 123.0,
+          "l": 121.0,
+          "c": 122.0
+        }
+      },
       "volume_multiple": null,
-      "cdp_trend": []
+      "cdp_trend": [
+        {
+          "date": "今天",
+          "nh": 123.0,
+          "nl": 121.0,
+          "cdp": 122.0
+        }
+      ]
     },
     {
       "code": "6257",
@@ -667,9 +1189,27 @@
       "lower_limit": 231.0,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null,
+      "cdp": {
+        "cdp": 257.875,
+        "nh": 265.25,
+        "nl": 249.75,
+        "ah": 273.375,
+        "al": 242.375,
+        "basis": {
+          "h": 266.0,
+          "l": 250.5,
+          "c": 257.5
+        }
+      },
       "volume_multiple": null,
-      "cdp_trend": []
+      "cdp_trend": [
+        {
+          "date": "今天",
+          "nh": 265.25,
+          "nl": 249.75,
+          "cdp": 257.875
+        }
+      ]
     },
     {
       "code": "3090",
@@ -686,9 +1226,27 @@
       "lower_limit": 152.5,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null,
+      "cdp": {
+        "cdp": 172.375,
+        "nh": 177.75,
+        "nl": 169.25,
+        "ah": 180.875,
+        "al": 163.875,
+        "basis": {
+          "h": 175.5,
+          "l": 167.0,
+          "c": 173.5
+        }
+      },
       "volume_multiple": null,
-      "cdp_trend": []
+      "cdp_trend": [
+        {
+          "date": "今天",
+          "nh": 177.75,
+          "nl": 169.25,
+          "cdp": 172.375
+        }
+      ]
     },
     {
       "code": "2303",
@@ -705,9 +1263,27 @@
       "lower_limit": 145.5,
       "limit_flag": 0,
       "ts": 1790919000,
-      "cdp": null,
+      "cdp": {
+        "cdp": 160.75,
+        "nh": 164.0,
+        "nl": 159.0,
+        "ah": 165.75,
+        "al": 155.75,
+        "basis": {
+          "h": 162.5,
+          "l": 157.5,
+          "c": 161.5
+        }
+      },
       "volume_multiple": null,
-      "cdp_trend": []
+      "cdp_trend": [
+        {
+          "date": "今天",
+          "nh": 164.0,
+          "nl": 159.0,
+          "cdp": 160.75
+        }
+      ]
     },
     {
       "code": "2379",
@@ -724,9 +1300,27 @@
       "lower_limit": 686.0,
       "limit_flag": 2,
       "ts": 1790919000,
-      "cdp": null,
+      "cdp": {
+        "cdp": 755.75,
+        "nh": 761.5,
+        "nl": 746.5,
+        "ah": 770.75,
+        "al": 740.75,
+        "basis": {
+          "h": 765.0,
+          "l": 750.0,
+          "c": 754.0
+        }
+      },
       "volume_multiple": null,
-      "cdp_trend": []
+      "cdp_trend": [
+        {
+          "date": "今天",
+          "nh": 761.5,
+          "nl": 746.5,
+          "cdp": 755.75
+        }
+      ]
     },
     {
       "code": "2609",
@@ -743,9 +1337,27 @@
       "lower_limit": 53.0,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null,
+      "cdp": {
+        "cdp": 59.45,
+        "nh": 60.4,
+        "nl": 59.0,
+        "ah": 60.85,
+        "al": 58.05,
+        "basis": {
+          "h": 59.9,
+          "l": 58.5,
+          "c": 59.7
+        }
+      },
       "volume_multiple": null,
-      "cdp_trend": []
+      "cdp_trend": [
+        {
+          "date": "今天",
+          "nh": 60.4,
+          "nl": 59.0,
+          "cdp": 59.45
+        }
+      ]
     },
     {
       "code": "3231",
@@ -762,9 +1374,27 @@
       "lower_limit": 171.5,
       "limit_flag": 2,
       "ts": 1790919000,
-      "cdp": null,
+      "cdp": {
+        "cdp": 187.5,
+        "nh": 189.0,
+        "nl": 184.0,
+        "ah": 192.5,
+        "al": 182.5,
+        "basis": {
+          "h": 191.0,
+          "l": 186.0,
+          "c": 186.5
+        }
+      },
       "volume_multiple": null,
-      "cdp_trend": []
+      "cdp_trend": [
+        {
+          "date": "今天",
+          "nh": 189.0,
+          "nl": 184.0,
+          "cdp": 187.5
+        }
+      ]
     },
     {
       "code": "3707",
@@ -781,9 +1411,27 @@
       "lower_limit": 69.8,
       "limit_flag": 3,
       "ts": 1790919000,
-      "cdp": null,
+      "cdp": {
+        "cdp": 82.975,
+        "nh": 89.65,
+        "nl": 80.75,
+        "ah": 91.875,
+        "al": 74.075,
+        "basis": {
+          "h": 85.2,
+          "l": 76.3,
+          "c": 85.2
+        }
+      },
       "volume_multiple": null,
-      "cdp_trend": []
+      "cdp_trend": [
+        {
+          "date": "今天",
+          "nh": 89.65,
+          "nl": 80.75,
+          "cdp": 82.975
+        }
+      ]
     },
     {
       "code": "5425",
@@ -800,9 +1448,27 @@
       "lower_limit": 87.8,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null,
+      "cdp": {
+        "cdp": 101.125,
+        "nh": 105.75,
+        "nl": 98.25,
+        "ah": 108.625,
+        "al": 93.625,
+        "basis": {
+          "h": 104.0,
+          "l": 96.5,
+          "c": 102.0
+        }
+      },
       "volume_multiple": null,
-      "cdp_trend": []
+      "cdp_trend": [
+        {
+          "date": "今天",
+          "nh": 105.75,
+          "nl": 98.25,
+          "cdp": 101.125
+        }
+      ]
     },
     {
       "code": "2481",
@@ -819,9 +1485,27 @@
       "lower_limit": 160.0,
       "limit_flag": 2,
       "ts": 1790919000,
-      "cdp": null,
+      "cdp": {
+        "cdp": 175.0,
+        "nh": 177.5,
+        "nl": 171.5,
+        "ah": 181.0,
+        "al": 169.0,
+        "basis": {
+          "h": 178.5,
+          "l": 172.5,
+          "c": 174.5
+        }
+      },
       "volume_multiple": null,
-      "cdp_trend": []
+      "cdp_trend": [
+        {
+          "date": "今天",
+          "nh": 177.5,
+          "nl": 171.5,
+          "cdp": 175.0
+        }
+      ]
     },
     {
       "code": "3588",
@@ -838,9 +1522,27 @@
       "lower_limit": 53.3,
       "limit_flag": 2,
       "ts": 1790919000,
-      "cdp": null,
+      "cdp": {
+        "cdp": 58.175,
+        "nh": 60.15,
+        "nl": 56.25,
+        "ah": 62.075,
+        "al": 54.275,
+        "basis": {
+          "h": 60.1,
+          "l": 56.2,
+          "c": 58.2
+        }
+      },
       "volume_multiple": null,
-      "cdp_trend": []
+      "cdp_trend": [
+        {
+          "date": "今天",
+          "nh": 60.15,
+          "nl": 56.25,
+          "cdp": 58.175
+        }
+      ]
     },
     {
       "code": "5347",
@@ -857,9 +1559,27 @@
       "lower_limit": 166.5,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null,
+      "cdp": {
+        "cdp": 185.625,
+        "nh": 190.75,
+        "nl": 183.25,
+        "ah": 193.125,
+        "al": 178.125,
+        "basis": {
+          "h": 188.0,
+          "l": 180.5,
+          "c": 187.0
+        }
+      },
       "volume_multiple": null,
-      "cdp_trend": []
+      "cdp_trend": [
+        {
+          "date": "今天",
+          "nh": 190.75,
+          "nl": 183.25,
+          "cdp": 185.625
+        }
+      ]
     },
     {
       "code": "6182",
@@ -876,9 +1596,27 @@
       "lower_limit": 117.0,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null,
+      "cdp": {
+        "cdp": 134.625,
+        "nh": 140.75,
+        "nl": 129.25,
+        "ah": 146.125,
+        "al": 123.125,
+        "basis": {
+          "h": 140.0,
+          "l": 128.5,
+          "c": 135.0
+        }
+      },
       "volume_multiple": null,
-      "cdp_trend": []
+      "cdp_trend": [
+        {
+          "date": "今天",
+          "nh": 140.75,
+          "nl": 129.25,
+          "cdp": 134.625
+        }
+      ]
     },
     {
       "code": "2351",
@@ -895,9 +1633,27 @@
       "lower_limit": 191.5,
       "limit_flag": 2,
       "ts": 1790919000,
-      "cdp": null,
+      "cdp": {
+        "cdp": 212.375,
+        "nh": 214.25,
+        "nl": 208.75,
+        "ah": 217.875,
+        "al": 206.875,
+        "basis": {
+          "h": 216.0,
+          "l": 210.5,
+          "c": 211.5
+        }
+      },
       "volume_multiple": null,
-      "cdp_trend": []
+      "cdp_trend": [
+        {
+          "date": "今天",
+          "nh": 214.25,
+          "nl": 208.75,
+          "cdp": 212.375
+        }
+      ]
     },
     {
       "code": "2449",
@@ -914,9 +1670,27 @@
       "lower_limit": 266.5,
       "limit_flag": 2,
       "ts": 1790919000,
-      "cdp": null,
+      "cdp": {
+        "cdp": 295.25,
+        "nh": 298.5,
+        "nl": 292.5,
+        "ah": 301.25,
+        "al": 289.25,
+        "basis": {
+          "h": 298.0,
+          "l": 292.0,
+          "c": 295.5
+        }
+      },
       "volume_multiple": null,
-      "cdp_trend": []
+      "cdp_trend": [
+        {
+          "date": "今天",
+          "nh": 298.5,
+          "nl": 292.5,
+          "cdp": 295.25
+        }
+      ]
     },
     {
       "code": "6239",
@@ -933,9 +1707,27 @@
       "lower_limit": 263.5,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null,
+      "cdp": {
+        "cdp": 305.875,
+        "nh": 320.25,
+        "nl": 295.75,
+        "ah": 330.375,
+        "al": 281.375,
+        "basis": {
+          "h": 316.0,
+          "l": 291.5,
+          "c": 308.0
+        }
+      },
       "volume_multiple": null,
-      "cdp_trend": []
+      "cdp_trend": [
+        {
+          "date": "今天",
+          "nh": 320.25,
+          "nl": 295.75,
+          "cdp": 305.875
+        }
+      ]
     },
     {
       "code": "8150",
@@ -952,9 +1744,27 @@
       "lower_limit": 104.0,
       "limit_flag": 3,
       "ts": 1790919000,
-      "cdp": null,
+      "cdp": {
+        "cdp": 123.875,
+        "nh": 133.25,
+        "nl": 120.75,
+        "ah": 136.375,
+        "al": 111.375,
+        "basis": {
+          "h": 127.0,
+          "l": 114.5,
+          "c": 127.0
+        }
+      },
       "volume_multiple": null,
-      "cdp_trend": []
+      "cdp_trend": [
+        {
+          "date": "今天",
+          "nh": 133.25,
+          "nl": 120.75,
+          "cdp": 123.875
+        }
+      ]
     },
     {
       "code": "4958",
@@ -971,9 +1781,27 @@
       "lower_limit": 459.0,
       "limit_flag": 3,
       "ts": 1790919000,
-      "cdp": null,
+      "cdp": {
+        "cdp": 549.25,
+        "nh": 584.5,
+        "nl": 537.5,
+        "ah": 596.25,
+        "al": 502.25,
+        "basis": {
+          "h": 561.0,
+          "l": 514.0,
+          "c": 561.0
+        }
+      },
       "volume_multiple": null,
-      "cdp_trend": []
+      "cdp_trend": [
+        {
+          "date": "今天",
+          "nh": 584.5,
+          "nl": 537.5,
+          "cdp": 549.25
+        }
+      ]
     },
     {
       "code": "3037",
@@ -990,9 +1818,27 @@
       "lower_limit": 1095.0,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null,
+      "cdp": {
+        "cdp": 1282.5,
+        "nh": 1350.0,
+        "nl": 1260.0,
+        "ah": 1372.5,
+        "al": 1192.5,
+        "basis": {
+          "h": 1305.0,
+          "l": 1215.0,
+          "c": 1305.0
+        }
+      },
       "volume_multiple": null,
-      "cdp_trend": []
+      "cdp_trend": [
+        {
+          "date": "今天",
+          "nh": 1350.0,
+          "nl": 1260.0,
+          "cdp": 1282.5
+        }
+      ]
     },
     {
       "code": "6488",
@@ -1009,9 +1855,27 @@
       "lower_limit": 977.0,
       "limit_flag": 3,
       "ts": 1790919000,
-      "cdp": null,
+      "cdp": {
+        "cdp": 1161.25,
+        "nh": 1247.5,
+        "nl": 1132.5,
+        "ah": 1276.25,
+        "al": 1046.25,
+        "basis": {
+          "h": 1190.0,
+          "l": 1075.0,
+          "c": 1190.0
+        }
+      },
       "volume_multiple": null,
-      "cdp_trend": []
+      "cdp_trend": [
+        {
+          "date": "今天",
+          "nh": 1247.5,
+          "nl": 1132.5,
+          "cdp": 1161.25
+        }
+      ]
     },
     {
       "code": "3490",
@@ -1028,9 +1892,27 @@
       "lower_limit": 43.9,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null,
+      "cdp": {
+        "cdp": 49.9,
+        "nh": 53.0,
+        "nl": 48.4,
+        "ah": 54.5,
+        "al": 45.3,
+        "basis": {
+          "h": 51.4,
+          "l": 46.8,
+          "c": 50.7
+        }
+      },
       "volume_multiple": null,
-      "cdp_trend": []
+      "cdp_trend": [
+        {
+          "date": "今天",
+          "nh": 53.0,
+          "nl": 48.4,
+          "cdp": 49.9
+        }
+      ]
     },
     {
       "code": "2409",
@@ -1047,9 +1929,27 @@
       "lower_limit": 34.5,
       "limit_flag": 1,
       "ts": 1790919000,
-      "cdp": null,
+      "cdp": {
+        "cdp": 40.1,
+        "nh": 41.55,
+        "nl": 39.35,
+        "ah": 42.3,
+        "al": 37.9,
+        "basis": {
+          "h": 40.85,
+          "l": 38.65,
+          "c": 40.45
+        }
+      },
       "volume_multiple": null,
-      "cdp_trend": []
+      "cdp_trend": [
+        {
+          "date": "今天",
+          "nh": 41.55,
+          "nl": 39.35,
+          "cdp": 40.1
+        }
+      ]
     }
   ]
 }
