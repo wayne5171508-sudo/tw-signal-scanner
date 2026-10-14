@@ -1,5 +1,5 @@
 {
-  "checked_at": "2026-10-14T13:38:42.548485+08:00",
+  "checked_at": "2026-10-14T18:35:21.971997+08:00",
   "data_as_of": "2026-10-14T13:33:16+08:00",
   "check_frequency_note": "開盤期間每約5分鐘由GitHub Actions排程抓一次,非逐秒即時報價",
   "indices": [
@@ -13,7 +13,7 @@
       "high": 49059.12,
       "low": 48382.64,
       "prev_close": 48341.31,
-      "volume": 11239427.0,
+      "volume": 11376256.0,
       "upper_limit": null,
       "lower_limit": null,
       "limit_flag": 1,
@@ -111,7 +111,7 @@
       "high": 530.0,
       "low": 498.5,
       "prev_close": 508.0,
-      "volume": 6847.0,
+      "volume": 6992.479,
       "upper_limit": 558.0,
       "lower_limit": 457.5,
       "limit_flag": 1,
@@ -128,7 +128,7 @@
           "c": 508.0
         }
       },
-      "volume_multiple": 0.75,
+      "volume_multiple": 0.77,
       "cdp_trend": [
         {
           "date": "2026-10-07",
@@ -245,7 +245,7 @@
       "high": 491.0,
       "low": 480.5,
       "prev_close": 488.0,
-      "volume": 51461.0,
+      "volume": 54728.887,
       "upper_limit": 536.0,
       "lower_limit": 439.5,
       "limit_flag": 2,
@@ -262,7 +262,7 @@
           "c": 488.0
         }
       },
-      "volume_multiple": 0.88,
+      "volume_multiple": 0.94,
       "cdp_trend": [
         {
           "date": "2026-10-07",
@@ -312,7 +312,7 @@
       "high": 167.5,
       "low": 160.0,
       "prev_close": 161.5,
-      "volume": 55712.0,
+      "volume": 56696.285,
       "upper_limit": 177.5,
       "lower_limit": 145.5,
       "limit_flag": 1,
@@ -329,7 +329,7 @@
           "c": 161.5
         }
       },
-      "volume_multiple": 0.75,
+      "volume_multiple": 0.76,
       "cdp_trend": [
         {
           "date": "2026-10-07",
@@ -446,7 +446,7 @@
       "high": 548.0,
       "low": 532.0,
       "prev_close": 544.0,
-      "volume": 888.0,
+      "volume": 957.883,
       "upper_limit": 598.0,
       "lower_limit": 490.0,
       "limit_flag": 2,
@@ -463,7 +463,7 @@
           "c": 544.0
         }
       },
-      "volume_multiple": 0.16,
+      "volume_multiple": 0.17,
       "cdp_trend": [
         {
           "date": "2026-10-07",
@@ -513,7 +513,7 @@
       "high": 303.0,
       "low": 302.0,
       "prev_close": 275.5,
-      "volume": 7352.0,
+      "volume": 7661.064,
       "upper_limit": 303.0,
       "lower_limit": 248.0,
       "limit_flag": 3,
@@ -530,7 +530,7 @@
           "c": 275.5
         }
       },
-      "volume_multiple": 0.2,
+      "volume_multiple": 0.21,
       "cdp_trend": [
         {
           "date": "2026-10-07",
@@ -892,7 +892,7 @@
       "high": 176.5,
       "low": 163.5,
       "prev_close": 168.0,
-      "volume": 12948.0,
+      "volume": 13133.098,
       "upper_limit": 184.5,
       "lower_limit": 151.5,
       "limit_flag": 1,
@@ -909,7 +909,7 @@
           "c": 168.0
         }
       },
-      "volume_multiple": 1.67,
+      "volume_multiple": 1.69,
       "cdp_trend": [
         {
           "date": "2026-10-07",
@@ -959,7 +959,7 @@
       "high": 104.5,
       "low": 100.5,
       "prev_close": 100.0,
-      "volume": 4003.0,
+      "volume": 4074.959,
       "upper_limit": 110.0,
       "lower_limit": 90.0,
       "limit_flag": 1,
@@ -976,7 +976,7 @@
           "c": 100.0
         }
       },
-      "volume_multiple": 0.5,
+      "volume_multiple": 0.51,
       "cdp_trend": [
         {
           "date": "2026-10-07",
@@ -1093,7 +1093,7 @@
       "high": 19.1,
       "low": 18.8,
       "prev_close": 18.75,
-      "volume": 72.0,
+      "volume": 73.473,
       "upper_limit": 20.6,
       "lower_limit": 16.9,
       "limit_flag": 1,
@@ -1361,7 +1361,7 @@
       "high": 45.3,
       "low": 44.5,
       "prev_close": 44.2,
-      "volume": 370.0,
+      "volume": 377.035,
       "upper_limit": 48.6,
       "lower_limit": 39.8,
       "limit_flag": 1,
@@ -1378,7 +1378,7 @@
           "c": 44.2
         }
       },
-      "volume_multiple": 0.76,
+      "volume_multiple": 0.77,
       "cdp_trend": [
         {
           "date": "2026-10-07",
@@ -1428,7 +1428,7 @@
       "high": 38.9,
       "low": 38.2,
       "prev_close": 38.75,
-      "volume": 28786.0,
+      "volume": 28991.822,
       "upper_limit": 42.6,
       "lower_limit": 34.9,
       "limit_flag": 2,
@@ -1495,7 +1495,7 @@
       "high": 160.5,
       "low": 155.5,
       "prev_close": 160.0,
-      "volume": 27934.0,
+      "volume": 28828.049,
       "upper_limit": 176.0,
       "lower_limit": 144.0,
       "limit_flag": 1,
@@ -1512,7 +1512,7 @@
           "c": 160.0
         }
       },
-      "volume_multiple": 1.81,
+      "volume_multiple": 1.87,
       "cdp_trend": [
         {
           "date": "2026-10-07",
@@ -1562,7 +1562,7 @@
       "high": 252.5,
       "low": 240.0,
       "prev_close": 243.5,
-      "volume": 18521.0,
+      "volume": 18948.506,
       "upper_limit": 267.5,
       "lower_limit": 219.5,
       "limit_flag": 1,
@@ -1579,7 +1579,7 @@
           "c": 243.5
         }
       },
-      "volume_multiple": 0.5,
+      "volume_multiple": 0.51,
       "cdp_trend": [
         {
           "date": "2026-10-07",
@@ -1629,7 +1629,7 @@
       "high": 152.5,
       "low": 141.0,
       "prev_close": 142.5,
-      "volume": 15546.0,
+      "volume": 15714.47,
       "upper_limit": 156.5,
       "lower_limit": 128.5,
       "limit_flag": 1,
@@ -1646,7 +1646,7 @@
           "c": 142.5
         }
       },
-      "volume_multiple": 0.88,
+      "volume_multiple": 0.89,
       "cdp_trend": [
         {
           "date": "2026-10-07",
@@ -1763,7 +1763,7 @@
       "high": 350.5,
       "low": 318.5,
       "prev_close": 319.0,
-      "volume": 173438.0,
+      "volume": 175417.461,
       "upper_limit": 350.5,
       "lower_limit": 287.5,
       "limit_flag": 1,
@@ -1780,7 +1780,7 @@
           "c": 319.0
         }
       },
-      "volume_multiple": 1.89,
+      "volume_multiple": 1.91,
       "cdp_trend": [
         {
           "date": "2026-10-07",
@@ -1830,7 +1830,7 @@
       "high": 21.9,
       "low": 21.7,
       "prev_close": 21.65,
-      "volume": 325.0,
+      "volume": 332.002,
       "upper_limit": 23.8,
       "lower_limit": 19.5,
       "limit_flag": 1,
@@ -1847,7 +1847,7 @@
           "c": 21.65
         }
       },
-      "volume_multiple": 0.88,
+      "volume_multiple": 0.9,
       "cdp_trend": [
         {
           "date": "2026-10-07",
@@ -1897,7 +1897,7 @@
       "high": 296.5,
       "low": 283.5,
       "prev_close": 289.5,
-      "volume": 300.0,
+      "volume": 314.241,
       "upper_limit": 318.0,
       "lower_limit": 261.0,
       "limit_flag": 2,
@@ -1914,7 +1914,7 @@
           "c": 289.5
         }
       },
-      "volume_multiple": 1.01,
+      "volume_multiple": 1.06,
       "cdp_trend": [
         {
           "date": "2026-10-07",
@@ -1964,7 +1964,7 @@
       "high": 111.0,
       "low": 105.0,
       "prev_close": 106.5,
-      "volume": 31989.0,
+      "volume": 32547.486,
       "upper_limit": 117.0,
       "lower_limit": 95.9,
       "limit_flag": 1,
@@ -1981,7 +1981,7 @@
           "c": 106.5
         }
       },
-      "volume_multiple": 0.92,
+      "volume_multiple": 0.94,
       "cdp_trend": [
         {
           "date": "2026-10-07",
@@ -2031,7 +2031,7 @@
       "high": 287.0,
       "low": 273.5,
       "prev_close": 279.0,
-      "volume": 16044.0,
+      "volume": 16331.539,
       "upper_limit": 306.5,
       "lower_limit": 251.5,
       "limit_flag": 2,
@@ -2048,7 +2048,7 @@
           "c": 279.0
         }
       },
-      "volume_multiple": 0.59,
+      "volume_multiple": 0.6,
       "cdp_trend": [
         {
           "date": "2026-10-07",
@@ -2098,7 +2098,7 @@
       "high": 183.5,
       "low": 173.0,
       "prev_close": 167.0,
-      "volume": 18775.0,
+      "volume": 19108.27,
       "upper_limit": 183.5,
       "lower_limit": 150.5,
       "limit_flag": 3,
@@ -2115,7 +2115,7 @@
           "c": 167.0
         }
       },
-      "volume_multiple": 3.13,
+      "volume_multiple": 3.18,
       "cdp_trend": [
         {
           "date": "2026-10-07",
@@ -2165,7 +2165,7 @@
       "high": 144.0,
       "low": 140.0,
       "prev_close": 141.5,
-      "volume": 108643.0,
+      "volume": 110676.913,
       "upper_limit": 155.5,
       "lower_limit": 127.5,
       "limit_flag": 1,
@@ -2182,7 +2182,7 @@
           "c": 141.5
         }
       },
-      "volume_multiple": 1.0,
+      "volume_multiple": 1.01,
       "cdp_trend": [
         {
           "date": "2026-10-07",
@@ -2232,7 +2232,7 @@
       "high": 779.0,
       "low": 754.0,
       "prev_close": 758.0,
-      "volume": 2763.0,
+      "volume": 2926.086,
       "upper_limit": 833.0,
       "lower_limit": 683.0,
       "limit_flag": 1,
@@ -2249,7 +2249,7 @@
           "c": 758.0
         }
       },
-      "volume_multiple": 1.81,
+      "volume_multiple": 1.92,
       "cdp_trend": [
         {
           "date": "2026-10-07",
@@ -2299,7 +2299,7 @@
       "high": 66.5,
       "low": 64.3,
       "prev_close": 64.5,
-      "volume": 59831.0,
+      "volume": 60333.012,
       "upper_limit": 70.9,
       "lower_limit": 58.1,
       "limit_flag": 1,
@@ -2316,7 +2316,7 @@
           "c": 64.5
         }
       },
-      "volume_multiple": 1.36,
+      "volume_multiple": 1.37,
       "cdp_trend": [
         {
           "date": "2026-10-07",
@@ -2366,7 +2366,7 @@
       "high": 190.0,
       "low": 186.5,
       "prev_close": 187.0,
-      "volume": 24119.0,
+      "volume": 24460.238,
       "upper_limit": 205.5,
       "lower_limit": 168.5,
       "limit_flag": 0,
@@ -2383,7 +2383,7 @@
           "c": 187.0
         }
       },
-      "volume_multiple": 0.64,
+      "volume_multiple": 0.65,
       "cdp_trend": [
         {
           "date": "2026-10-07",
@@ -2567,7 +2567,7 @@
       "high": 167.0,
       "low": 160.5,
       "prev_close": 162.0,
-      "volume": 11281.0,
+      "volume": 11462.855,
       "upper_limit": 178.0,
       "lower_limit": 146.0,
       "limit_flag": 1,
@@ -2584,7 +2584,7 @@
           "c": 162.0
         }
       },
-      "volume_multiple": 0.7,
+      "volume_multiple": 0.71,
       "cdp_trend": [
         {
           "date": "2026-10-07",
@@ -2634,7 +2634,7 @@
       "high": 52.0,
       "low": 51.3,
       "prev_close": 51.0,
-      "volume": 149.0,
+      "volume": 152.206,
       "upper_limit": 56.1,
       "lower_limit": 45.9,
       "limit_flag": 1,
@@ -2651,7 +2651,7 @@
           "c": 51.0
         }
       },
-      "volume_multiple": 0.41,
+      "volume_multiple": 0.42,
       "cdp_trend": [
         {
           "date": "2026-10-07",
@@ -2835,7 +2835,7 @@
       "high": 211.5,
       "low": 205.5,
       "prev_close": 209.0,
-      "volume": 1640.0,
+      "volume": 1695.703,
       "upper_limit": 229.5,
       "lower_limit": 188.5,
       "limit_flag": 2,
@@ -2852,7 +2852,7 @@
           "c": 209.0
         }
       },
-      "volume_multiple": 0.61,
+      "volume_multiple": 0.63,
       "cdp_trend": [
         {
           "date": "2026-10-07",
@@ -2902,7 +2902,7 @@
       "high": 306.5,
       "low": 295.0,
       "prev_close": 305.0,
-      "volume": 54650.0,
+      "volume": 56131.165,
       "upper_limit": 335.5,
       "lower_limit": 274.5,
       "limit_flag": 2,
@@ -2919,7 +2919,7 @@
           "c": 305.0
         }
       },
-      "volume_multiple": 1.37,
+      "volume_multiple": 1.4,
       "cdp_trend": [
         {
           "date": "2026-10-07",
@@ -2969,7 +2969,7 @@
       "high": 306.0,
       "low": 295.0,
       "prev_close": 296.0,
-      "volume": 8933.0,
+      "volume": 9145.006,
       "upper_limit": 325.5,
       "lower_limit": 266.5,
       "limit_flag": 1,
@@ -2986,7 +2986,7 @@
           "c": 296.0
         }
       },
-      "volume_multiple": 0.63,
+      "volume_multiple": 0.64,
       "cdp_trend": [
         {
           "date": "2026-10-07",
@@ -3036,7 +3036,7 @@
       "high": 117.0,
       "low": 113.0,
       "prev_close": 116.0,
-      "volume": 18989.0,
+      "volume": 19351.312,
       "upper_limit": 127.5,
       "lower_limit": 104.5,
       "limit_flag": 1,
@@ -3053,7 +3053,7 @@
           "c": 116.0
         }
       },
-      "volume_multiple": 0.54,
+      "volume_multiple": 0.55,
       "cdp_trend": [
         {
           "date": "2026-10-07",
@@ -3103,7 +3103,7 @@
       "high": 568.0,
       "low": 546.0,
       "prev_close": 552.0,
-      "volume": 16137.0,
+      "volume": 16626.725,
       "upper_limit": 607.0,
       "lower_limit": 497.0,
       "limit_flag": 1,
@@ -3120,7 +3120,7 @@
           "c": 552.0
         }
       },
-      "volume_multiple": 0.51,
+      "volume_multiple": 0.52,
       "cdp_trend": [
         {
           "date": "2026-10-07",
@@ -3170,7 +3170,7 @@
       "high": 1195.0,
       "low": 1140.0,
       "prev_close": 1180.0,
-      "volume": 16708.0,
+      "volume": 17281.287,
       "upper_limit": 1295.0,
       "lower_limit": 1065.0,
       "limit_flag": 1,
@@ -3187,7 +3187,7 @@
           "c": 1180.0
         }
       },
-      "volume_multiple": 1.64,
+      "volume_multiple": 1.69,
       "cdp_trend": [
         {
           "date": "2026-10-07",
@@ -3371,7 +3371,7 @@
       "high": 36.3,
       "low": 34.45,
       "prev_close": 34.15,
-      "volume": 303385.0,
+      "volume": 305718.702,
       "upper_limit": 37.55,
       "lower_limit": 30.75,
       "limit_flag": 1,
@@ -3388,7 +3388,7 @@
           "c": 34.15
         }
       },
-      "volume_multiple": 0.94,
+      "volume_multiple": 0.95,
       "cdp_trend": [
         {
           "date": "2026-10-07",
