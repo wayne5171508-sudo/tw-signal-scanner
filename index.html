@@ -137,12 +137,63 @@
   .cdptrendlbl.res{color:var(--up)}
   .cdptrendlbl.sup{color:var(--down)}
   .cdptrendval{font-size:11px;color:var(--muted);white-space:nowrap}
+
+  /* ===== 手機優先:支撐壓力一覽 ===== */
+  body{padding:14px 14px 40px;max-width:720px;margin:0 auto}
+  .freshbar{font-size:12px;color:var(--muted);margin:2px 0 10px}
+  .freshbar.warn{color:#b26a00}
+  .freshbar b{color:var(--text)}
+  .idxgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px}
+  .idxtile{background:var(--card);border:1px solid var(--border);border-radius:9px;padding:7px 8px;cursor:pointer;min-width:0}
+  .idxtile .in{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .idxtile .iv{font-size:14px;font-weight:700;margin-top:1px;font-variant-numeric:tabular-nums}
+  .idxtile .ic{font-size:11px;font-variant-numeric:tabular-nums}
+  .fchips{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 10px}
+  .fchip{font-size:12.5px;padding:6px 12px;border-radius:16px;border:1px solid var(--border);background:var(--card);color:var(--sec);cursor:pointer;user-select:none}
+  .fchip.on{background:var(--text);color:#fff;border-color:var(--text)}
+  .lvcard{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:10px;cursor:pointer}
+  .lvcard.near-res{border-color:rgba(209,64,63,0.6);background:#fff8f7}
+  .lvcard.near-sup{border-color:rgba(24,143,99,0.6);background:#f5fbf8}
+  .lvcard.out{border-width:2px}
+  .lvtop{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+  .lvname{font-size:15px;font-weight:700}
+  .lvname small{font-size:11px;color:var(--muted);font-weight:500;margin-left:4px}
+  .lvprice{text-align:right;font-variant-numeric:tabular-nums}
+  .lvprice .p{font-size:20px;font-weight:700;line-height:1.1}
+  .lvprice .c{font-size:12px}
+  .lvstatus{display:inline-block;font-size:12px;font-weight:700;padding:2px 9px;border-radius:10px;margin-top:5px}
+  .lvstatus.res{background:#fbe8e5;color:var(--up)}
+  .lvstatus.sup{background:#e3f3ec;color:var(--down)}
+  .lvstatus.mid{background:#f1f0ea;color:var(--muted);font-weight:600}
+  .lvbar{position:relative;height:8px;border-radius:4px;margin:20px 2px 6px;background:linear-gradient(90deg,rgba(24,143,99,0.28),#e9e7df 50%,rgba(209,64,63,0.28))}
+  .lvdot{position:absolute;top:-4px;width:16px;height:16px;margin-left:-8px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,0.25)}
+  .lvdot.hollow{background:#fff !important;border:3px solid currentColor}
+  .lvnums{display:flex;justify-content:space-between;align-items:flex-end;margin-top:2px}
+  .lvnum{font-variant-numeric:tabular-nums}
+  .lvnum .t{font-size:11px;font-weight:700}
+  .lvnum .v{font-size:17px;font-weight:700;line-height:1.15}
+  .lvnum .d{font-size:11px;color:var(--muted)}
+  .lvnum.s .t,.lvnum.s .v{color:var(--down)}
+  .lvnum.r{text-align:right}
+  .lvnum.r .t,.lvnum.r .v{color:var(--up)}
+  .lvnodata{font-size:12.5px;color:var(--muted);margin-top:8px}
+  .lvhint{font-size:10.5px;color:var(--muted);margin-top:4px}
+  details.more{background:var(--card);border:1px solid var(--border);border-radius:10px;margin:14px 0;padding:0 12px}
+  details.more summary{padding:12px 0;font-size:14px;font-weight:600;color:var(--sec);cursor:pointer;list-style:none}
+  details.more summary::-webkit-details-marker{display:none}
+  details.more summary::after{content:"展開";float:right;font-size:12px;color:var(--accent);font-weight:500}
+  details.more[open] summary::after{content:"收合"}
+  details.more h2{margin-top:6px}
+  details.more .card{border:none;padding:0;margin-bottom:10px}
 </style>
 </head>
 <body>
 
 <h1>爆量雷達 <span class="refresh" onclick="loadAll()">重新整理</span></h1>
 <div class="meta" id="pageMeta">載入中...</div>
+<div class="freshbar" id="freshBar"></div>
+
+<div class="idxgrid" id="indicesGrid"></div>
 
 <div class="searchwrap">
   <input id="searchInput" type="text" placeholder="搜尋股票代碼或名稱,例如 2455 或 全新" autocomplete="off">
@@ -151,51 +202,43 @@
 
 <div class="card detail" id="detailCard" style="display:none"></div>
 
-<h2>今日焦點(自選股漲跌幅TOP5)</h2>
-<div class="focusgrid" id="focusCards">載入中...</div>
+<h2 style="margin-top:6px">支撐壓力一覽(自選股)</h2>
+<div class="fchips" id="levelFilters"></div>
+<div id="levelList">載入中...</div>
+<div class="note" style="margin-top:0">橫條:左端=支撐(綠),右端=壓力(紅),圓點=現價位置。支撐壓力是前一交易日高低收算出的CDP樞紐點,不是股價預測,不構成買賣建議。點任一檔看K線與細節。</div>
 
-<h2>自選股漲跌幅熱力圖</h2>
-<div class="card">
-  <div class="heatgrid" id="heatGrid">載入中...</div>
-  <div class="heatlegend" id="heatLegend"></div>
-</div>
+<details class="more">
+  <summary>更多:熱力圖、量能排行、完整報價表</summary>
+  <h2>自選股漲跌幅熱力圖</h2>
+  <div class="card">
+    <div class="heatgrid" id="heatGrid">載入中...</div>
+    <div class="heatlegend" id="heatLegend"></div>
+  </div>
+  <h2>量能異常排行(自選股)</h2>
+  <div class="focusgrid" id="volumeCards">載入中...</div>
+  <div class="note" id="volumeNote" style="margin-top:0"></div>
+  <h2>自選股即時報價(依漲跌幅排序)</h2>
+  <div class="card tablewrap">
+    <div id="watchlistTable">載入中...</div>
+  </div>
+</details>
 
-<h2>量能異常排行(自選股)</h2>
-<div class="focusgrid" id="volumeCards">載入中...</div>
-<div class="note" id="volumeNote" style="margin-top:0"></div>
-
-<h2>接近關鍵價位觀察</h2>
-<div class="card" id="nearLevelsCard">
-  <div id="nearLevelsList">載入中...</div>
-</div>
-
-<h2>大盤</h2>
-<div class="card tablewrap">
-  <div id="indicesTable">載入中...</div>
-  <div class="note" id="intradayNote"></div>
-</div>
-
-<h2>自選股即時報價(依漲跌幅排序)</h2>
-<div class="card tablewrap">
-  <div id="watchlistTable">載入中...</div>
-</div>
-
-<h2>盤後籌碼訊號</h2>
-<div class="card" id="chipSummary">載入中...</div>
-
-<div class="card" id="chipRank" style="display:none">
-  <div style="margin-bottom:6px;color:var(--muted);font-size:13px">三大法人買超排行</div>
-  <div class="tablewrap" id="chipRankTable"></div>
-</div>
-
-<div class="card" id="chipWatch" style="display:none">
-  <div style="margin-bottom:6px;color:var(--muted);font-size:13px">重點觀察 / 放量關注</div>
-  <div id="chipWatchList"></div>
-</div>
+<details class="more">
+  <summary>盤後籌碼訊號</summary>
+  <div class="card" id="chipSummary">載入中...</div>
+  <div class="card" id="chipRank" style="display:none">
+    <div style="margin-bottom:6px;color:var(--muted);font-size:13px">三大法人買超排行</div>
+    <div class="tablewrap" id="chipRankTable"></div>
+  </div>
+  <div class="card" id="chipWatch" style="display:none">
+    <div style="margin-bottom:6px;color:var(--muted);font-size:13px">重點觀察 / 放量關注</div>
+    <div id="chipWatchList"></div>
+  </div>
+</details>
 
 <div class="note" style="margin-top:20px">
   資料來源:大盤與自選股報價每約5分鐘由 GitHub Actions 直接向交易所/報價商 API 抓取一次,非逐秒即時;
-  個股分析卡裡的「觀察重點」是用今天抓到的高低開收跟漲跌停價機械式算出來的參考位置,不是買賣建議;
+  支撐壓力與觀察重點都是用前一交易日及今日高低價機械式算出的參考位置,不是買賣建議;
   籌碼訊號為每日收盤後計算一次。程式碼見
   <a href="https://github.com/wayne5171508-sudo/tw-signal-scanner" target="_blank">tw-signal-scanner</a>。
 </div>
@@ -366,24 +409,6 @@ function candleChart(code, q){
     </svg>
     <div class="candletime"><span>${fmtTime(bars[0].t)}</span><span>量能(區間實際成交量)</span><span>${fmtTime(bars[bars.length - 1].t)}</span></div>
     <div class="meta" style="margin-top:2px">近似K線:每約5分鐘一格,用當時成交價堆疊(非逐筆真實高低,沒有影線);下方量能是真實區間成交量,不是估的</div>`;
-}
-
-function renderIndices(data){
-  if(!data || !data.indices){
-    document.getElementById('indicesTable').innerHTML = '<div class="err">暫無大盤資料</div>';
-    return;
-  }
-  let rows = data.indices.map(q => `
-    <tr onclick="openDetail('${q.code}', true)">
-      <td>${q.name}</td>
-      <td class="${PCT_CLASS(q.change)}">${fmtNum(q.last)}</td>
-      <td>${divBar(q.pct)}</td>
-    </tr>`).join('');
-  document.getElementById('indicesTable').innerHTML = `
-    <table><thead><tr><th>指數</th><th>最新</th><th>漲跌幅</th></tr></thead>
-    <tbody>${rows}</tbody></table>`;
-  document.getElementById('intradayNote').textContent =
-    `資料時間約 ${fmtTime(data.data_as_of)} · ${data.check_frequency_note || ''}`;
 }
 
 function renderWatchlist(data, filterText){
@@ -842,7 +867,7 @@ function setupSearch(){
 
   input.addEventListener('input', () => {
     const list = matches(input.value);
-    renderWatchlist(INTRADAY, input.value);
+    SEARCH_TEXT = input.value; renderLevels(INTRADAY);
     if(!list.length){ box.style.display = 'none'; return; }
     box.innerHTML = list.map(s => `<div onclick="pickSuggest('${s.code}')">${s.code} ${s.name} <span style="color:var(--muted);float:right">${fmtNum(s.last)} ${fmtPct(s.pct)}</span></div>`).join('');
     box.style.display = '';
@@ -861,7 +886,7 @@ function setupSearch(){
 function pickSuggest(code){
   document.getElementById('suggestBox').style.display = 'none';
   document.getElementById('searchInput').value = '';
-  renderWatchlist(INTRADAY, '');
+  SEARCH_TEXT = ''; renderLevels(INTRADAY);
   openDetail(code, false);
 }
 
@@ -887,12 +912,12 @@ async function loadAll(opts){
 
   CHIP = chip; INTRADAY = intraday; HISTORY = history;
 
-  renderFocusCards(intraday);
+  renderFresh(intraday);
+  renderIndices(intraday);
+  renderLevels(intraday);
   renderHeatGrid(intraday);
   renderVolumeCards(intraday);
-  renderNearLevels(intraday);
-  renderIndices(intraday);
-  renderWatchlist(intraday, document.getElementById('searchInput').value);
+  renderWatchlist(intraday, '');
   renderChip(chip);
 
   // 如果目前正開著某檔的個股分析卡,資料重新整理後也跟著刷新內容,不用手動重新搜尋/點擊;
@@ -908,6 +933,114 @@ async function loadAll(opts){
 
 // 排程每約5分鐘更新一次資料,頁面每60秒自動重新抓一次,盤中開著不用一直手動按「重新整理」;
 // 分頁切到背景時瀏覽器本來就會自動降低timer頻率,不特別處理也不會浪費太多資源。
+
+// ================= 手機版:支撐壓力一覽 =================
+let LV_FILTER = 'all';
+let SEARCH_TEXT = '';
+
+function lvInfo(q){
+  const kl = keyLevels(q);
+  const res = kl.resTarget, sup = kl.supTarget;
+  if(q.last == null || res == null || sup == null || res <= sup) return null;
+  const dRes = (res - q.last) / q.last * 100;   // 正數=還沒到壓力,負數=已突破
+  const dSup = (q.last - sup) / q.last * 100;   // 正數=還在支撐上,負數=已跌破
+  let state = 'mid';
+  if(dRes < 0) state = 'breakout';
+  else if(dSup < 0) state = 'breakdown';
+  else if(dRes <= 1.5 && dRes <= dSup) state = 'nearRes';
+  else if(dSup <= 1.5) state = 'nearSup';
+  return {res, sup, dRes, dSup, state, usingCdp: kl.usingCdp};
+}
+
+function renderIndices(data){
+  const el = document.getElementById('indicesGrid');
+  if(!data || !data.indices){ el.innerHTML = '<div class="err">暫無大盤資料</div>'; return; }
+  const short = {'集中市場加權指數':'加權指數','櫃買市場加權指數':'櫃買指數','費城半導體':'費半'};
+  el.innerHTML = data.indices.map(q => `
+    <div class="idxtile" onclick="openDetail('${q.code}', true)">
+      <div class="in">${short[q.name] || q.name}</div>
+      <div class="iv ${PCT_CLASS(q.change)}">${fmtNum(q.last)}</div>
+      <div class="ic ${PCT_CLASS(q.change)}">${ARROW(q.change)} ${fmtPct(q.pct)}</div>
+    </div>`).join('');
+}
+
+function renderFresh(data){
+  const el = document.getElementById('freshBar');
+  if(!data || !data.data_as_of){ el.textContent = ''; el.className = 'freshbar'; return; }
+  const mins = Math.max(0, Math.round((Date.now() - Date.parse(data.data_as_of)) / 60000));
+  const t = new Date(data.data_as_of).toLocaleTimeString('zh-TW', {timeZone:'Asia/Taipei', hour:'2-digit', minute:'2-digit', hour12:false});
+  let ago = mins < 60 ? `${mins}分鐘前` : (mins < 1440 ? `${Math.floor(mins/60)}小時前` : `${Math.floor(mins/1440)}天前`);
+  if(mins > 20){
+    el.className = 'freshbar warn';
+    el.innerHTML = `報價時間 <b>${t}</b>(${ago}),收盤後屬正常;盤中若一直這樣代表資料來源延遲`;
+  } else {
+    el.className = 'freshbar';
+    el.innerHTML = `報價時間 <b>${t}</b>(${ago}),約每5分鐘更新,頁面每分鐘自動刷新`;
+  }
+}
+
+function renderLevels(data){
+  const listEl = document.getElementById('levelList');
+  const fEl = document.getElementById('levelFilters');
+  if(!data || !data.watchlist_quotes){ listEl.innerHTML = '<div class="err">暫無自選股資料</div>'; fEl.innerHTML=''; return; }
+  const f = SEARCH_TEXT.trim().toLowerCase();
+  let rows = data.watchlist_quotes.filter(q => q.last != null).map(q => ({q, lv: lvInfo(q)}));
+  if(f) rows = rows.filter(r => r.q.code.includes(f) || (r.q.name && r.q.name.toLowerCase().includes(f)));
+  const cnt = {all: rows.length, res:0, sup:0, out:0};
+  rows.forEach(r => {
+    if(!r.lv) return;
+    if(r.lv.state === 'nearRes') cnt.res++;
+    else if(r.lv.state === 'nearSup') cnt.sup++;
+    else if(r.lv.state === 'breakout' || r.lv.state === 'breakdown') cnt.out++;
+  });
+  const defs = [['all','全部'],['res','接近壓力'],['sup','接近支撐'],['out','突破/跌破']];
+  fEl.innerHTML = defs.map(([k,l]) => `<span class="fchip ${LV_FILTER===k?'on':''}" onclick="setLvFilter('${k}')">${l} ${cnt[k]}</span>`).join('');
+  rows = rows.filter(r => {
+    if(LV_FILTER === 'all') return true;
+    if(!r.lv) return false;
+    if(LV_FILTER === 'res') return r.lv.state === 'nearRes';
+    if(LV_FILTER === 'sup') return r.lv.state === 'nearSup';
+    return r.lv.state === 'breakout' || r.lv.state === 'breakdown';
+  });
+  // 排序:已突破/跌破最前,其次依「離最近一條線的距離」由近到遠;沒資料的排最後
+  const key = r => r.lv ? Math.min(r.lv.dRes, r.lv.dSup) : 999;
+  rows.sort((a, b) => key(a) - key(b));
+  if(!rows.length){ listEl.innerHTML = '<div class="note">這個分類目前沒有股票</div>'; return; }
+  listEl.innerHTML = rows.map(({q, lv}) => lvCard(q, lv)).join('');
+}
+
+function lvCard(q, lv){
+  const head = `
+    <div class="lvtop">
+      <div class="lvname">${q.name}<small>${q.code}</small></div>
+      <div class="lvprice"><div class="p ${PCT_CLASS(q.change)}">${fmtNum(q.last)}</div>
+      <div class="c ${PCT_CLASS(q.change)}">${ARROW(q.change)} ${fmtPct(q.pct)}</div></div>
+    </div>`;
+  if(!lv){
+    return `<div class="lvcard" onclick="searchAndOpen('${q.code}')">${head}<div class="lvnodata">尚無支撐壓力資料</div></div>`;
+  }
+  const pos = Math.max(0, Math.min(100, (q.last - lv.sup) / (lv.res - lv.sup) * 100));
+  const outside = lv.state === 'breakout' || lv.state === 'breakdown';
+  const dotColor = (q.change ?? 0) >= 0 ? 'var(--up)' : 'var(--down)';
+  let cls = 'lvcard', status = '<span class="lvstatus mid">區間內</span>';
+  if(lv.state === 'nearRes'){ cls += ' near-res'; status = `<span class="lvstatus res">接近壓力,差 ${lv.dRes.toFixed(1)}%</span>`; }
+  else if(lv.state === 'nearSup'){ cls += ' near-sup'; status = `<span class="lvstatus sup">接近支撐,差 ${lv.dSup.toFixed(1)}%</span>`; }
+  else if(lv.state === 'breakout'){ cls += ' near-res out'; status = `<span class="lvstatus res">已突破壓力 ${Math.abs(lv.dRes).toFixed(1)}%</span>`; }
+  else if(lv.state === 'breakdown'){ cls += ' near-sup out'; status = `<span class="lvstatus sup">已跌破支撐 ${Math.abs(lv.dSup).toFixed(1)}%</span>`; }
+  return `<div class="${cls}" onclick="searchAndOpen('${q.code}')">
+    ${head}
+    ${status}
+    <div class="lvbar"><div class="lvdot ${outside?'hollow':''}" style="left:${pos}%;background:${dotColor};color:${dotColor}"></div></div>
+    <div class="lvnums">
+      <div class="lvnum s"><div class="t">支撐</div><div class="v">${fmtNum(lv.sup)}</div><div class="d">${lv.dSup>=0?'下方 '+lv.dSup.toFixed(1)+'%':'已跌破'}</div></div>
+      <div class="lvnum r"><div class="t">壓力</div><div class="v">${fmtNum(lv.res)}</div><div class="d">${lv.dRes>=0?'上方 '+lv.dRes.toFixed(1)+'%':'已突破'}</div></div>
+    </div>
+    ${lv.usingCdp ? '' : '<div class="lvhint">前一交易日資料不足,暫用今日高低點</div>'}
+  </div>`;
+}
+
+function setLvFilter(k){ LV_FILTER = k; renderLevels(INTRADAY); }
+
 setupSearch();
 loadAll();
 setInterval(() => loadAll({silent: true}), 60000);
