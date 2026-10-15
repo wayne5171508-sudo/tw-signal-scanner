@@ -77,6 +77,20 @@ v8新增(讓支撐壓力更可靠,三件事):
 - CDP可靠度:cdp.reliability = "low" 代表前一日振幅小於1.5%(多為漲跌停鎖死),網頁會改用
   5日高低當主要壓力支撐,並標註原因。
 
+v9新增(獨立審查後的修正,共9項):
+- 非交易日判斷改看報價自己的時間戳:加權指數/櫃買/自選股的最新成交時間不是「今天」,就整輪略過,
+  不寫入歷史、不發觸價通知。(原本的「成交量是0」判斷對cnyes無效,它假日會回傳前一天的完整數字,
+  實際造成 10/03(六)、10/09(補假) 被當成交易日存進 daily_bars。)載入時會自動清掉這類重複日。
+- 正式日K驗證加嚴:收盤價必須跟今天報價的「昨收」幾乎一致(差0.3%或0.05元以內),日期不能超過7天前,
+  否則視為對不上,改用舊記錄。
+- 正式日K改成逐檔追蹤:今天沒抓成功的檔,同一天會再補抓,不會因為有一檔成功就整天不重試。
+- 檔案改成先寫暫存檔再覆蓋(原子寫入),中途中斷不會把歷史資料寫壞;不再因為 daily_bars 壞掉
+  就退回v4舊檔把10天歷史洗成1天;NaN一律轉成null,不會讓網頁整個讀不出來。
+- CDP可靠度改成講原因:limit_lock(昨日收在漲跌停且振幅小)、narrow_range(振幅小於1.5%)、
+  basis_mismatch(備用記錄的收盤跟昨收對不上),網頁會依原因顯示正確文字。
+- 新增 20日高低、5/10/20/60日均線、5日平均振幅(adr5,給網頁算「接近」的距離用)。
+- CDP走勢改用正式日K算,跟今天的CDP同一個資料來源,不再前後打架。
+
 用法:
     python intraday.py
     (會自動寫到 data/intraday_latest.json、data/intraday_history.json、
@@ -105,9 +119,14 @@ DAILY_HLC_FILE = os.path.join(DATA_DIR, "daily_hlc.json")  # v4的舊檔,只用�
 DAILY_BARS_FILE = os.path.join(DATA_DIR, "daily_bars.json")
 DAILY_OFFICIAL_FILE = os.path.join(DATA_DIR, "daily_official.json")
 CNYES_HISTORY_URL = "https://ws.api.cnyes.com/ws/api/v1/charting/history"
-OFFICIAL_KEEP_DAYS = 15
+OFFICIAL_KEEP_DAYS = 70
 LOW_RELIABILITY_RANGE_PCT = 1.5   # 前一日(高-低)/收 小於這個百分比,視為CDP參考性低
-OFFICIAL_MISMATCH_PCT = 3.0       # 正式日K收盤和今天報價的昨收差超過這個百分比,視為對不上,不採用
+OFFICIAL_MISMATCH_PCT = 0.3       # 正式日K收盤和今天報價的昨收差超過這個百分比(且超過0.05元),視為對不上,不採用
+OFFICIAL_MAX_AGE_DAYS = 7          # 正式日K最後一根距今超過幾天,視為過期
+HISTORY_FETCH_DAYS = 100           # 向日K API要幾個日曆天(約65個交易日,夠算60日均線)
+REFRESH_BUDGET_SECONDS = 90        # 每一輪抓日K最多花幾秒,超過就留給下一輪繼續
+HISTORY_TIMEOUT = 8
+LIMIT_MOVE_PCT = 9.3               # 前一日漲跌幅超過這個百分比,視為漲停/跌停
 MAX_POINTS_PER_DAY = 60
 MAX_HISTORY_DAYS = 10
 VOLUME_LOOKBACK_DAYS = 5
@@ -145,6 +164,26 @@ WATCHLIST_NAMES = {
     "8150": "南茂", "4958": "臻鼎-KY", "3037": "欣興", "6488": "環球晶",
     "3490": "單井", "2409": "友達",
 }
+
+
+def _clean(obj):
+    """NaN/Infinity不是合法JSON,網頁JSON.parse會直接失敗,全部轉成null。"""
+    if isinstance(obj, float):
+        return obj if obj == obj and obj not in (float("inf"), float("-inf")) else None
+    if isinstance(obj, dict):
+        return {k: _clean(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_clean(v) for v in obj]
+    return obj
+
+
+def write_json_atomic(path, obj, **kw):
+    """先寫到暫存檔再用 os.replace 覆蓋,中途中斷/磁碟錯誤時原檔案不會被寫壞。"""
+    text = json.dumps(_clean(obj), ensure_ascii=False, allow_nan=False, **kw)
+    tmp = f"{path}.tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        f.write(text)
+    os.replace(tmp, path)
 
 
 def taipei_now():
@@ -237,8 +276,7 @@ def update_history(run_time, indices_out, watchlist_out):
     history["points"].append(point)
     history["points"] = history["points"][-MAX_POINTS_PER_DAY:]
 
-    with open(HISTORY_FILE, "w", encoding="utf-8") as f:
-        json.dump(history, f, ensure_ascii=False)
+    write_json_atomic(HISTORY_FILE, history)
 
 
 def _is_real_trading_day(bars):
@@ -264,6 +302,22 @@ def _looks_like_trading_session(watchlist_out):
     return traded >= 10
 
 
+def _dedupe_days(days):
+    """days新到舊。若某一天跟「比它更舊的那一天」在90%以上的股票上高低收完全相同,
+    代表那天其實沒開盤(cnyes假日會回傳前一天的完整數字),把這個假日移除。"""
+    out = []
+    for i, day in enumerate(days):
+        bars = day.get("bars") or {}
+        older = (days[i + 1].get("bars") or {}) if i + 1 < len(days) else {}
+        common = [c for c in bars if c in older]
+        if common:
+            same = sum(1 for c in common if all(bars[c].get(k) == older[c].get(k) for k in ("h", "l", "c")))
+            if same / len(common) >= 0.9:
+                continue
+        out.append(day)
+    return out
+
+
 def update_daily_bars(run_time, watchlist_out):
     """維護 data/daily_bars.json:存「今天目前為止」+「最近 MAX_HISTORY_DAYS 個交易日」的
     高低收量(近似值,收盤價用當天最後一次抓到的成交價,成交量同理)。換日期時自動把舊的
@@ -279,6 +333,9 @@ def update_daily_bars(run_time, watchlist_out):
     """
     today_str = run_time.strftime("%Y-%m-%d")
     stored = load_json_safe(DAILY_BARS_FILE, None)
+    if stored is None and os.path.exists(DAILY_BARS_FILE):
+        # 檔案存在但讀不出來(壞檔):不要退回v4舊檔把歷史洗成1天,直接中止這次,保留原檔讓人查
+        raise RuntimeError("data/daily_bars.json 存在但無法解析,中止以保護歷史資料")
 
     if stored is None:
         # 第一次換成這個新格式:把v4那支舊檔 data/daily_hlc.json 的資料搬過來,
@@ -287,6 +344,8 @@ def update_daily_bars(run_time, watchlist_out):
         stored = {"date": old.get("date"), "today": old.get("today", {}) or {}, "days": []}
         if old.get("prev"):
             stored["days"] = [{"date": None, "bars": old["prev"]}]
+
+    stored["days"] = _dedupe_days(stored.get("days", []))
 
     if stored.get("date") != today_str:
         # 只有「看起來真的有開盤交易」的一天才滾進歷史;國定假日排程照跑但沒開盤的話,
@@ -303,8 +362,7 @@ def update_daily_bars(run_time, watchlist_out):
                 "h": q["high"], "l": q["low"], "c": q["last"], "v": q.get("volume"),
             }
 
-    with open(DAILY_BARS_FILE, "w", encoding="utf-8") as f:
-        json.dump(stored, f, ensure_ascii=False)
+    write_json_atomic(DAILY_BARS_FILE, stored)
 
     days = stored.get("days", [])
     prev_bars = days[0]["bars"] if days else {}
@@ -370,11 +428,11 @@ def _valid_bar(h, l, c):
 
 
 def fetch_history_one(code, run_time):
-    """抓單一股票最近約40天的日K。回傳由舊到新排列的 [{d,o,h,l,c,v}],只留通過基本檢查的。
+    """抓單一股票最近約100個日曆天的日K。回傳由舊到新排列的 [{d,o,h,l,c,v}],只留通過基本檢查的。
     格式不符就丟例外,由呼叫端記錄在 daily_official.json 的 errors 裡。"""
     to_ts = int(run_time.timestamp())
-    params = {"resolution": "D", "symbol": f"TWS:{code}:STOCK", "from": to_ts - 40 * 86400, "to": to_ts}
-    resp = requests.get(CNYES_HISTORY_URL, params=params, headers=HEADERS, timeout=TIMEOUT)
+    params = {"resolution": "D", "symbol": f"TWS:{code}:STOCK", "from": to_ts - HISTORY_FETCH_DAYS * 86400, "to": to_ts}
+    resp = requests.get(CNYES_HISTORY_URL, params=params, headers=HEADERS, timeout=HISTORY_TIMEOUT)
     resp.raise_for_status()
     data = (resp.json() or {}).get("data") or {}
     t, o, h, l, c, v = (data.get(k) or [] for k in ("t", "o", "h", "l", "c", "v"))
@@ -395,12 +453,14 @@ def fetch_history_one(code, run_time):
 
 
 def refresh_official_bars(run_time):
-    """每天第一次執行時抓一次正式日K並存檔,同一天之後的執行直接讀檔不重抓。
-    整批都失敗時,一小時內不重試(避免每5分鐘都白打50個請求),並保留舊資料。
+    """正式日K逐檔追蹤:每檔記錄「哪一天抓成功」,今天還沒成功的檔,同一天之內再補抓。
+    每一輪最多花 REFRESH_BUDGET_SECONDS 秒,超過就留給下一輪;有失敗的話一小時內不重打。
     任何例外都不往外拋,日K是加分資料,抓不到不能影響即時報價主流程。"""
     today = run_time.strftime("%Y-%m-%d")
     stored = load_json_safe(DAILY_OFFICIAL_FILE, {}) or {}
-    if stored.get("fetched_date") == today and stored.get("bars"):
+    fetched = dict(stored.get("fetched") or {})
+    needed = [c for c in WATCHLIST_NAMES if fetched.get(c) != today]
+    if not needed:
         return stored
     last_try = stored.get("last_attempt")
     if stored.get("last_attempt_date") == today and last_try:
@@ -411,13 +471,17 @@ def refresh_official_bars(run_time):
             pass
 
     merged = dict(stored.get("bars") or {})
-    errors, ok = [], 0
-    for code in WATCHLIST_NAMES:
+    errors = []
+    started = time.time()
+    for code in needed:
+        if time.time() - started > REFRESH_BUDGET_SECONDS:
+            errors.append("本輪時間用完,其餘留給下一輪")
+            break
         try:
             bars = fetch_history_one(code, run_time)
             if bars:
                 merged[code] = bars
-                ok += 1
+                fetched[code] = today
             else:
                 errors.append(f"{code}: 沒有可用資料")
         except Exception as e:  # noqa: BLE001  日K失敗不能中斷主流程
@@ -425,57 +489,103 @@ def refresh_official_bars(run_time):
         time.sleep(0.15)
 
     total = len(WATCHLIST_NAMES)
+    ok = sum(1 for c in WATCHLIST_NAMES if fetched.get(c) == today)
     result = {
-        "fetched_date": today if ok else stored.get("fetched_date"),
-        "fetched_at": run_time.isoformat() if ok else stored.get("fetched_at"),
+        "fetched": fetched,
         "last_attempt": run_time.isoformat(),
         "last_attempt_date": today,
-        "status": f"{'ok' if ok else 'fail'} {ok}/{total}",
+        "status": f"{'ok' if ok == total else ('partial' if ok else 'fail')} {ok}/{total}",
         "source": "cnyes 日K歷史API (resolution=D)",
         "errors": errors[:10],
         "bars": merged,
     }
     try:
         os.makedirs(DATA_DIR, exist_ok=True)
-        with open(DAILY_OFFICIAL_FILE, "w", encoding="utf-8") as f:
-            json.dump(result, f, ensure_ascii=False)
-    except OSError:
+        write_json_atomic(DAILY_OFFICIAL_FILE, result)
+    except (OSError, ValueError):
         pass
     return result
 
 
 def compute_swing(bars):
-    """bars: 由舊到新、不含今天的日K清單。回傳最近5日、10日的最高/最低(實際用了幾天也一併回傳)。
-    少於3天資料就不算,回傳 None。"""
+    """bars: 由舊到新、不含今天的日K清單(每筆至少有 h、l,c可有可無)。
+    回傳最近5/10/20日的最高/最低(實際用了幾天也一併回傳)、5日平均振幅(adr5,百分比)、
+    以及5/10/20/60日均線(收盤價平均,天數不夠就不給)。少於3天資料回傳 None。"""
     if not bars or len(bars) < 3:
         return None
     out = {}
-    for n in (5, 10):
+    for n in (5, 10, 20):
         seg = bars[-n:]
         out[f"h{n}"] = max(b["h"] for b in seg)
         out[f"l{n}"] = min(b["l"] for b in seg)
         out[f"d{n}"] = len(seg)
+    ranges = [(b["h"] - b["l"]) / b["c"] * 100 for b in bars[-5:] if b.get("c")]
+    out["adr5"] = round(sum(ranges) / len(ranges), 2) if ranges else None
+    closes = [b["c"] for b in bars if b.get("c")]
+    ma = {}
+    for n in (5, 10, 20, 60):
+        if len(closes) >= n:
+            ma[f"ma{n}"] = round(sum(closes[-n:]) / n, 2)
+    out["ma"] = ma
     return out
 
 
+def _close_matches(c, ref):
+    return abs(c - ref) <= max(0.05, ref * OFFICIAL_MISMATCH_PCT / 100)
+
+
+def compute_cdp_trend_official(bars, today_cdp):
+    """用正式日K(由舊到新、不含今天)回推最近幾天「當時」的CDP近高/近低,最後接上今天的CDP。"""
+    pts = []
+    for i in range(1, len(bars)):
+        c = compute_cdp(bars[i - 1])
+        if c:
+            pts.append({"date": bars[i]["d"], "nh": c["nh"], "nl": c["nl"], "cdp": c["cdp"]})
+    if today_cdp:
+        pts.append({"date": "今天", "nh": today_cdp["nh"], "nl": today_cdp["nl"], "cdp": today_cdp["cdp"]})
+    return pts[-CDP_TREND_POINTS:]
+
+
 def build_levels(watchlist_out, prev_bars, history_days, official, today):
-    """為每檔股票填入 cdp(含可靠度/資料來源)、swing(5日10日高低)、cdp_trend、volume_multiple。
-    前一日高低收優先用正式日K;對不上昨收或沒有時退回 daily_bars 的記錄。"""
+    """為每檔股票填入 cdp(含資料來源/日期/可靠度與原因)、swing、cdp_trend、volume_multiple。
+    前一日高低收優先用正式日K,但必須通過驗證:最後一根距今不超過7天、收盤價跟今天報價的昨收
+    幾乎一致(0.3%或0.05元)。驗證不過就退回 daily_bars 的記錄,並在備用記錄的收盤也對不上
+    昨收時把CDP標成不可靠(basis_mismatch)。"""
     official_bars = (official or {}).get("bars") or {}
+    today_date = datetime.strptime(today, "%Y-%m-%d").date()
     for q in watchlist_out:
         code = q["code"]
+        pc = q.get("prev_close")
         ob = [b for b in (official_bars.get(code) or []) if b.get("d") and b["d"] < today]
         prev = prev_bars.get(code)
-        src, basis_date = "sampled", None
-        use_official = False
+        src, basis_date, use_official = "sampled", None, False
         if ob:
             lastb = ob[-1]
-            pc = q.get("prev_close")
-            if pc and abs(lastb["c"] - pc) / pc * 100 > OFFICIAL_MISMATCH_PCT:
-                q["official_mismatch"] = True
-            else:
+            try:
+                age = (today_date - datetime.strptime(lastb["d"], "%Y-%m-%d").date()).days
+            except ValueError:
+                age = 999
+            ok_date = age <= OFFICIAL_MAX_AGE_DAYS
+            # 不能比我們自己記錄到的「最近一個交易日」更舊,否則代表日K API還沒更新到昨天
+            expected = (history_days[0].get("date") if history_days else None)
+            if ok_date and expected and lastb["d"] < expected:
+                ok_date = False
+            ok_close = (pc is None) or _close_matches(lastb["c"], pc)
+            if ok_date and ok_close:
                 prev = {"h": lastb["h"], "l": lastb["l"], "c": lastb["c"]}
                 src, basis_date, use_official = "official", lastb["d"], True
+            else:
+                q["official_mismatch"] = True
+
+        # 取得「由舊到新」的日線序列,給波段高低/均線/漲跌停判斷用
+        if use_official:
+            series = ob
+        else:
+            series = []
+            for day in reversed(history_days):
+                b = (day.get("bars") or {}).get(code)
+                if b and b.get("h") is not None and b.get("l") is not None:
+                    series.append({"d": day.get("date"), "h": b["h"], "l": b["l"], "c": b.get("c")})
 
         cdp = compute_cdp(prev)
         if cdp:
@@ -485,25 +595,32 @@ def build_levels(watchlist_out, prev_bars, history_days, official, today):
             if basis_date:
                 cdp["basis"]["date"] = basis_date
             cdp["prev_range_pct"] = rng_pct
-            cdp["reliability"] = "low" if (rng_pct is not None and rng_pct < LOW_RELIABILITY_RANGE_PCT) else "ok"
+
+            prev_move = None
+            if len(series) >= 2 and series[-1].get("c") and series[-2].get("c"):
+                prev_move = (series[-1]["c"] - series[-2]["c"]) / series[-2]["c"] * 100
+            reason = None
+            if rng_pct is not None and rng_pct < LOW_RELIABILITY_RANGE_PCT:
+                reason = "limit_lock" if (prev_move is not None and abs(prev_move) >= LIMIT_MOVE_PCT) else "narrow_range"
+            elif src == "sampled" and pc and not _close_matches(c, pc):
+                reason = "basis_mismatch"
+            cdp["reliability"] = "low" if reason else "ok"
+            if reason:
+                cdp["low_reason"] = reason
+            if prev_move is not None:
+                cdp["prev_move_pct"] = round(prev_move, 2)
         q["cdp"] = cdp
 
-        if use_official:
-            swing_bars, swing_src = ob, "official"
-        else:
-            swing_bars = []
-            for day in reversed(history_days):          # history_days 新到舊,反轉成舊到新
-                b = (day.get("bars") or {}).get(code)
-                if b and b.get("h") is not None and b.get("l") is not None:
-                    swing_bars.append({"d": day.get("date"), "h": b["h"], "l": b["l"], "c": b.get("c")})
-            swing_src = "sampled"
-        sw = compute_swing(swing_bars)
+        sw = compute_swing(series)
         if sw:
-            sw["source"] = swing_src
+            sw["source"] = "official" if use_official else "sampled"
         q["swing"] = sw
 
         q["volume_multiple"] = compute_volume_multiple(q.get("volume"), code, history_days)
-        q["cdp_trend"] = compute_cdp_trend(code, history_days, q["cdp"])
+        if use_official:
+            q["cdp_trend"] = compute_cdp_trend_official(ob, cdp)
+        else:
+            q["cdp_trend"] = compute_cdp_trend(code, history_days, cdp)
 
 
 def load_json_safe(path, default):
@@ -555,8 +672,7 @@ def check_and_send_alerts(run_time, watchlist_out):
         # 國定假日/颱風假排程照跑但沒開盤:這次報價多半是量能掛零的死數字,
         # 跳過整個通知邏輯,不更新last_side(避免把「平盤」誤記成方向、隔天真的開盤時
         # 誤判成一次假的「跨越昨收」),也不會誤判漲跌停。狀態檔還是寫回去,讓日期有換就換。
-        with open(ALERTS_STATE_FILE, "w", encoding="utf-8") as f:
-            json.dump(state, f, ensure_ascii=False)
+        write_json_atomic(ALERTS_STATE_FILE, state)
         return
 
     fires = []  # 這次要通知的文字清單
@@ -615,8 +731,7 @@ def check_and_send_alerts(run_time, watchlist_out):
         )
         send_alert_email(f"【爆量雷達】{len(fires)} 檔觸發觀察價位", body)
 
-    with open(ALERTS_STATE_FILE, "w", encoding="utf-8") as f:
-        json.dump(state, f, ensure_ascii=False)
+    write_json_atomic(ALERTS_STATE_FILE, state)
 
 
 def main():
@@ -629,6 +744,21 @@ def main():
     indices_out = []
     for code, name in INDICES:
         indices_out.append(row_to_quote(all_rows.get(code), code, name))
+
+    # 非交易日/尚未開盤判斷:用報價自己的最新成交時間(台股指數+自選股),不是今天就整輪略過。
+    # 不寫歷史、不發通知、不覆蓋 intraday_latest.json(假日打開網頁看到的就是上一個交易日的資料)。
+    ts_list = []
+    for code in ("TWS:TSE01:INDEX", "TWS:OTC01:INDEX", *stock_codes):
+        row = all_rows.get(code)
+        if row and row.get("200007"):
+            ts_list.append(row["200007"])
+    if ts_list:
+        session_date = datetime.fromtimestamp(max(ts_list), TAIPEI).strftime("%Y-%m-%d")
+        if session_date != run_time.strftime("%Y-%m-%d"):
+            print(f"[略過] 報價時間是 {session_date},今天 {run_time.strftime('%Y-%m-%d')} 還沒有新成交(休市或尚未開盤),這一輪不更新")
+            return
+    else:
+        print("[警告] 報價沒有時間戳,無法判斷是否為交易日,照常處理")
 
     watchlist_out = []
     for code, name in WATCHLIST_NAMES.items():
@@ -667,13 +797,12 @@ def main():
     }
 
     os.makedirs(DATA_DIR, exist_ok=True)
-    with open(OUT_FILE, "w", encoding="utf-8") as f:
-        json.dump(result, f, ensure_ascii=False, indent=2)
+    write_json_atomic(OUT_FILE, result, indent=2)
 
     update_history(run_time, indices_out, watchlist_out)
     check_and_send_alerts(run_time, watchlist_out)
 
-    print(json.dumps(result, ensure_ascii=False, indent=2))
+    print(json.dumps(_clean(result), ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":
