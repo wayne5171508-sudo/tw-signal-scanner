@@ -426,7 +426,7 @@ function renderWatchlist(data, filterText){
   let list = [...data.watchlist_quotes];
   if(filterText){
     const f = filterText.trim().toLowerCase();
-    list = list.filter(q => q.code.includes(f) || (q.name && q.name.toLowerCase().includes(f)));
+    list = list.filter(q => String(q.code).toLowerCase().includes(f) || (q.name && q.name.toLowerCase().includes(f)));
   }
   list.sort((a,b) => (b.pct ?? -999) - (a.pct ?? -999));
   if(!list.length){
@@ -888,7 +888,7 @@ function setupSearch(){
     if(!INTRADAY || !INTRADAY.watchlist_quotes) return [];
     const f = q.trim().toLowerCase();
     if(!f) return [];
-    return INTRADAY.watchlist_quotes.filter(s => s.code.includes(f) || (s.name && s.name.toLowerCase().includes(f))).slice(0, 8);
+    return INTRADAY.watchlist_quotes.filter(s => String(s.code).toLowerCase().includes(f) || (s.name && s.name.toLowerCase().includes(f))).slice(0, 8);
   }
 
   input.addEventListener('input', () => {
@@ -1020,7 +1020,7 @@ function renderLevels(data){
   if(!data || !data.watchlist_quotes){ listEl.innerHTML = '<div class="err">暫無自選股資料</div>'; fEl.innerHTML=''; return; }
   const f = SEARCH_TEXT.trim().toLowerCase();
   let rows = data.watchlist_quotes.map(q => ({q, lv: lvInfo(q)}));
-  if(f) rows = rows.filter(r => r.q.code.includes(f) || (r.q.name && r.q.name.toLowerCase().includes(f)));
+  if(f) rows = rows.filter(r => String(r.q.code).toLowerCase().includes(f) || (r.q.name && r.q.name.toLowerCase().includes(f)));
   const cnt = {all: rows.length, res:0, sup:0, out:0};
   rows.forEach(r => {
     if(!r.lv) return;
