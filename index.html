@@ -179,6 +179,14 @@
   .lvnodata{font-size:12.5px;color:var(--muted);margin-top:8px}
   .lvhint{font-size:10.5px;color:var(--muted);margin-top:4px}
   .lvextra{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:8px;padding-top:7px;border-top:1px dashed var(--border);font-size:11px;color:var(--sec);font-variant-numeric:tabular-nums}
+  .regimebox{margin:8px 0;padding:8px 10px;border-radius:8px;font-size:12px;line-height:1.5}
+  .regimebox.weak{background:rgba(24,143,99,0.12);color:var(--down)}
+  .regimebox.strong{background:rgba(209,64,63,0.12);color:var(--up)}
+  .confrow{border-top:none;margin-top:3px;padding-top:0}
+  .confstrong{color:var(--text);font-weight:600}
+  .lvextra .dim2{color:var(--muted)}
+  .tchrow{border-top:none;margin-top:3px;padding-top:0}
+  .tchnote{font-size:10px;color:var(--muted);margin-top:3px}
   .lvextra .dim{color:var(--muted);text-decoration:line-through;text-decoration-color:rgba(0,0,0,0.25)}
   .lvsrc{color:var(--muted)}
   .fchips .blabel{font-size:12px;color:var(--muted);align-self:center;margin-right:2px}
@@ -209,7 +217,9 @@
 <h2 style="margin-top:6px">支撐壓力一覽(自選股)</h2>
 <div class="fchips" id="basisChips"></div>
 <div class="fchips" id="levelFilters"></div>
+<div id="regimeNote" class="regimebox" style="display:none"></div>
 <div id="levelList">載入中...</div>
+<div class="note" id="touchNote" style="margin-top:0;display:none"></div>
 <div class="note" style="margin-top:0">橫條:左端=支撐(綠),右端=壓力(紅),圓點=現價位置。「依據」預設自動:用CDP樞紐點(前一交易日高低收);若昨日振幅太小(例如漲停鎖死)導致CDP失真,自動改用近5日最高最低。也可手動切換成CDP、5日、10日、20日。「接近」的距離會依各股票自己的波動調整。卡片下方小字同時列出CDP、5日、10日高低供對照。都是機械式參考線,不是股價預測,不構成買賣建議。點任一檔看K線與細節。<span id="srcNote"></span></div>
 
 <details class="more">
@@ -940,6 +950,7 @@ async function loadAll(opts){
 
   const safe = (name, fn) => { try { fn(); } catch(e) { console.error('render ' + name, e); } };
   safe('fresh', () => renderFresh(intraday));
+  safe('touchnote', () => renderTouchNote(intraday));
   safe('srcnote', () => { const sn = document.getElementById('srcNote'); if(sn) sn.textContent = (intraday && intraday.official_bars_status) ? ' 日K資料狀態:' + intraday.official_bars_status + '。' : ''; });
   safe('indices', () => renderIndices(intraday));
   safe('levels', () => renderLevels(intraday));
@@ -1088,7 +1099,77 @@ function lvExtra(q){
     if(ma.ma60 != null) m.push(`季線${fmtNum(ma.ma60)}`);
     if(m.length) parts.push(`<span>${m.join(' ')}</span>`);
   }
-  return parts.length ? `<div class="lvextra">${parts.join('')}</div>` : '';
+  const tr = touchRows(q);
+  return (parts.length ? `<div class="lvextra">${parts.join('')}</div>` : '') + confRows(q) + tr;
+}
+
+// 觸及回測:a/b = 近N日碰到這條線b次,其中a次收盤明確彈開/回落(離線超過0.5%)。樣本少於5次的淡化顯示
+function touchRows(q){
+  const t = q && q.touch;
+  if(!t || typeof t !== 'object') return '';
+  const defs = [['cdp','CDP'],['sw5','5日'],['sw10','10日'],['sw20','20日']];
+  const row = (side, label) => {
+    const bits = [];
+    for(const [k, nm] of defs){
+      const r = t[k] && t[k][side];
+      if(!r || !(r.n > 0)) continue;
+      bits.push(`<span class="${r.n < 5 ? 'dim2' : ''}">${nm} ${r.rev}/${r.n}</span>`);
+    }
+    return bits.length ? `<div class="lvextra tchrow"><span><b>${label}</b></span>${bits.join('')}</div>` : '';
+  };
+  const out = row('res', '壓力回測(回落)') + row('sup', '支撐回測(彈開)');
+  return out ? out + `<div class="tchnote">近${t.days}個交易日。a/b=碰到b次,其中a次收盤明確離開線0.5%以上</div>` : '';
+}
+
+const pct2 = r => (r && r.n > 0) ? `${Math.round(r.rev / r.n * 100)}%(${r.n})` : '-';
+
+function renderTouchNote(intraday){
+  const el = document.getElementById('touchNote');
+  const rg = document.getElementById('regimeNote');
+  const mr = intraday && intraday.market_regime;
+  if(rg){
+    if(mr && mr.label === 'weak'){
+      rg.style.display = ''; rg.className = 'regimebox weak';
+      rg.textContent = `今日自選股漲跌幅中位數 ${fmtPct(mr.median_pct)}:大盤偏弱,支撐線容易被擊穿,下方的支撐請打折看待。`;
+    } else if(mr && mr.label === 'strong'){
+      rg.style.display = ''; rg.className = 'regimebox strong';
+      rg.textContent = `今日自選股漲跌幅中位數 ${fmtPct(mr.median_pct)}:大盤偏強,壓力線容易被突破,上方的壓力請打折看待。`;
+    } else { rg.style.display = 'none'; }
+  }
+  if(!el) return;
+  const s = intraday && intraday.touch_summary;
+  if(!s || !s.cdp){ el.style.display = 'none'; return; }
+  const pct = r => (r && r.n > 0) ? `${Math.round(r.rev / r.n * 100)}%(${r.n}次)` : '-';
+  const pc2 = (a, b) => (a && a.n > 0) ? Math.round(a.rev / a.n * 100) + '%' : '-';
+  el.style.display = '';
+  let h = `<b>回測統計</b>(自選${s.stocks}檔、近${s.days}個交易日,全部加總)<br>`
+    + `壓力線碰到後明確回落:CDP ${pct(s.cdp.res)}、5日高 ${pct(s.sw5.res)}、20日高 ${pct(s.sw20.res)}。`
+    + `支撐線碰到後明確彈開:CDP ${pct(s.cdp.sup)}、5日低 ${pct(s.sw5.sup)}、20日低 ${pct(s.sw20.sup)}。`;
+  if(s.c2 && s.c1){
+    h += `<br><b>線疊加</b>:多類線疊在一起的區域,壓力回落 ${pct(s.c2.res)}、支撐彈開 ${pct(s.c2.sup)};單一線則是 ${pct(s.c1.res)}、${pct(s.c1.sup)}。`;
+  }
+  if(s.vol){
+    h += `<br><b>放量</b>(碰線當天量≥前5日均量1.2倍):壓力回落 ${pct2(s.vol.res.hi)} vs 沒放量 ${pct2(s.vol.res.lo)};支撐彈開 ${pct2(s.vol.sup.hi)} vs ${pct2(s.vol.sup.lo)}。`;
+  }
+  if(s.reg){
+    h += `<br><b>大盤強弱</b>(當天自選股中位數漲跌):弱日(≤-1%)支撐彈開 ${pct2(s.reg.weak.sup)}、平常 ${pct2(s.reg.normal.sup)};強日(≥+1%)壓力回落 ${pct2(s.reg.strong.res)}、平常 ${pct2(s.reg.normal.res)}。`;
+  }
+  h += `<br>這是過去的結果。碰到線本來就容易收在線的同一側,所以請拿不同線、不同條件互相比較,不要把比例當成勝率;弱日、強日的樣本通常很少。`;
+  el.innerHTML = h;
+}
+
+function confRows(q){
+  const c = q && q.conf;
+  if(!c || typeof c !== 'object') return '';
+  const one = (arr, label) => {
+    if(!Array.isArray(arr) || !arr.length) return '';
+    const items = arr.filter(x => x && num(x.price) != null).map(x => {
+      const stars = x.n >= 2 ? '★'.repeat(Math.min(x.n, 4)) : '';
+      return `<span class="${x.n >= 2 ? 'confstrong' : 'dim2'}">${fmtNum(x.price)} ${stars} ${(x.srcs || []).join('+')}</span>`;
+    });
+    return items.length ? `<div class="lvextra confrow"><span><b>${label}</b></span>${items.join('')}</div>` : '';
+  };
+  return one(c.res, '上方線區') + one(c.sup, '下方線區');
 }
 
 function lvBasisNote(q, lv){
