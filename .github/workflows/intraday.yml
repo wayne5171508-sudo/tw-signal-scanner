@@ -2,13 +2,18 @@ name: 盤中即時報價
 
 on:
   schedule:
-    # 台北時間 09:00-13:40,每5分鐘跑一次,週一到週五(UTC 01:00-05:40)
-    - cron: "*/5 1-5 * * 1-5"
+    # GitHub的cron在低活躍repo常常延遲或整批跳過,所以不再依賴「每5分鐘觸發一次」。
+    # 改成:交易日開盤前後多設幾個觸發點,任何一個觸發成功就會開始一個長時間迴圈,
+    # 在迴圈裡自己每5分鐘抓一次,一直跑到13:40(台北)。
+    - cron: "40 0 * * 1-5"   # 08:40 台北
+    - cron: "5 1 * * 1-5"    # 09:05
+    - cron: "35 1 * * 1-5"   # 09:35
+    - cron: "5 2 * * 1-5"    # 10:05
+    - cron: "5 3 * * 1-5"    # 11:05
+    - cron: "5 4 * * 1-5"    # 12:05
   workflow_dispatch: {}
 
-# 排程改成5分鐘一次後,手動按「Run workflow」有機會跟排程本身的執行時間重疊;加這個讓同一個
-# workflow不要同時跑兩份(排隊等上一個跑完再跑,不取消正在跑的那個),避免兩邊同時git push
-# 互搶造成失敗。
+# 同一時間只留一個迴圈在跑;後面觸發的排隊,前一個結束(13:40)後會發現已過收盤而立刻結束。
 concurrency:
   group: intraday-scan
   cancel-in-progress: false
@@ -19,6 +24,7 @@ permissions:
 jobs:
   intraday:
     runs-on: ubuntu-latest
+    timeout-minutes: 330
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v6
@@ -26,16 +32,27 @@ jobs:
           python-version: "3.11"
       - name: 安裝套件
         run: pip install requests
-      - name: 抓即時報價 + 檢查觸價通知
+      - name: 迴圈:每5分鐘抓報價並存回repo,直到收盤
         env:
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
-        run: python intraday.py
-      - name: 把結果存回repo
         run: |
           git config user.name "tw-signal-scanner-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add data/intraday_latest.json data/intraday_history.json data/alerts_state.json data/daily_bars.json
-          git diff --quiet --cached || git commit -m "盤中報價更新 $(date -u -d '+8 hours' +'%Y-%m-%d %H:%M')"
-          # 萬一偶爾還是跟別的執行撞在一起導致push被拒絕,先拉一次再重推一次,
-          # 真的還是不行才讓這步驟失敗(紅叉),不要默默放棄這次的資料。
-          git push || (git pull --rebase origin main && git push)
+          end_epoch=$(TZ=Asia/Taipei date -d "today 13:40" +%s)
+          start_epoch=$(TZ=Asia/Taipei date -d "today 08:55" +%s)
+          now=$(date +%s)
+          if [ "$now" -lt "$start_epoch" ] || [ "$now" -gt "$end_epoch" ]; then
+            echo "不在交易時段,結束"; exit 0
+          fi
+          while [ "$(date +%s)" -le "$end_epoch" ]; do
+            loop_start=$(date +%s)
+            python intraday.py || echo "這一輪抓取失敗,5分鐘後再試"
+            git add data/intraday_latest.json data/intraday_history.json data/alerts_state.json data/daily_bars.json
+            if ! git diff --quiet --cached; then
+              git commit -m "盤中報價更新 $(TZ=Asia/Taipei date +'%Y-%m-%d %H:%M')"
+              git push || (git pull --rebase origin main && git push) || echo "push失敗,下一輪再推"
+            fi
+            elapsed=$(( $(date +%s) - loop_start ))
+            sleep_for=$(( 300 - elapsed ))
+            [ "$sleep_for" -gt 0 ] && sleep "$sleep_for"
+          done
