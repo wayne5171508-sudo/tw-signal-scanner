@@ -536,6 +536,248 @@ def compute_swing(bars):
     return out
 
 
+TOUCH_TOL_PCT = 0.15     # 最高/最低價進到線的 0.15% 以內就算「碰到」
+TOUCH_REV_PCT = 0.5      # 收盤離線 0.5% 以上才算「明確彈開/回落」
+TOUCH_BASES = ("cdp", "sw5", "sw10", "sw20", "c1", "c2")   # c2=多條不同類的線疊在一起(疊加強度>=2),c1=單一線
+CONF_TOL_PCT = 0.5       # 不同線的價位相差 0.5% 以內視為疊在同一區
+VP_DAYS = 60             # 量能密集區用最近幾個交易日
+VP_BIN_PCT = 0.5         # 量能分格寬度(佔現價 %)
+VP_NODE_MULT = 1.5       # 某一格成交量 >= 平均 1.5 倍才算密集區
+VOL_HI_MULT = 1.2        # 碰線當天量 >= 前5日均量 1.2 倍算放量
+REGIME_WEAK = -1.0       # 自選股當日漲跌幅中位數 <= -1% 算大盤偏弱
+REGIME_STRONG = 1.0
+LINE_FAMILY = {"CDP": "cdp", "5日": "swing", "10日": "swing", "20日": "swing",
+               "週線": "ma", "10日線": "ma", "月線": "ma", "季線": "ma", "量能區": "vp"}
+
+
+def _num_ok(*xs):
+    return all(isinstance(x, (int, float)) and not isinstance(x, bool) and x == x for x in xs)
+
+
+def regime_label(median_pct):
+    if median_pct is None:
+        return None
+    return "weak" if median_pct <= REGIME_WEAK else "strong" if median_pct >= REGIME_STRONG else "normal"
+
+
+def compute_regime_map(official_bars):
+    """每個交易日「自選股漲跌幅中位數」。用自選股自己的日K推出來,不必另外抓大盤日K。
+    至少20檔都有資料的日子才算,回傳 {日期: 中位數%}。"""
+    by = {}
+    for bars in (official_bars or {}).values():
+        prev = None
+        for b in bars or []:
+            if not _num_ok(b.get("c")) or b["c"] <= 0:
+                prev = None
+                continue
+            if prev:
+                by.setdefault(b["d"], []).append((b["c"] / prev - 1) * 100)
+            prev = b["c"]
+    out = {}
+    for d, v in by.items():
+        if len(v) >= 20:
+            v.sort()
+            m = len(v) // 2
+            out[d] = v[m] if len(v) % 2 else (v[m - 1] + v[m]) / 2
+    return out
+
+
+def compute_volume_nodes(bars, ref_price):
+    """成交量密集區:把最近 VP_DAYS 天每天的成交量平均攤到當天的高低價區間,
+    累加後找出比平均高 VP_NODE_MULT 倍的局部高點。回傳 (現價上方最近的密集價, 現價下方最近的密集價)。
+    沒有成交量或資料太少回傳 (None, None)。"""
+    if not _num_ok(ref_price) or ref_price <= 0:
+        return None, None
+    seg = [b for b in (bars or [])[-VP_DAYS:] if _num_ok(b.get("h"), b.get("l"), b.get("v")) and b["v"] > 0 and b["h"] >= b["l"]]
+    if len(seg) < 10:
+        return None, None
+    lo, hi = min(b["l"] for b in seg), max(b["h"] for b in seg)
+    w = ref_price * VP_BIN_PCT / 100
+    nb = int((hi - lo) / w) + 1
+    if nb > 400:
+        nb = 400
+        w = (hi - lo) / nb
+    vol = [0.0] * nb
+    for b in seg:
+        i0 = min(int((b["l"] - lo) / w), nb - 1)
+        i1 = min(int((b["h"] - lo) / w), nb - 1)
+        share = b["v"] / (i1 - i0 + 1)
+        for i in range(i0, i1 + 1):
+            vol[i] += share
+    nz = [x for x in vol if x > 0]
+    if not nz:
+        return None, None
+    mean = sum(nz) / len(nz)
+    nodes = []
+    for i in range(nb):
+        left = vol[i - 1] if i > 0 else 0
+        right = vol[i + 1] if i < nb - 1 else 0
+        if vol[i] >= mean * VP_NODE_MULT and vol[i] > left and vol[i] >= right:
+            nodes.append(lo + (i + 0.5) * w)
+    up = [x for x in nodes if x > ref_price * 1.0005]
+    dn = [x for x in nodes if x < ref_price * 0.9995]
+    return (min(up) if up else None), (max(dn) if dn else None)
+
+
+def level_candidates(hist, ref_price):
+    """用 hist(由舊到新、不含評估當天)列出所有候選線:[(價位, 名稱)]。
+    CDP 近高/近低(前一天振幅太小就不算)、5/10/20日高低、5/10/20/60日均線、量能密集區。"""
+    out = []
+    if not hist:
+        return out
+    last = hist[-1]
+    if _num_ok(last.get("h"), last.get("l"), last.get("c")) and last["c"] > 0:
+        if (last["h"] - last["l"]) / last["c"] * 100 >= LOW_RELIABILITY_RANGE_PCT:
+            cd = compute_cdp(last)
+            if cd:
+                out += [(cd["nh"], "CDP"), (cd["nl"], "CDP")]
+    for n in (5, 10, 20):
+        seg = [x for x in hist[-n:] if _num_ok(x.get("h"), x.get("l"))]
+        if len(seg) == n:
+            out += [(max(x["h"] for x in seg), f"{n}日"), (min(x["l"] for x in seg), f"{n}日")]
+    closes = [x["c"] for x in hist if _num_ok(x.get("c"))]
+    for n, nm in ((5, "週線"), (10, "10日線"), (20, "月線"), (60, "季線")):
+        if len(closes) >= n:
+            out.append((sum(closes[-n:]) / n, nm))
+    up, dn = compute_volume_nodes(hist, ref_price)
+    for v in (up, dn):
+        if v:
+            out.append((v, "量能區"))
+    return [(p, s) for p, s in out if _num_ok(p) and p > 0]
+
+
+def cluster_levels(cands):
+    """把相差 CONF_TOL_PCT 以內的線併成一區。strength=區內「不同類別」的線有幾類
+    (CDP、波段高低、均線、量能區各算一類;5日高和10日高同價不會被算成兩條)。"""
+    groups = []
+    for p, s in sorted(cands):
+        if groups and p - groups[-1]["start"] <= groups[-1]["start"] * CONF_TOL_PCT / 100:
+            groups[-1]["items"].append((p, s))
+        else:
+            groups.append({"start": p, "items": [(p, s)]})
+    out = []
+    for g in groups:
+        names = []
+        for _, s in g["items"]:
+            if s not in names:
+                names.append(s)
+        fam = {LINE_FAMILY.get(s, s) for s in names}
+        out.append({"price": round(sum(p for p, _ in g["items"]) / len(g["items"]), 4),
+                    "n": len(fam), "srcs": names})
+    return out
+
+
+def split_clusters(cands, ref_price):
+    res = cluster_levels([(p, s) for p, s in cands if p > ref_price])
+    sup = cluster_levels([(p, s) for p, s in cands if p < ref_price])
+    return res, sup
+
+
+def _empty_ns():
+    return {"n": 0, "held": 0, "rev": 0}
+
+
+def new_touch_stats():
+    st = {k: {"res": _empty_ns(), "sup": _empty_ns()} for k in TOUCH_BASES}
+    st["vol"] = {side: {"hi": {"n": 0, "rev": 0}, "lo": {"n": 0, "rev": 0}} for side in ("res", "sup")}
+    st["reg"] = {r: {side: {"n": 0, "rev": 0} for side in ("res", "sup")} for r in ("weak", "normal", "strong")}
+    st["days"] = 0
+    return st
+
+
+def add_stats(dst, src):
+    """把一檔股票的回測結果加進總計(巢狀字典裡的數字逐項相加)。"""
+    for k, v in src.items():
+        if isinstance(v, dict):
+            add_stats(dst[k], v)
+        elif k == "days":
+            dst[k] = max(dst[k], v)
+        else:
+            dst[k] += v
+
+
+def compute_touch_stats(series, regime=None):
+    """觸及回測:用正式日K(由舊到新、不含今天)逐日檢驗「前一天收盤時就能算出來的線」。
+    每一天只用當時看得到的資料算 CDP 近高/近低、5/10/20日高低(不含當天),再看當天:
+      壓力:最高價進到線的 TOUCH_TOL_PCT 內算碰到;收盤沒站上算 held;收盤低於線 TOUCH_REV_PCT 以上算 rev。
+      支撐:最低價進到線內算碰到;收盤沒跌破算 held;收盤高於線 TOUCH_REV_PCT 以上算 rev。
+    另外把所有候選線(含均線、量能密集區)併成「疊加區」:c2=不同類的線疊在一起,c1=單一線。
+    並把每次碰線依「當天是否放量」「大盤強弱」分開統計(只記 n 與 rev)。
+    開盤就跳空越過線的日子不算;CDP 前一天若振幅太小(漲跌停鎖死)也不算。
+    回傳 None 表示可回測的天數少於5天。"""
+    bars = [b for b in (series or []) if _num_ok(b.get("h"), b.get("l"), b.get("c"))]
+    if len(bars) < 6:
+        return None
+    st = new_touch_stats()
+    tol, rev = TOUCH_TOL_PCT / 100, TOUCH_REV_PCT / 100
+
+    def test(side, line, b, o):
+        """回傳 (有碰到, 收盤守住, 明確彈開/回落);跳空越過回傳 None"""
+        if side == "res":
+            if o is not None and o >= line:
+                return None
+            if b["h"] < line * (1 - tol):
+                return (False, False, False)
+            return (True, b["c"] < line, b["c"] <= line * (1 - rev))
+        if o is not None and o <= line:
+            return None
+        if b["l"] > line * (1 + tol):
+            return (False, False, False)
+        return (True, b["c"] > line, b["c"] >= line * (1 + rev))
+
+    for i in range(1, len(bars)):
+        b, pb = bars[i], bars[i - 1]
+        o = b.get("o") if _num_ok(b.get("o")) else None
+        lv = {}
+        pr = (pb["h"] - pb["l"]) / pb["c"] * 100 if pb["c"] else 0
+        if pr >= LOW_RELIABILITY_RANGE_PCT:
+            cd = compute_cdp(pb)
+            if cd:
+                lv["cdp"] = (cd["nh"], cd["nl"])
+        for n in (5, 10, 20):
+            seg = bars[max(0, i - n):i]
+            if len(seg) == n:
+                lv[f"sw{n}"] = (max(x["h"] for x in seg), min(x["l"] for x in seg))
+        for k, (R, S) in lv.items():
+            for side, line in (("res", R), ("sup", S)):
+                if line > 0:
+                    r = test(side, line, b, o)
+                    if r and r[0]:
+                        x = st[k][side]
+                        x["n"] += 1
+                        x["held"] += 1 if r[1] else 0
+                        x["rev"] += 1 if r[2] else 0
+        # 疊加區 + 放量 + 大盤強弱
+        hist = bars[:i]
+        ref = pb["c"]
+        vols = [x["v"] for x in bars[max(0, i - 5):i] if _num_ok(x.get("v")) and x["v"] > 0]
+        vol_hi = None
+        if len(vols) >= 3 and _num_ok(b.get("v")) and b["v"] > 0:
+            vol_hi = b["v"] >= VOL_HI_MULT * (sum(vols) / len(vols))
+        rg = regime_label(regime.get(b.get("d"))) if regime else None
+        res_cl, sup_cl = split_clusters(level_candidates(hist, ref), ref)
+        for side, cls in (("res", res_cl), ("sup", sup_cl)):
+            for cl in cls:
+                r = test(side, cl["price"], b, o)
+                if not (r and r[0]):
+                    continue
+                k = "c2" if cl["n"] >= 2 else "c1"
+                x = st[k][side]
+                x["n"] += 1
+                x["held"] += 1 if r[1] else 0
+                x["rev"] += 1 if r[2] else 0
+                if vol_hi is not None:
+                    y = st["vol"][side]["hi" if vol_hi else "lo"]
+                    y["n"] += 1
+                    y["rev"] += 1 if r[2] else 0
+                if rg:
+                    y = st["reg"][rg][side]
+                    y["n"] += 1
+                    y["rev"] += 1 if r[2] else 0
+    st["days"] = len(bars) - 1
+    return st
+
+
 def _close_matches(c, ref):
     return abs(c - ref) <= max(0.05, ref * OFFICIAL_MISMATCH_PCT / 100)
 
@@ -558,6 +800,15 @@ def build_levels(watchlist_out, prev_bars, history_days, official, today):
     幾乎一致(0.3%或0.05元)。驗證不過就退回 daily_bars 的記錄,並在備用記錄的收盤也對不上
     昨收時把CDP標成不可靠(basis_mismatch)。"""
     official_bars = (official or {}).get("bars") or {}
+    summary = new_touch_stats()
+    summary["stocks"] = 0
+    regime_map = compute_regime_map(official_bars)
+    pcts = sorted(q["pct"] for q in watchlist_out if _num_ok(q.get("pct")))
+    med_today = None
+    if len(pcts) >= 20:
+        m = len(pcts) // 2
+        med_today = pcts[m] if len(pcts) % 2 else (pcts[m - 1] + pcts[m]) / 2
+    summary["regime_today"] = {"median_pct": round(med_today, 2), "label": regime_label(med_today)} if med_today is not None else None
     today_date = datetime.strptime(today, "%Y-%m-%d").date()
     for q in watchlist_out:
         code = q["code"]
@@ -622,11 +873,40 @@ def build_levels(watchlist_out, prev_bars, history_days, official, today):
             sw["source"] = "official" if use_official else "sampled"
         q["swing"] = sw
 
+        # 觸及回測:只用正式日K(取樣記錄太短、也沒有開盤價,不拿來回測)
+        q["touch"] = None
+        if use_official:
+            try:
+                ts_ = compute_touch_stats(series, regime_map)
+            except Exception as e:  # noqa: BLE001  回測是加分資料,不能影響報價
+                print(f"[警告] {code} 觸及回測失敗: {e}")
+                ts_ = None
+            q["touch"] = ts_
+            if ts_:
+                summary["stocks"] += 1
+                add_stats(summary, ts_)
+
+        # 疊加區與量能密集區:用「現價」把候選線分成上方壓力、下方支撐,各留最近2區
+        q["conf"] = None
+        q["vp"] = None
+        try:
+            ref = q.get("last") if _num_ok(q.get("last")) and q["last"] > 0 else None
+            if ref and series:
+                res_cl, sup_cl = split_clusters(level_candidates(series, ref), ref)
+                res_cl = sorted(res_cl, key=lambda c: c["price"])[:2]
+                sup_cl = sorted(sup_cl, key=lambda c: -c["price"])[:2]
+                q["conf"] = {"res": res_cl, "sup": sup_cl}
+                up, dn = compute_volume_nodes(series, ref)
+                q["vp"] = {"res": round(up, 4) if up else None, "sup": round(dn, 4) if dn else None}
+        except Exception as e:  # noqa: BLE001
+            print(f"[警告] {code} 疊加區計算失敗: {e}")
+
         q["volume_multiple"] = compute_volume_multiple(q.get("volume"), code, history_days)
         if use_official:
             q["cdp_trend"] = compute_cdp_trend_official(ob, cdp)
         else:
             q["cdp_trend"] = compute_cdp_trend(code, history_days, cdp)
+    return summary
 
 
 def load_json_safe(path, default):
@@ -780,7 +1060,7 @@ def main():
     except Exception as e:  # noqa: BLE001  日K是加分資料,出任何狀況都不能影響即時報價
         print(f"[警告] 正式日K更新失敗,改用舊記錄: {e}")
         official = {}
-    build_levels(watchlist_out, prev_bars, history_days, official, run_time.strftime("%Y-%m-%d"))
+    touch_summary = build_levels(watchlist_out, prev_bars, history_days, official, run_time.strftime("%Y-%m-%d"))
 
     # 用任一筆有拿到時間戳的資料,換算成「資料實際代表的時間」,跟「程式執行的時間」分開揭露
     data_ts = None
@@ -798,6 +1078,8 @@ def main():
         "data_as_of": data_as_of,
         "check_frequency_note": "開盤期間每約5分鐘由GitHub Actions排程抓一次,非逐秒即時報價",
         "official_bars_status": (official or {}).get("status"),
+        "touch_summary": touch_summary if touch_summary and touch_summary.get("stocks") else None,
+        "market_regime": (touch_summary or {}).get("regime_today"),
         "indices": indices_out,
         "watchlist_quotes": watchlist_out,
     }
