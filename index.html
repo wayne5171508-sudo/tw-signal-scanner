@@ -178,6 +178,9 @@
   .lvnum.r .t,.lvnum.r .v{color:var(--up)}
   .lvnodata{font-size:12.5px;color:var(--muted);margin-top:8px}
   .lvhint{font-size:10.5px;color:var(--muted);margin-top:4px}
+  .lvextra{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:8px;padding-top:7px;border-top:1px dashed var(--border);font-size:11px;color:var(--sec);font-variant-numeric:tabular-nums}
+  .lvextra .dim{color:var(--muted);text-decoration:line-through;text-decoration-color:rgba(0,0,0,0.25)}
+  .lvsrc{color:var(--muted)}
   details.more{background:var(--card);border:1px solid var(--border);border-radius:10px;margin:14px 0;padding:0 12px}
   details.more summary{padding:12px 0;font-size:14px;font-weight:600;color:var(--sec);cursor:pointer;list-style:none}
   details.more summary::-webkit-details-marker{display:none}
@@ -205,7 +208,7 @@
 <h2 style="margin-top:6px">支撐壓力一覽(自選股)</h2>
 <div class="fchips" id="levelFilters"></div>
 <div id="levelList">載入中...</div>
-<div class="note" style="margin-top:0">橫條:左端=支撐(綠),右端=壓力(紅),圓點=現價位置。支撐壓力是前一交易日高低收算出的CDP樞紐點,不是股價預測,不構成買賣建議。點任一檔看K線與細節。</div>
+<div class="note" style="margin-top:0">橫條:左端=支撐(綠),右端=壓力(紅),圓點=現價位置。預設用CDP樞紐點(前一交易日高低收);若昨日鎖漲跌停、振幅太小導致CDP失真,自動改用近5日最高最低。卡片下方小字同時列出CDP、5日、10日高低供對照。都是機械式參考線,不是股價預測,不構成買賣建議。點任一檔看K線與細節。<span id="srcNote"></span></div>
 
 <details class="more">
   <summary>更多:熱力圖、量能排行、完整報價表</summary>
@@ -650,25 +653,30 @@ function priceLadder(q){
 // 高低點。只有「還沒有前一個交易日資料」(例如功能剛上線的第一個交易日)才會退回用今日目前
 // 為止的高低點當替代。股價真的衝到漲停/跌停鎖住時,不管哪種算法都會自然顯示成漲停/跌停。----
 function keyLevels(q){
-  const cdp = q.cdp;
+  const cdp = q.cdp, sw = q.swing;
   const usingCdp = !!(cdp && cdp.nh != null && cdp.nl != null && cdp.cdp != null);
-  let resTarget, supTarget, midVal, midLabel;
-  if(usingCdp){
+  const cdpLow = usingCdp && cdp.reliability === 'low';
+  const haveSwing = !!(sw && sw.h5 != null && sw.l5 != null);
+  let resTarget, supTarget, midVal, midLabel, resBase, supBase, basis;
+  if(usingCdp && !cdpLow){
     resTarget = (q.upper_limit != null) ? Math.min(cdp.nh, q.upper_limit) : cdp.nh;
     supTarget = (q.lower_limit != null) ? Math.max(cdp.nl, q.lower_limit) : cdp.nl;
-    midVal = cdp.cdp;
-    midLabel = 'CDP樞紐價';
+    midVal = cdp.cdp; midLabel = 'CDP樞紐價';
+    resBase = 'CDP近高'; supBase = 'CDP近低'; basis = 'cdp';
+  } else if(haveSwing){
+    resTarget = sw.h5; supTarget = sw.l5;
+    midVal = usingCdp ? cdp.cdp : q.prev_close; midLabel = usingCdp ? 'CDP樞紐價' : '昨收';
+    resBase = `近${sw.d5}日高`; supBase = `近${sw.d5}日低`; basis = 'swing';
   } else {
-    resTarget = q.high ?? q.upper_limit;
-    supTarget = q.low ?? q.lower_limit;
-    midVal = q.prev_close;
-    midLabel = '昨收';
+    resTarget = q.high ?? q.upper_limit; supTarget = q.low ?? q.lower_limit;
+    midVal = q.prev_close; midLabel = '昨收';
+    resBase = '今日高'; supBase = '今日低'; basis = 'today';
   }
   const hitUpper = q.upper_limit != null && resTarget != null && resTarget >= q.upper_limit - 0.005;
   const hitLower = q.lower_limit != null && supTarget != null && supTarget <= q.lower_limit + 0.005;
-  const resLabel = hitUpper ? '漲停' : (usingCdp ? 'CDP近高' : '今日高');
-  const supLabel = hitLower ? '跌停' : (usingCdp ? 'CDP近低' : '今日低');
-  return {resTarget, resLabel, supTarget, supLabel, midVal, midLabel, usingCdp};
+  const resLabel = hitUpper ? '漲停' : resBase;
+  const supLabel = hitLower ? '跌停' : supBase;
+  return {resTarget, resLabel, supTarget, supLabel, midVal, midLabel, usingCdp: basis === 'cdp', basis, cdpLow, haveSwing};
 }
 
 // ---- 關鍵價位 chips:壓力(CDP近高,沒資料時退回今日高) / 交界(CDP樞紐價,沒資料時退回昨收) / 支撐(CDP近低,沒資料時退回今日低) ----
@@ -696,7 +704,7 @@ function levelChips(q, isIndex){
         <div class="sub">距現價 ${dSup !== null ? '-' + dSup.toFixed(2) + '%' : '-'}</div>
       </div>
     </div>
-    ${!isIndex && !usingCdp ? `<div class="meta" style="margin-top:4px">今天還沒有前一個交易日資料可以算CDP樞紐價,先用今日目前為止的高低點替代,明天開始會自動換成CDP。</div>` : ''}`;
+    ${!isIndex ? levelWhy(q) : ''}`;
 }
 
 // ---- 機械式位置判讀(純粹描述現價在今天區間的位置,不是買賣建議) ----
@@ -913,6 +921,7 @@ async function loadAll(opts){
   CHIP = chip; INTRADAY = intraday; HISTORY = history;
 
   renderFresh(intraday);
+  const sn = document.getElementById('srcNote'); if(sn) sn.textContent = (intraday && intraday.official_bars_status) ? ' 日K資料狀態:' + intraday.official_bars_status + '。' : '';
   renderIndices(intraday);
   renderLevels(intraday);
   renderHeatGrid(intraday);
@@ -1009,6 +1018,39 @@ function renderLevels(data){
   listEl.innerHTML = rows.map(({q, lv}) => lvCard(q, lv)).join('');
 }
 
+function levelWhy(q){
+  const kl = keyLevels(q);
+  if(kl.basis === 'cdp') return '';
+  if(kl.basis === 'swing'){
+    const why = kl.cdpLow ? `前一日振幅只有 ${q.cdp.prev_range_pct}%(多為漲跌停鎖死),CDP 參考性低,` : '沒有前一日完整資料可算CDP,';
+    return `<div class="lvhint" style="margin-top:6px">${why}改用近${q.swing.d5}日最高/最低當壓力支撐。</div>`;
+  }
+  return `<div class="lvhint" style="margin-top:6px">歷史資料不足,暫用今日高低點。</div>`;
+}
+
+function lvExtra(q){
+  const parts = [];
+  const cdp = q.cdp, sw = q.swing;
+  if(cdp && cdp.nh != null){
+    const low = cdp.reliability === 'low';
+    parts.push(`<span class="${low ? 'dim' : ''}">CDP 壓${fmtNum(cdp.nh)} 支${fmtNum(cdp.nl)}${low ? '(參考性低)' : ''}</span>`);
+  }
+  if(sw){
+    parts.push(`<span>${sw.d5}日 高${fmtNum(sw.h5)} 低${fmtNum(sw.l5)}</span>`);
+    if(sw.d10 > sw.d5) parts.push(`<span>${sw.d10}日 高${fmtNum(sw.h10)} 低${fmtNum(sw.l10)}</span>`);
+  }
+  return parts.length ? `<div class="lvextra">${parts.join('')}</div>` : '';
+}
+
+function lvBasisNote(q, lv){
+  const kl = keyLevels(q);
+  const tag = `<span class="lvsrc">依據:${kl.supLabel === '跌停' || kl.resLabel === '漲停' ? '' : ''}${kl.basis === 'cdp' ? 'CDP樞紐點(昨日高低收)' : (kl.basis === 'swing' ? '近' + q.swing.d5 + '日高低' : '今日高低')}</span>`;
+  if(kl.basis === 'swing' && kl.cdpLow) return `<div class="lvhint">昨日振幅僅 ${q.cdp.prev_range_pct}%(多為漲跌停鎖死),CDP 失真,改用近${q.swing.d5}日高低。${tag}</div>`;
+  if(kl.basis === 'swing') return `<div class="lvhint">${tag}</div>`;
+  if(kl.basis === 'today') return `<div class="lvhint">歷史資料不足,暫用今日高低點</div>`;
+  return `<div class="lvhint">${tag}</div>`;
+}
+
 function lvCard(q, lv){
   const head = `
     <div class="lvtop">
@@ -1035,7 +1077,8 @@ function lvCard(q, lv){
       <div class="lvnum s"><div class="t">支撐</div><div class="v">${fmtNum(lv.sup)}</div><div class="d">${lv.dSup>=0?'下方 '+lv.dSup.toFixed(1)+'%':'已跌破'}</div></div>
       <div class="lvnum r"><div class="t">壓力</div><div class="v">${fmtNum(lv.res)}</div><div class="d">${lv.dRes>=0?'上方 '+lv.dRes.toFixed(1)+'%':'已突破'}</div></div>
     </div>
-    ${lv.usingCdp ? '' : '<div class="lvhint">前一交易日資料不足,暫用今日高低點</div>'}
+    ${lvBasisNote(q, lv)}
+    ${lvExtra(q)}
   </div>`;
 }
 
