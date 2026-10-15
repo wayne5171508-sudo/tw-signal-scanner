@@ -109,7 +109,7 @@
   .focuscard .fcchg{font-size:12px;margin-top:2px;display:block}
   .focuscard .fcreason{font-size:11px;color:var(--muted);margin-top:7px;line-height:1.4;min-height:28px}
 
-  /* 接近關鍵價位觀察:掃全部自選股,把快碰到壓力/支撐的挑出來,不用自己盯50檔 */
+  /* 接近關鍵價位觀察:掃全部自選股,把快碰到壓力/支撐的挑出來,不用自己盯整份自選 */
   .nearlevel{display:flex;align-items:center;gap:8px;padding:8px 2px;border-top:1px solid var(--border);cursor:pointer;font-size:13px}
   .nearlevel:first-child{border-top:none}
   .nearlevel .nlname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -118,7 +118,7 @@
   .nearlevel .nlbadge.sup{background:#e3f3ec;color:var(--down)}
   .nearlevel .nldist{font-size:12px;color:var(--muted);white-space:nowrap;min-width:52px;text-align:right}
 
-  /* 自選股漲跌幅熱力圖:50格色塊一次看完,不用逐行掃表格 */
+  /* 自選股漲跌幅熱力圖:色塊一次看完,不用逐行掃表格 */
   .heatgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(62px,1fr));gap:5px}
   .heattile{border-radius:7px;padding:6px 4px;text-align:center;cursor:pointer;min-height:50px;display:flex;flex-direction:column;align-items:center;justify-content:center}
   .heattile .htcode{font-size:10.5px;font-weight:700;line-height:1.2}
@@ -503,7 +503,7 @@ function renderFocusCards(data){
     </div>`).join('');
 }
 
-// ---- 自選股漲跌幅熱力圖:50格色塊一次看完,顏色深淺依漲跌幅大小(封頂±7%避免單一離群值
+// ---- 自選股漲跌幅熱力圖:色塊一次看完,顏色深淺依漲跌幅大小(封頂±7%避免單一離群值
 // 把色階拉爛),紅漲綠跌維持跟全站一致的台股配色,格子裡的文字永遠是白色或深色(依底色深淺
 // 自動切換,不直接把文字染成資料色,符合排版可讀性原則)----
 function heatColor(pct){
@@ -539,7 +539,7 @@ function renderHeatGrid(data){
     <span>(顏色深淺封頂在±7%)</span>`;
 }
 
-// ---- 量能異常排行:全部50檔自選股依「今日量/近5日均量」倍率排序,不是只有scan.py那20檔
+// ---- 量能異常排行:全部自選股依「今日量/近5日均量」倍率排序,不是只有scan.py那20檔
 // 候選股才有。資料還在累積(上線前3天內)時 volume_multiple 會是 null,自動跳過不排 ----
 function renderVolumeCards(data){
   const el = document.getElementById('volumeCards');
@@ -567,7 +567,7 @@ function renderVolumeCards(data){
 }
 
 // ---- 接近關鍵價位觀察:掃全部自選股的CDP(或替代用的今日高低)壓力/支撐,距離3%以內的挑出來,
-// 不用自己盯著50檔的表格找 ----
+// 不用自己盯著整張表格找 ----
 function renderNearLevels(data){
   const el = document.getElementById('nearLevelsList');
   if(!data || !data.watchlist_quotes){
