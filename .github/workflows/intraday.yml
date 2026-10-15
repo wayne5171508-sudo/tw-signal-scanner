@@ -5,7 +5,7 @@ on:
     # GitHub的cron在低活躍repo常常延遲或整批跳過,所以不再依賴「每5分鐘觸發一次」。
     # 改成:交易日開盤前後多設幾個觸發點,任何一個觸發成功就會開始一個長時間迴圈,
     # 在迴圈裡自己每5分鐘抓一次,一直跑到13:40(台北)。
-    - cron: "40 0 * * 1-5"   # 08:40 台北
+    - cron: "40 0 * * 1-5"   # 08:40 台北(會等到08:55再開始)
     - cron: "5 1 * * 1-5"    # 09:05
     - cron: "35 1 * * 1-5"   # 09:35
     - cron: "5 2 * * 1-5"    # 10:05
@@ -41,16 +41,21 @@ jobs:
           end_epoch=$(TZ=Asia/Taipei date -d "today 13:40" +%s)
           start_epoch=$(TZ=Asia/Taipei date -d "today 08:55" +%s)
           now=$(date +%s)
-          if [ "$now" -lt "$start_epoch" ] || [ "$now" -gt "$end_epoch" ]; then
-            echo "不在交易時段,結束"; exit 0
+          if [ "$now" -gt "$end_epoch" ]; then
+            echo "已過收盤時間,結束"; exit 0
+          fi
+          if [ "$now" -lt "$start_epoch" ]; then
+            wait_s=$(( start_epoch - now ))
+            if [ "$wait_s" -gt 2400 ]; then echo "離開盤太久,結束"; exit 0; fi
+            echo "還沒到開盤時間,等待 ${wait_s} 秒"; sleep "$wait_s"
           fi
           while [ "$(date +%s)" -le "$end_epoch" ]; do
             loop_start=$(date +%s)
-            python intraday.py || echo "這一輪抓取失敗,5分鐘後再試"
-            git add data/intraday_latest.json data/intraday_history.json data/alerts_state.json data/daily_bars.json
+            timeout 150 python intraday.py || echo "這一輪抓取失敗或逾時,5分鐘後再試"
+            git add data/intraday_latest.json data/intraday_history.json data/alerts_state.json data/daily_bars.json data/daily_official.json
             if ! git diff --quiet --cached; then
               git commit -m "盤中報價更新 $(TZ=Asia/Taipei date +'%Y-%m-%d %H:%M')"
-              git push || (git pull --rebase origin main && git push) || echo "push失敗,下一輪再推"
+              git push || (git pull --rebase origin main && git push) || { git rebase --abort 2>/dev/null; echo "push失敗,下一輪再推"; }
             fi
             elapsed=$(( $(date +%s) - loop_start ))
             sleep_for=$(( 300 - elapsed ))
