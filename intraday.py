@@ -67,6 +67,16 @@ v7新增(個股K線圖要用的成交量):
   的量能長條圖。免費報價源沒有逐筆K棒資料,網頁是用每5分鐘一次的收盤價堆疊出近似K棒(開盤
   價=上一次的價,收盤價=這一次的價,沒有真正的分鐘內最高最低),圖上有誠實標註這件事。
 
+v8新增(讓支撐壓力更可靠,三件事):
+- 正式日K:每天第一次執行時,向cnyes的日K歷史API抓50檔最近約40天的開高低收量,存成
+  data/daily_official.json(含status欄位,記錄成功/失敗幾檔)。「前一個交易日的高低收」優先用
+  這份完整日K,不再只靠排程最後一次抓到的記錄。抓不到或資料對不上昨收(差超過3%)就自動退回
+  舊的 daily_bars 記錄,頁面照常運作,不會壞。
+- 波段高低:用最近5日、10日(不含今天)的最高/最低價,存在每檔的 swing 欄位。前一天鎖漲停/
+  跌停或波動極小時,CDP的壓力支撐會縮成很窄一條失去參考價值,波段高低不受單日影響。
+- CDP可靠度:cdp.reliability = "low" 代表前一日振幅小於1.5%(多為漲跌停鎖死),網頁會改用
+  5日高低當主要壓力支撐,並標註原因。
+
 用法:
     python intraday.py
     (會自動寫到 data/intraday_latest.json、data/intraday_history.json、
@@ -93,6 +103,11 @@ ALERTS_CONFIG_FILE = os.path.join(DATA_DIR, "alerts.json")
 ALERTS_STATE_FILE = os.path.join(DATA_DIR, "alerts_state.json")
 DAILY_HLC_FILE = os.path.join(DATA_DIR, "daily_hlc.json")  # v4的舊檔,只用來搬資料,之後不再寫入
 DAILY_BARS_FILE = os.path.join(DATA_DIR, "daily_bars.json")
+DAILY_OFFICIAL_FILE = os.path.join(DATA_DIR, "daily_official.json")
+CNYES_HISTORY_URL = "https://ws.api.cnyes.com/ws/api/v1/charting/history"
+OFFICIAL_KEEP_DAYS = 15
+LOW_RELIABILITY_RANGE_PCT = 1.5   # 前一日(高-低)/收 小於這個百分比,視為CDP參考性低
+OFFICIAL_MISMATCH_PCT = 3.0       # 正式日K收盤和今天報價的昨收差超過這個百分比,視為對不上,不採用
 MAX_POINTS_PER_DAY = 60
 MAX_HISTORY_DAYS = 10
 VOLUME_LOOKBACK_DAYS = 5
@@ -347,6 +362,150 @@ def compute_cdp(prev_hlc_for_code):
     }
 
 
+def _valid_bar(h, l, c):
+    try:
+        return h > 0 and l > 0 and c > 0 and h >= l and l - 1e-6 <= c <= h + 1e-6
+    except TypeError:
+        return False
+
+
+def fetch_history_one(code, run_time):
+    """抓單一股票最近約40天的日K。回傳由舊到新排列的 [{d,o,h,l,c,v}],只留通過基本檢查的。
+    格式不符就丟例外,由呼叫端記錄在 daily_official.json 的 errors 裡。"""
+    to_ts = int(run_time.timestamp())
+    params = {"resolution": "D", "symbol": f"TWS:{code}:STOCK", "from": to_ts - 40 * 86400, "to": to_ts}
+    resp = requests.get(CNYES_HISTORY_URL, params=params, headers=HEADERS, timeout=TIMEOUT)
+    resp.raise_for_status()
+    data = (resp.json() or {}).get("data") or {}
+    t, o, h, l, c, v = (data.get(k) or [] for k in ("t", "o", "h", "l", "c", "v"))
+    if not t or not (len(t) == len(h) == len(l) == len(c)):
+        raise ValueError("日K格式不符")
+    bars = []
+    for i in range(len(t)):
+        if not _valid_bar(h[i], l[i], c[i]):
+            continue
+        bars.append({
+            "d": datetime.fromtimestamp(t[i], TAIPEI).strftime("%Y-%m-%d"),
+            "o": o[i] if i < len(o) else None,
+            "h": h[i], "l": l[i], "c": c[i],
+            "v": v[i] if i < len(v) else None,
+        })
+    bars.sort(key=lambda b: b["d"])
+    return bars[-OFFICIAL_KEEP_DAYS:]
+
+
+def refresh_official_bars(run_time):
+    """每天第一次執行時抓一次正式日K並存檔,同一天之後的執行直接讀檔不重抓。
+    整批都失敗時,一小時內不重試(避免每5分鐘都白打50個請求),並保留舊資料。
+    任何例外都不往外拋,日K是加分資料,抓不到不能影響即時報價主流程。"""
+    today = run_time.strftime("%Y-%m-%d")
+    stored = load_json_safe(DAILY_OFFICIAL_FILE, {}) or {}
+    if stored.get("fetched_date") == today and stored.get("bars"):
+        return stored
+    last_try = stored.get("last_attempt")
+    if stored.get("last_attempt_date") == today and last_try:
+        try:
+            if (run_time - datetime.fromisoformat(last_try)).total_seconds() < 3600:
+                return stored
+        except ValueError:
+            pass
+
+    merged = dict(stored.get("bars") or {})
+    errors, ok = [], 0
+    for code in WATCHLIST_NAMES:
+        try:
+            bars = fetch_history_one(code, run_time)
+            if bars:
+                merged[code] = bars
+                ok += 1
+            else:
+                errors.append(f"{code}: 沒有可用資料")
+        except Exception as e:  # noqa: BLE001  日K失敗不能中斷主流程
+            errors.append(f"{code}: {type(e).__name__} {str(e)[:60]}")
+        time.sleep(0.15)
+
+    total = len(WATCHLIST_NAMES)
+    result = {
+        "fetched_date": today if ok else stored.get("fetched_date"),
+        "fetched_at": run_time.isoformat() if ok else stored.get("fetched_at"),
+        "last_attempt": run_time.isoformat(),
+        "last_attempt_date": today,
+        "status": f"{'ok' if ok else 'fail'} {ok}/{total}",
+        "source": "cnyes 日K歷史API (resolution=D)",
+        "errors": errors[:10],
+        "bars": merged,
+    }
+    try:
+        os.makedirs(DATA_DIR, exist_ok=True)
+        with open(DAILY_OFFICIAL_FILE, "w", encoding="utf-8") as f:
+            json.dump(result, f, ensure_ascii=False)
+    except OSError:
+        pass
+    return result
+
+
+def compute_swing(bars):
+    """bars: 由舊到新、不含今天的日K清單。回傳最近5日、10日的最高/最低(實際用了幾天也一併回傳)。
+    少於3天資料就不算,回傳 None。"""
+    if not bars or len(bars) < 3:
+        return None
+    out = {}
+    for n in (5, 10):
+        seg = bars[-n:]
+        out[f"h{n}"] = max(b["h"] for b in seg)
+        out[f"l{n}"] = min(b["l"] for b in seg)
+        out[f"d{n}"] = len(seg)
+    return out
+
+
+def build_levels(watchlist_out, prev_bars, history_days, official, today):
+    """為每檔股票填入 cdp(含可靠度/資料來源)、swing(5日10日高低)、cdp_trend、volume_multiple。
+    前一日高低收優先用正式日K;對不上昨收或沒有時退回 daily_bars 的記錄。"""
+    official_bars = (official or {}).get("bars") or {}
+    for q in watchlist_out:
+        code = q["code"]
+        ob = [b for b in (official_bars.get(code) or []) if b.get("d") and b["d"] < today]
+        prev = prev_bars.get(code)
+        src, basis_date = "sampled", None
+        use_official = False
+        if ob:
+            lastb = ob[-1]
+            pc = q.get("prev_close")
+            if pc and abs(lastb["c"] - pc) / pc * 100 > OFFICIAL_MISMATCH_PCT:
+                q["official_mismatch"] = True
+            else:
+                prev = {"h": lastb["h"], "l": lastb["l"], "c": lastb["c"]}
+                src, basis_date, use_official = "official", lastb["d"], True
+
+        cdp = compute_cdp(prev)
+        if cdp:
+            h, l, c = cdp["basis"]["h"], cdp["basis"]["l"], cdp["basis"]["c"]
+            rng_pct = round((h - l) / c * 100, 2) if c else None
+            cdp["basis"]["source"] = src
+            if basis_date:
+                cdp["basis"]["date"] = basis_date
+            cdp["prev_range_pct"] = rng_pct
+            cdp["reliability"] = "low" if (rng_pct is not None and rng_pct < LOW_RELIABILITY_RANGE_PCT) else "ok"
+        q["cdp"] = cdp
+
+        if use_official:
+            swing_bars, swing_src = ob, "official"
+        else:
+            swing_bars = []
+            for day in reversed(history_days):          # history_days 新到舊,反轉成舊到新
+                b = (day.get("bars") or {}).get(code)
+                if b and b.get("h") is not None and b.get("l") is not None:
+                    swing_bars.append({"d": day.get("date"), "h": b["h"], "l": b["l"], "c": b.get("c")})
+            swing_src = "sampled"
+        sw = compute_swing(swing_bars)
+        if sw:
+            sw["source"] = swing_src
+        q["swing"] = sw
+
+        q["volume_multiple"] = compute_volume_multiple(q.get("volume"), code, history_days)
+        q["cdp_trend"] = compute_cdp_trend(code, history_days, q["cdp"])
+
+
 def load_json_safe(path, default):
     if not os.path.exists(path):
         return default
@@ -480,10 +639,12 @@ def main():
     # CDP壓力/支撐(用前一個交易日的高低收算)+ 量能倍率 + 壓力支撐多日趨勢,
     # 三個都是從同一份滾動歷史(data/daily_bars.json)算出來的,取代原本誤用今日漲跌停當壓力支撐的寫法
     prev_bars, history_days = update_daily_bars(run_time, watchlist_out)
-    for q in watchlist_out:
-        q["cdp"] = compute_cdp(prev_bars.get(q["code"]))
-        q["volume_multiple"] = compute_volume_multiple(q.get("volume"), q["code"], history_days)
-        q["cdp_trend"] = compute_cdp_trend(q["code"], history_days, q["cdp"])
+    try:
+        official = refresh_official_bars(run_time)
+    except Exception as e:  # noqa: BLE001  日K是加分資料,出任何狀況都不能影響即時報價
+        print(f"[警告] 正式日K更新失敗,改用舊記錄: {e}")
+        official = {}
+    build_levels(watchlist_out, prev_bars, history_days, official, run_time.strftime("%Y-%m-%d"))
 
     # 用任一筆有拿到時間戳的資料,換算成「資料實際代表的時間」,跟「程式執行的時間」分開揭露
     data_ts = None
@@ -500,6 +661,7 @@ def main():
         "checked_at": run_time.isoformat(),
         "data_as_of": data_as_of,
         "check_frequency_note": "開盤期間每約5分鐘由GitHub Actions排程抓一次,非逐秒即時報價",
+        "official_bars_status": (official or {}).get("status"),
         "indices": indices_out,
         "watchlist_quotes": watchlist_out,
     }
