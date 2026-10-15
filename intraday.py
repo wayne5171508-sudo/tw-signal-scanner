@@ -135,6 +135,7 @@ CDP_TREND_POINTS = 6  # 趨勢最多顯示幾個點(含今天)
 ALERT_EMAIL_TO = "wayne5171508@gmail.com"
 ALERT_EMAIL_FROM = "wayne5171508@gmail.com"
 GMAIL_APP_PASSWORD_ENV = "GMAIL_APP_PASSWORD"
+ALERTS_ENABLED = False   # 觸價提醒信:阿文決定關閉(盤中直接看網頁)。要重新開啟改成 True
 
 CNYES_QUOTE_URL = "https://ws.api.cnyes.com/ws/api/v1/quote/quotes/{codes}"
 
@@ -1088,7 +1089,8 @@ def main():
     write_json_atomic(OUT_FILE, result, indent=2)
 
     update_history(run_time, indices_out, watchlist_out)
-    check_and_send_alerts(run_time, watchlist_out)
+    if ALERTS_ENABLED:
+        check_and_send_alerts(run_time, watchlist_out)
 
     print(json.dumps(_clean(result), ensure_ascii=False, indent=2))
 
