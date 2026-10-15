@@ -181,6 +181,7 @@
   .lvextra{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:8px;padding-top:7px;border-top:1px dashed var(--border);font-size:11px;color:var(--sec);font-variant-numeric:tabular-nums}
   .lvextra .dim{color:var(--muted);text-decoration:line-through;text-decoration-color:rgba(0,0,0,0.25)}
   .lvsrc{color:var(--muted)}
+  .fchips .blabel{font-size:12px;color:var(--muted);align-self:center;margin-right:2px}
   details.more{background:var(--card);border:1px solid var(--border);border-radius:10px;margin:14px 0;padding:0 12px}
   details.more summary{padding:12px 0;font-size:14px;font-weight:600;color:var(--sec);cursor:pointer;list-style:none}
   details.more summary::-webkit-details-marker{display:none}
@@ -206,9 +207,10 @@
 <div class="card detail" id="detailCard" style="display:none"></div>
 
 <h2 style="margin-top:6px">支撐壓力一覽(自選股)</h2>
+<div class="fchips" id="basisChips"></div>
 <div class="fchips" id="levelFilters"></div>
 <div id="levelList">載入中...</div>
-<div class="note" style="margin-top:0">橫條:左端=支撐(綠),右端=壓力(紅),圓點=現價位置。預設用CDP樞紐點(前一交易日高低收);若昨日鎖漲跌停、振幅太小導致CDP失真,自動改用近5日最高最低。卡片下方小字同時列出CDP、5日、10日高低供對照。都是機械式參考線,不是股價預測,不構成買賣建議。點任一檔看K線與細節。<span id="srcNote"></span></div>
+<div class="note" style="margin-top:0">橫條:左端=支撐(綠),右端=壓力(紅),圓點=現價位置。「依據」預設自動:用CDP樞紐點(前一交易日高低收);若昨日振幅太小(例如漲停鎖死)導致CDP失真,自動改用近5日最高最低。也可手動切換成CDP、5日、10日、20日。「接近」的距離會依各股票自己的波動調整。卡片下方小字同時列出CDP、5日、10日高低供對照。都是機械式參考線,不是股價預測,不構成買賣建議。點任一檔看K線與細節。<span id="srcNote"></span></div>
 
 <details class="more">
   <summary>更多:熱力圖、量能排行、完整報價表</summary>
@@ -218,6 +220,7 @@
     <div class="heatlegend" id="heatLegend"></div>
   </div>
   <h2>量能異常排行(自選股)</h2>
+  <div class="note" style="margin:0 0 6px">倍率是「今日盤中累積量 ÷ 近5日平均全天量」,開盤初期會偏低,越接近收盤越準。</div>
   <div class="focusgrid" id="volumeCards">載入中...</div>
   <div class="note" id="volumeNote" style="margin-top:0"></div>
   <h2>自選股即時報價(依漲跌幅排序)</h2>
@@ -249,11 +252,12 @@
 <script>
 let INTRADAY = null, HISTORY = null, CHIP = null, CURRENT_DETAIL = null;
 
-const PCT_CLASS = p => p > 0 ? 'up' : (p < 0 ? 'down' : 'flat');
-const ARROW = p => p > 0 ? '▲' : (p < 0 ? '▼' : '—');
-const fmtPct = p => (p === null || p === undefined) ? '-' : (p > 0 ? '+' : '') + p.toFixed(2) + '%';
-const fmtNum = n => (n === null || n === undefined) ? '-' : (Number.isInteger(n) ? String(n) : n.toFixed(2));
-const fmtChange = c => (c === null || c === undefined) ? '-' : (c > 0 ? '+' : '') + fmtNum(c);
+const num = n => { if(n === null || n === undefined || n === '') return null; const v = Number(n); return Number.isFinite(v) ? v : null; };
+const PCT_CLASS = p => { const v = num(p); return v > 0 ? 'up' : (v < 0 ? 'down' : 'flat'); };
+const ARROW = p => { const v = num(p); return v > 0 ? '▲' : (v < 0 ? '▼' : '—'); };
+const fmtPct = p => { const v = num(p); return v === null ? '-' : (v > 0 ? '+' : '') + v.toFixed(2) + '%'; };
+const fmtNum = n => { const v = num(n); return v === null ? '-' : (Number.isInteger(v) ? String(v) : v.toFixed(2)); };
+const fmtChange = c => { const v = num(c); return v === null ? '-' : (v > 0 ? '+' : '') + fmtNum(v); };
 const fmtTime = iso => {
   if(!iso) return '-';
   const d = new Date(iso);
@@ -652,31 +656,45 @@ function priceLadder(q){
 // 樞紐價當交界),這是台股看盤軟體常見、真的有依據的算法,不是當天的漲跌停也不是當天的
 // 高低點。只有「還沒有前一個交易日資料」(例如功能剛上線的第一個交易日)才會退回用今日目前
 // 為止的高低點當替代。股價真的衝到漲停/跌停鎖住時,不管哪種算法都會自然顯示成漲停/跌停。----
+let BASIS = 'auto';   // auto | cdp | 5 | 10 | 20
+try { const saved = localStorage.getItem('lvBasis'); if(saved) BASIS = saved; } catch(e) {}
+
+function swOk(sw, n){
+  if(!sw || sw['h' + n] == null || sw['l' + n] == null) return false;
+  return n === 5 ? sw.d5 >= 3 : sw['d' + n] >= n;
+}
+
 function keyLevels(q){
   const cdp = q.cdp, sw = q.swing;
-  const usingCdp = !!(cdp && cdp.nh != null && cdp.nl != null && cdp.cdp != null);
-  const cdpLow = usingCdp && cdp.reliability === 'low';
-  const haveSwing = !!(sw && sw.h5 != null && sw.l5 != null);
-  let resTarget, supTarget, midVal, midLabel, resBase, supBase, basis;
-  if(usingCdp && !cdpLow){
-    resTarget = (q.upper_limit != null) ? Math.min(cdp.nh, q.upper_limit) : cdp.nh;
-    supTarget = (q.lower_limit != null) ? Math.max(cdp.nl, q.lower_limit) : cdp.nl;
-    midVal = cdp.cdp; midLabel = 'CDP樞紐價';
-    resBase = 'CDP近高'; supBase = 'CDP近低'; basis = 'cdp';
-  } else if(haveSwing){
-    resTarget = sw.h5; supTarget = sw.l5;
-    midVal = usingCdp ? cdp.cdp : q.prev_close; midLabel = usingCdp ? 'CDP樞紐價' : '昨收';
-    resBase = `近${sw.d5}日高`; supBase = `近${sw.d5}日低`; basis = 'swing';
+  const hasCdp = !!(cdp && cdp.nh != null && cdp.nl != null && cdp.cdp != null);
+  const cdpLow = hasCdp && cdp.reliability === 'low';
+  let mode = BASIS;
+  if(mode === 'cdp' && !hasCdp) mode = 'auto';
+  if((mode === '5' || mode === '10' || mode === '20') && !swOk(sw, +mode)) mode = 'auto';
+  const forced = (mode === BASIS) && BASIS !== 'auto';
+  if(mode === 'auto') mode = (hasCdp && !cdpLow) ? 'cdp' : (swOk(sw, 5) ? '5' : (hasCdp ? 'cdp' : 'today'));
+
+  let resTarget, supTarget, resBase, supBase, swDays = null;
+  if(mode === 'cdp'){
+    resTarget = cdp.nh; supTarget = cdp.nl; resBase = 'CDP近高'; supBase = 'CDP近低';
+  } else if(mode === 'today'){
+    resTarget = q.high ?? q.upper_limit; supTarget = q.low ?? q.lower_limit; resBase = '今日高'; supBase = '今日低';
   } else {
-    resTarget = q.high ?? q.upper_limit; supTarget = q.low ?? q.lower_limit;
-    midVal = q.prev_close; midLabel = '昨收';
-    resBase = '今日高'; supBase = '今日低'; basis = 'today';
+    const n = +mode; swDays = sw['d' + n];
+    resTarget = sw['h' + n]; supTarget = sw['l' + n]; resBase = `近${swDays}日高`; supBase = `近${swDays}日低`;
   }
+  // 壓力不可能高過今天漲停、支撐不可能低過今天跌停(今天碰不到),一律封頂
+  if(resTarget != null && q.upper_limit != null) resTarget = Math.min(resTarget, q.upper_limit);
+  if(supTarget != null && q.lower_limit != null) supTarget = Math.max(supTarget, q.lower_limit);
+  const midVal = hasCdp ? cdp.cdp : q.prev_close;
+  const midLabel = hasCdp ? 'CDP樞紐價' : '昨收';
   const hitUpper = q.upper_limit != null && resTarget != null && resTarget >= q.upper_limit - 0.005;
   const hitLower = q.lower_limit != null && supTarget != null && supTarget <= q.lower_limit + 0.005;
-  const resLabel = hitUpper ? '漲停' : resBase;
-  const supLabel = hitLower ? '跌停' : supBase;
-  return {resTarget, resLabel, supTarget, supLabel, midVal, midLabel, usingCdp: basis === 'cdp', basis, cdpLow, haveSwing};
+  return {
+    resTarget, resLabel: hitUpper ? '漲停' : resBase, supTarget, supLabel: hitLower ? '跌停' : supBase,
+    midVal, midLabel, usingCdp: mode === 'cdp',
+    basis: mode === 'cdp' ? 'cdp' : (mode === 'today' ? 'today' : 'swing'), mode, forced, swDays, cdpLow, hasCdp,
+  };
 }
 
 // ---- 關鍵價位 chips:壓力(CDP近高,沒資料時退回今日高) / 交界(CDP樞紐價,沒資料時退回昨收) / 支撐(CDP近低,沒資料時退回今日低) ----
@@ -920,19 +938,20 @@ async function loadAll(opts){
 
   CHIP = chip; INTRADAY = intraday; HISTORY = history;
 
-  renderFresh(intraday);
-  const sn = document.getElementById('srcNote'); if(sn) sn.textContent = (intraday && intraday.official_bars_status) ? ' 日K資料狀態:' + intraday.official_bars_status + '。' : '';
-  renderIndices(intraday);
-  renderLevels(intraday);
-  renderHeatGrid(intraday);
-  renderVolumeCards(intraday);
-  renderWatchlist(intraday, '');
-  renderChip(chip);
+  const safe = (name, fn) => { try { fn(); } catch(e) { console.error('render ' + name, e); } };
+  safe('fresh', () => renderFresh(intraday));
+  safe('srcnote', () => { const sn = document.getElementById('srcNote'); if(sn) sn.textContent = (intraday && intraday.official_bars_status) ? ' 日K資料狀態:' + intraday.official_bars_status + '。' : ''; });
+  safe('indices', () => renderIndices(intraday));
+  safe('levels', () => renderLevels(intraday));
+  safe('heat', () => renderHeatGrid(intraday));
+  safe('volume', () => renderVolumeCards(intraday));
+  safe('watchlist', () => renderWatchlist(intraday, ''));
+  safe('chip', () => renderChip(chip));
 
   // 如果目前正開著某檔的個股分析卡,資料重新整理後也跟著刷新內容,不用手動重新搜尋/點擊;
   // silent:true 避免每次自動刷新都把畫面滾回分析卡頂部,打斷正在看的位置。
   if(CURRENT_DETAIL){
-    openDetail(CURRENT_DETAIL.code, CURRENT_DETAIL.isIndex, {silent: true});
+    try { openDetail(CURRENT_DETAIL.code, CURRENT_DETAIL.isIndex, {silent: true}); } catch(e) { console.error('detail', e); }
   }
 
   document.getElementById('pageMeta').textContent =
@@ -948,17 +967,24 @@ let LV_FILTER = 'all';
 let SEARCH_TEXT = '';
 
 function lvInfo(q){
+  const last = num(q.last);
+  if(last === null || last <= 0) return null;
   const kl = keyLevels(q);
   const res = kl.resTarget, sup = kl.supTarget;
-  if(q.last == null || res == null || sup == null || res <= sup) return null;
-  const dRes = (res - q.last) / q.last * 100;   // 正數=還沒到壓力,負數=已突破
-  const dSup = (q.last - sup) / q.last * 100;   // 正數=還在支撐上,負數=已跌破
+  if(res == null || sup == null || res <= sup) return null;
+  const dRes = (res - last) / last * 100;   // 正數=還沒到壓力,負數=已突破
+  const dSup = (last - sup) / last * 100;   // 正數=還在支撐上,負數=已跌破
+  // 「接近」的距離依這檔股票自己的波動調整:5日平均振幅的1/4,夾在0.6%~3%之間(沒資料用1.5%)
+  const adr = q.swing && q.swing.adr5;
+  const near = adr ? Math.min(3, Math.max(0.6, adr * 0.25)) : 1.5;
   let state = 'mid';
-  if(dRes < 0) state = 'breakout';
-  else if(dSup < 0) state = 'breakdown';
-  else if(dRes <= 1.5 && dRes <= dSup) state = 'nearRes';
-  else if(dSup <= 1.5) state = 'nearSup';
-  return {res, sup, dRes, dSup, state, usingCdp: kl.usingCdp};
+  if(kl.basis !== 'today'){
+    if(dRes < 0) state = 'breakout';
+    else if(dSup < 0) state = 'breakdown';
+    else if(dRes <= near && dRes <= dSup) state = 'nearRes';
+    else if(dSup <= near) state = 'nearSup';
+  }
+  return {res, sup, dRes, dSup, state, near, kl};
 }
 
 function renderIndices(data){
@@ -993,7 +1019,7 @@ function renderLevels(data){
   const fEl = document.getElementById('levelFilters');
   if(!data || !data.watchlist_quotes){ listEl.innerHTML = '<div class="err">暫無自選股資料</div>'; fEl.innerHTML=''; return; }
   const f = SEARCH_TEXT.trim().toLowerCase();
-  let rows = data.watchlist_quotes.filter(q => q.last != null).map(q => ({q, lv: lvInfo(q)}));
+  let rows = data.watchlist_quotes.map(q => ({q, lv: lvInfo(q)}));
   if(f) rows = rows.filter(r => r.q.code.includes(f) || (r.q.name && r.q.name.toLowerCase().includes(f)));
   const cnt = {all: rows.length, res:0, sup:0, out:0};
   rows.forEach(r => {
@@ -1003,6 +1029,7 @@ function renderLevels(data){
     else if(r.lv.state === 'breakout' || r.lv.state === 'breakdown') cnt.out++;
   });
   const defs = [['all','全部'],['res','接近壓力'],['sup','接近支撐'],['out','突破/跌破']];
+  renderBasisChips();
   fEl.innerHTML = defs.map(([k,l]) => `<span class="fchip ${LV_FILTER===k?'on':''}" onclick="setLvFilter('${k}')">${l} ${cnt[k]}</span>`).join('');
   rows = rows.filter(r => {
     if(LV_FILTER === 'all') return true;
@@ -1018,14 +1045,30 @@ function renderLevels(data){
   listEl.innerHTML = rows.map(({q, lv}) => lvCard(q, lv)).join('');
 }
 
+function reasonText(q){
+  const c = q.cdp;
+  if(!c || c.reliability !== 'low') return '';
+  if(c.low_reason === 'limit_lock') return `昨日${(c.prev_move_pct ?? 0) >= 0 ? '漲停' : '跌停'}收盤且振幅僅 ${c.prev_range_pct}%,CDP 線太窄`;
+  if(c.low_reason === 'basis_mismatch') return '昨日資料來源對不上昨收,CDP 可信度低';
+  return `昨日振幅僅 ${c.prev_range_pct}%,CDP 線太窄`;
+}
+
+function srcText(q){
+  const b = q.cdp && q.cdp.basis;
+  if(!b) return '';
+  if(b.source === 'official') return `正式日K ${String(b.date || '').slice(5).replace('-', '/')}`;
+  return '即時記錄,非正式日K';
+}
+
 function levelWhy(q){
   const kl = keyLevels(q);
-  if(kl.basis === 'cdp') return '';
+  if(kl.basis === 'today') return `<div class="lvhint" style="margin-top:6px">歷史資料不足,暫用今日高低點。</div>`;
   if(kl.basis === 'swing'){
-    const why = kl.cdpLow ? `前一日振幅只有 ${q.cdp.prev_range_pct}%(多為漲跌停鎖死),CDP 參考性低,` : '沒有前一日完整資料可算CDP,';
-    return `<div class="lvhint" style="margin-top:6px">${why}改用近${q.swing.d5}日最高/最低當壓力支撐。</div>`;
+    const why = kl.forced ? '手動選擇依據,' : (reasonText(q) ? reasonText(q) + ',' : '沒有前一日資料可算CDP,');
+    return `<div class="lvhint" style="margin-top:6px">${why}目前用近${kl.swDays}日最高/最低當壓力支撐。</div>`;
   }
-  return `<div class="lvhint" style="margin-top:6px">歷史資料不足,暫用今日高低點。</div>`;
+  if(kl.cdpLow) return `<div class="lvhint" style="margin-top:6px">${reasonText(q)},僅供參考,請對照波段高低。</div>`;
+  return '';
 }
 
 function lvExtra(q){
@@ -1038,17 +1081,25 @@ function lvExtra(q){
   if(sw){
     parts.push(`<span>${sw.d5}日 高${fmtNum(sw.h5)} 低${fmtNum(sw.l5)}</span>`);
     if(sw.d10 > sw.d5) parts.push(`<span>${sw.d10}日 高${fmtNum(sw.h10)} 低${fmtNum(sw.l10)}</span>`);
+    if(sw.d20 > sw.d10) parts.push(`<span>${sw.d20}日 高${fmtNum(sw.h20)} 低${fmtNum(sw.l20)}</span>`);
+    const ma = sw.ma || {};
+    const m = [];
+    if(ma.ma20 != null) m.push(`月線${fmtNum(ma.ma20)}`);
+    if(ma.ma60 != null) m.push(`季線${fmtNum(ma.ma60)}`);
+    if(m.length) parts.push(`<span>${m.join(' ')}</span>`);
   }
   return parts.length ? `<div class="lvextra">${parts.join('')}</div>` : '';
 }
 
 function lvBasisNote(q, lv){
   const kl = keyLevels(q);
-  const tag = `<span class="lvsrc">依據:${kl.supLabel === '跌停' || kl.resLabel === '漲停' ? '' : ''}${kl.basis === 'cdp' ? 'CDP樞紐點(昨日高低收)' : (kl.basis === 'swing' ? '近' + q.swing.d5 + '日高低' : '今日高低')}</span>`;
-  if(kl.basis === 'swing' && kl.cdpLow) return `<div class="lvhint">昨日振幅僅 ${q.cdp.prev_range_pct}%(多為漲跌停鎖死),CDP 失真,改用近${q.swing.d5}日高低。${tag}</div>`;
-  if(kl.basis === 'swing') return `<div class="lvhint">${tag}</div>`;
   if(kl.basis === 'today') return `<div class="lvhint">歷史資料不足,暫用今日高低點</div>`;
-  return `<div class="lvhint">${tag}</div>`;
+  if(kl.basis === 'cdp'){
+    const warn = kl.cdpLow ? `${reasonText(q)},僅供參考,請對照下方波段高低。` : '';
+    return `<div class="lvhint">${warn}<span class="lvsrc">依據:CDP樞紐點(昨日高低收,${srcText(q)})${kl.forced ? ',手動選擇' : ''}</span></div>`;
+  }
+  const why = kl.forced ? '手動選擇依據。' : (reasonText(q) ? reasonText(q) + ',改用波段高低。' : '');
+  return `<div class="lvhint">${why}<span class="lvsrc">依據:近${kl.swDays}日最高/最低</span></div>`;
 }
 
 function lvCard(q, lv){
@@ -1059,7 +1110,8 @@ function lvCard(q, lv){
       <div class="c ${PCT_CLASS(q.change)}">${ARROW(q.change)} ${fmtPct(q.pct)}</div></div>
     </div>`;
   if(!lv){
-    return `<div class="lvcard" onclick="searchAndOpen('${q.code}')">${head}<div class="lvnodata">尚無支撐壓力資料</div></div>`;
+    const msg = (num(q.last) === null) ? '暫無報價' : '尚無支撐壓力資料';
+    return `<div class="lvcard" onclick="searchAndOpen('${q.code}')">${head}<div class="lvnodata">${msg}</div></div>`;
   }
   const pos = Math.max(0, Math.min(100, (q.last - lv.sup) / (lv.res - lv.sup) * 100));
   const outside = lv.state === 'breakout' || lv.state === 'breakdown';
@@ -1080,6 +1132,19 @@ function lvCard(q, lv){
     ${lvBasisNote(q, lv)}
     ${lvExtra(q)}
   </div>`;
+}
+
+function renderBasisChips(){
+  const el = document.getElementById('basisChips');
+  if(!el) return;
+  const defs = [['auto','自動'],['cdp','CDP'],['5','5日高低'],['10','10日高低'],['20','20日高低']];
+  el.innerHTML = '<span class="blabel">依據</span>' + defs.map(([k,l]) => `<span class="fchip ${BASIS===k?'on':''}" onclick="setBasis('${k}')">${l}</span>`).join('');
+}
+function setBasis(k){
+  BASIS = k;
+  try { localStorage.setItem('lvBasis', k); } catch(e) {}
+  renderLevels(INTRADAY);
+  if(CURRENT_DETAIL) openDetail(CURRENT_DETAIL.code, CURRENT_DETAIL.isIndex, {silent: true});
 }
 
 function setLvFilter(k){ LV_FILTER = k; renderLevels(INTRADAY); }
