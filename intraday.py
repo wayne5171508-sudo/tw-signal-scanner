@@ -259,7 +259,113 @@ def row_to_quote(row, fallback_code, fallback_name):
     }
 
 
-def update_history(run_time, indices_out, watchlist_out):
+# ---- 開盤爆量偵測(09:00~09:30)----
+# 作法:今天累積成交量 / (近20日日成交量中位數 × 此刻「正常情況下已經成交的比例」)。
+# 「正常已成交比例」是台股常見的U型量能估計曲線(開盤集中、尾盤再放大),不是每檔實測值,
+# 所以倍數當「相對強弱」看,不是精確數字。方向只看漲跌幅:量大+上漲=疑似進場,量大+下跌=疑似出場
+# (成交量本身分不出買方賣方,這是推測)。
+OPENING_START_MIN = 0       # 09:00
+OPENING_END_MIN = 31        # 09:31 之前的那一輪還算
+OPENING_CURVE = [(0, 0.012), (1, 0.03), (5, 0.06), (10, 0.09), (15, 0.115), (20, 0.135), (30, 0.165), (60, 0.30), (120, 0.52), (270, 1.0)]
+OPEN_MIN_VOL = 200          # 累積量低於200張不判斷(太容易被單筆撐起來)
+OPEN_PACE_ALERT = 3.0       # 倍數>=3 列入(實測自選股約前10%)
+OPEN_PACE_STRONG = 6.0      # 倍數>=6 標強烈
+OPEN_FLAT_PCT = 0.5         # 漲跌幅絕對值<0.5%算「方向不明」
+OPEN_AVG_DAYS = 20
+
+
+def curve_frac(m):
+    if m <= OPENING_CURVE[0][0]:
+        return OPENING_CURVE[0][1]
+    for (m0, f0), (m1, f1) in zip(OPENING_CURVE, OPENING_CURVE[1:]):
+        if m <= m1:
+            return f0 + (f1 - f0) * (m - m0) / (m1 - m0)
+    return 1.0
+
+
+def _avg_daily_volume(official_bars, code, today):
+    bars = [b for b in (official_bars.get(code) or []) if b.get("d") and b["d"] < today and _num_ok(b.get("v")) and b["v"] > 0]
+    bars = bars[-OPEN_AVG_DAYS:]
+    if len(bars) < 5:
+        return None
+    vs = sorted(b["v"] for b in bars)
+    return vs[len(vs) // 2]   # 用中位數,避免被前幾天的爆量日拉高基準
+
+
+def compute_opening_alerts(run_time, watchlist_out, official):
+    """回傳 (輸出給網頁的字典, 要存進歷史檔的狀態字典)。09:31 之後不再更新,只把已記錄的名單原樣回傳。"""
+    today = run_time.strftime("%Y-%m-%d")
+    state = {}
+    prev_pt = None
+    try:
+        if os.path.exists(HISTORY_FILE):
+            with open(HISTORY_FILE, "r", encoding="utf-8") as f:
+                ex = json.load(f)
+            if ex.get("date") == today:
+                state = ex.get("opening") or {}
+                pts = [p for p in (ex.get("points") or []) if p.get("wlv")]
+                prev_pt = pts[-1] if pts else None
+    except (json.JSONDecodeError, OSError):
+        state = {}
+    m = (run_time - run_time.replace(hour=9, minute=0, second=0, microsecond=0)).total_seconds() / 60
+    active = OPENING_START_MIN < m <= OPENING_END_MIN
+    if active:
+        bars = (official or {}).get("bars") or {}
+        pm = None
+        if prev_pt:
+            try:
+                pt = datetime.fromisoformat(prev_pt["t"])
+                pm = (pt - run_time.replace(hour=9, minute=0, second=0, microsecond=0)).total_seconds() / 60
+            except (ValueError, KeyError, TypeError):
+                pm = None
+        for q in watchlist_out:
+            code, vol = q["code"], q.get("volume")
+            if not _num_ok(vol) or vol < OPEN_MIN_VOL:
+                continue
+            avg = _avg_daily_volume(bars, code, today)
+            exp = (avg * curve_frac(m)) if avg else None
+            if not exp:
+                continue
+            pace = vol / exp
+            burst = None
+            if prev_pt and pm is not None and pm >= 0 and m - pm >= 2:
+                pv = (prev_pt.get("wlv") or {}).get(code)
+                if _num_ok(pv) and vol >= pv:
+                    e5 = avg * (curve_frac(m) - curve_frac(pm))
+                    burst = (vol - pv) / e5 if e5 > 0 else None
+            pct = q.get("pct")
+            cur = {"pace": round(pace, 2), "burst": round(burst, 2) if burst is not None else None}
+            st = state.get(code)
+            if pace >= OPEN_PACE_ALERT or st:
+                if not st:
+                    st = {"first_t": run_time.strftime("%H:%M"), "peak_pace": 0}
+                if pace >= st.get("peak_pace", 0):
+                    st["peak_pace"] = round(pace, 2)
+                    st["peak_t"] = run_time.strftime("%H:%M")
+                st.update({"pace": cur["pace"], "burst": cur["burst"], "pct": pct, "last": q.get("last"),
+                           "vol": vol, "avg": round(avg), "name": q["name"], "t": run_time.strftime("%H:%M")})
+                if pace >= OPEN_PACE_ALERT:
+                    st["hot_now"] = True
+                else:
+                    st["hot_now"] = False
+                state[code] = st
+    items = []
+    for code, st in state.items():
+        pct = st.get("pct")
+        if pct is None or abs(pct) < OPEN_FLAT_PCT:
+            side = "flat"
+        else:
+            side = "in" if pct > 0 else "out"
+        items.append({"code": code, "name": st.get("name"), "side": side, "pace": st.get("pace"), "peak_pace": st.get("peak_pace"),
+                      "burst": st.get("burst"), "pct": pct, "last": st.get("last"), "vol": st.get("vol"), "avg": st.get("avg"),
+                      "first_t": st.get("first_t"), "peak_t": st.get("peak_t"), "hot_now": bool(st.get("hot_now")),
+                      "strong": (st.get("peak_pace") or 0) >= OPEN_PACE_STRONG})
+    items.sort(key=lambda x: -(x["peak_pace"] or 0))
+    out = {"active": active, "window": "09:00-09:30", "as_of": run_time.strftime("%H:%M"), "items": items[:30]}
+    return out, state
+
+
+def update_history(run_time, indices_out, watchlist_out, opening_state=None):
     """把這次抓到的價格疊加進 data/intraday_history.json。
     只留「今天」的點(用台北日期判斷,跨到隔天自動重置),最多留 MAX_POINTS_PER_DAY 筆,
     避免檔案越養越大。每筆存 last 價(夠畫走勢小圖),自選股另外存當下的累積成交量(wlv),
@@ -284,6 +390,8 @@ def update_history(run_time, indices_out, watchlist_out):
     }
     history["points"].append(point)
     history["points"] = history["points"][-MAX_POINTS_PER_DAY:]
+    if opening_state is not None:
+        history["opening"] = opening_state
 
     write_json_atomic(HISTORY_FILE, history)
 
@@ -1196,8 +1304,15 @@ def main():
         if data_ts else None
     )
 
+    try:
+        opening_out, opening_state = compute_opening_alerts(run_time, watchlist_out, official)
+    except Exception as e:  # noqa: BLE001  開盤爆量是加分功能,不能影響報價
+        print(f"[警告] 開盤爆量偵測失敗: {e}")
+        opening_out, opening_state = None, None
+
     result = {
         "checked_at": run_time.isoformat(),
+        "opening_alerts": opening_out,
         "data_as_of": data_as_of,
         "check_frequency_note": "開盤期間每約5分鐘由GitHub Actions排程抓一次,非逐秒即時報價",
         "official_bars_status": (official or {}).get("status"),
@@ -1210,7 +1325,7 @@ def main():
     os.makedirs(DATA_DIR, exist_ok=True)
     write_json_atomic(OUT_FILE, result, separators=(",", ":"))
 
-    update_history(run_time, indices_out, watchlist_out)
+    update_history(run_time, indices_out, watchlist_out, opening_state)
     if ALERTS_ENABLED:
         check_and_send_alerts(run_time, watchlist_out)
 
