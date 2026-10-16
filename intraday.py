@@ -792,6 +792,7 @@ def new_touch_stats():
     st = {k: {"res": _empty_ns(), "sup": _empty_ns()} for k in TOUCH_BASES}
     st["vol"] = {side: {"hi": {"n": 0, "rev": 0}, "lo": {"n": 0, "rev": 0}} for side in ("res", "sup")}
     st["reg"] = {r: {side: {"n": 0, "rev": 0} for side in ("res", "sup")} for r in ("weak", "normal", "strong")}
+    st["fol"] = {side: {"n1": 0, "ok1": 0, "n3": 0, "ok3": 0} for side in ("res", "sup")}
     st["days"] = 0
     return st
 
@@ -880,6 +881,14 @@ def compute_touch_stats(series, regime=None):
                 x["n"] += 1
                 x["held"] += 1 if r[1] else 0
                 x["rev"] += 1 if r[2] else 0
+                if r[1]:  # 碰線當天守住,看隔天、第3天收盤是否還在線的同一側
+                    fy = st["fol"][side]
+                    ln = cl["price"]
+                    for gap, nk, ok_k in ((1, "n1", "ok1"), (3, "n3", "ok3")):
+                        if i + gap < len(bars) and _num_ok(bars[i + gap].get("c")):
+                            fy[nk] += 1
+                            cc = bars[i + gap]["c"]
+                            fy[ok_k] += 1 if ((cc < ln) if side == "res" else (cc > ln)) else 0
                 if vol_hi is not None:
                     y = st["vol"][side]["hi" if vol_hi else "lo"]
                     y["n"] += 1
