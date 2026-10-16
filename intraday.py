@@ -126,7 +126,7 @@ OFFICIAL_MAX_AGE_DAYS = 7          # 正式日K最後一根距今超過幾天,�
 HISTORY_FETCH_DAYS = 100           # 向日K API要幾個日曆天(約65個交易日,夠算60日均線)
 REFRESH_BUDGET_SECONDS = 90        # 每一輪抓日K最多花幾秒,超過就留給下一輪繼續
 HISTORY_TIMEOUT = 8
-HISTORY_RETRY_GAP_FAIL = 600       # 今天完全抓不到時,隔幾秒再重試(部分成功則1小時)
+HISTORY_RETRY_GAP_FAIL = 600       # 今天還有沒抓到的股票時,隔幾秒再重試
 LIMIT_MOVE_PCT = 9.3               # 前一日漲跌幅超過這個百分比,視為漲停/跌停
 MAX_POINTS_PER_DAY = 60
 MAX_HISTORY_DAYS = 10
@@ -437,7 +437,7 @@ def _valid_bar(h, l, c):
 
 _HIST_ALIASES = {"t": ("t", "time", "timestamp", "date"), "o": ("o", "open"), "h": ("h", "high"),
                  "l": ("l", "low"), "c": ("c", "close"), "v": ("v", "volume", "vol")}
-_HIST_STATE = {"variant": 0, "debug": None}   # variant:上次成功的參數寫法;debug:第一筆失敗回應的樣本(診斷用)
+_HIST_STATE = {"variant": 0, "debug": None, "fails": {}}   # variant:上次成功的參數寫法;debug:第一筆失敗回應的樣本(診斷用)
 
 
 def _to_date(ts):
@@ -496,10 +496,14 @@ def fetch_history_one(code, run_time):
             break
         except (ValueError, TypeError, AttributeError) as e:
             last_err = e
+            txt = getattr(resp, "text", "")
+            sample = f"{code} variant{vi} HTTP{getattr(resp, 'status_code', '?')} {str(txt)[:300]}"
+            _HIST_STATE["last_sample"] = sample
             if _HIST_STATE["debug"] is None:
-                txt = getattr(resp, "text", "")
-                _HIST_STATE["debug"] = f"{code} variant{vi} HTTP{getattr(resp, 'status_code', '?')} {str(txt)[:300]}"
+                _HIST_STATE["debug"] = sample
     if cols is None:
+        if len(_HIST_STATE["fails"]) < 12:
+            _HIST_STATE["fails"][code] = _HIST_STATE.get("last_sample", "")
         raise ValueError("日K格式不符")
     t, o, h, l, c, v = (cols.get(k) or [] for k in "tohlcv")
     bars = []
@@ -532,7 +536,7 @@ def refresh_official_bars(run_time):
     last_try = stored.get("last_attempt")
     if stored.get("last_attempt_date") == today and last_try:
         try:
-            gap = 3600 if any(v == today for v in fetched.values()) else HISTORY_RETRY_GAP_FAIL
+            gap = HISTORY_RETRY_GAP_FAIL
             if (run_time - datetime.fromisoformat(last_try)).total_seconds() < gap:
                 return stored
         except ValueError:
@@ -566,6 +570,7 @@ def refresh_official_bars(run_time):
         "source": "cnyes 日K歷史API (resolution=D)",
         "errors": errors[:10],
         "debug": _HIST_STATE["debug"],
+        "fail_samples": _HIST_STATE["fails"],
         "bars": merged,
     }
     try:
