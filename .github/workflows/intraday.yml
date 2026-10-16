@@ -51,6 +51,7 @@ jobs:
           fi
           while [ "$(date +%s)" -le "$end_epoch" ]; do
             loop_start=$(date +%s)
+            git pull --rebase --autostash origin main >/dev/null 2>&1 || { git rebase --abort 2>/dev/null; echo "pull失敗,沿用目前版本"; }
             timeout 150 python intraday.py || echo "這一輪抓取失敗或逾時,5分鐘後再試"
             git add data/intraday_latest.json data/intraday_history.json data/alerts_state.json data/daily_bars.json data/daily_official.json
             if ! git diff --quiet --cached; then
