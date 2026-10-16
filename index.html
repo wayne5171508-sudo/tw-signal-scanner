@@ -719,7 +719,7 @@ function levelChips(q, isIndex){
       <div class="levelchip res">
         <div class="lbl">▲ 壓力位(${resLabel})</div>
         <div class="val">${fmtNum(resTarget)}</div>
-        <div class="sub">距現價 ${dRes !== null ? '+' + dRes.toFixed(2) + '%' : '-'}</div>
+        <div class="sub">${dRes === null ? '距現價 -' : (dRes < 0 ? '已突破 ' + Math.abs(dRes).toFixed(2) + '%,轉為支撐觀察' : '距現價 +' + dRes.toFixed(2) + '%')}</div>
       </div>
       <div class="levelchip ref">
         <div class="lbl">● 交界位(${midLabel})</div>
@@ -729,7 +729,7 @@ function levelChips(q, isIndex){
       <div class="levelchip sup">
         <div class="lbl">▼ 支撐位(${supLabel})</div>
         <div class="val">${fmtNum(supTarget)}</div>
-        <div class="sub">距現價 ${dSup !== null ? '-' + dSup.toFixed(2) + '%' : '-'}</div>
+        <div class="sub">${dSup === null ? '距現價 -' : (dSup < 0 ? '已跌破 ' + Math.abs(dSup).toFixed(2) + '%,轉為壓力觀察' : '距現價 -' + dSup.toFixed(2) + '%')}</div>
       </div>
     </div>
     ${!isIndex ? levelWhy(q) : ''}`;
@@ -1242,3 +1242,4 @@ setInterval(() => loadAll({silent: true}), 60000);
 </script>
 </body>
 </html>
+
