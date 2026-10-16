@@ -126,6 +126,7 @@ OFFICIAL_MAX_AGE_DAYS = 7          # 正式日K最後一根距今超過幾天,�
 HISTORY_FETCH_DAYS = 100           # 向日K API要幾個日曆天(約65個交易日,夠算60日均線)
 REFRESH_BUDGET_SECONDS = 90        # 每一輪抓日K最多花幾秒,超過就留給下一輪繼續
 HISTORY_TIMEOUT = 8
+HISTORY_RETRY_GAP_FAIL = 600       # 今天完全抓不到時,隔幾秒再重試(部分成功則1小時)
 LIMIT_MOVE_PCT = 9.3               # 前一日漲跌幅超過這個百分比,視為漲停/跌停
 MAX_POINTS_PER_DAY = 60
 MAX_HISTORY_DAYS = 10
@@ -434,27 +435,86 @@ def _valid_bar(h, l, c):
         return False
 
 
-def fetch_history_one(code, run_time):
-    """抓單一股票最近約100個日曆天的日K。回傳由舊到新排列的 [{d,o,h,l,c,v}],只留通過基本檢查的。
-    格式不符就丟例外,由呼叫端記錄在 daily_official.json 的 errors 裡。"""
-    to_ts = int(run_time.timestamp())
-    params = {"resolution": "D", "symbol": f"TWS:{code}:STOCK", "from": to_ts - HISTORY_FETCH_DAYS * 86400, "to": to_ts}
-    resp = requests.get(CNYES_HISTORY_URL, params=params, headers=HEADERS, timeout=HISTORY_TIMEOUT)
-    resp.raise_for_status()
-    data = (resp.json() or {}).get("data") or {}
-    t, o, h, l, c, v = (data.get(k) or [] for k in ("t", "o", "h", "l", "c", "v"))
+_HIST_ALIASES = {"t": ("t", "time", "timestamp", "date"), "o": ("o", "open"), "h": ("h", "high"),
+                 "l": ("l", "low"), "c": ("c", "close"), "v": ("v", "volume", "vol")}
+_HIST_STATE = {"variant": 0, "debug": None}   # variant:上次成功的參數寫法;debug:第一筆失敗回應的樣本(診斷用)
+
+
+def _to_date(ts):
+    if isinstance(ts, str):
+        return ts[:10]
+    ts = float(ts)
+    if ts > 1e11:   # 毫秒
+        ts /= 1000.0
+    return datetime.fromtimestamp(ts, TAIPEI).strftime("%Y-%m-%d")
+
+
+def _parse_history(payload):
+    """把各種可能的日K回傳格式整理成 {t,o,h,l,c,v} 欄位陣列。
+    支援:data 是欄位陣列的字典(t/o/h/l/c/v 或 open/high/low/close/volume)、
+    data 是一列一根K的字典清單、data 是 [時間,開,高,低,收,量] 的陣列清單。看不懂就丟 ValueError。"""
+    data = payload.get("data") if isinstance(payload, dict) else payload
+    cols = {}
+    if isinstance(data, dict):
+        for k, names in _HIST_ALIASES.items():
+            for nm in names:
+                if isinstance(data.get(nm), list):
+                    cols[k] = data[nm]
+                    break
+    elif isinstance(data, list) and data and isinstance(data[0], dict):
+        cols = {k: [] for k in _HIST_ALIASES}
+        for row in data:
+            for k, names in _HIST_ALIASES.items():
+                cols[k].append(next((row[n] for n in names if n in row), None))
+    elif isinstance(data, list) and data and isinstance(data[0], (list, tuple)) and len(data[0]) >= 5:
+        cols = {k: [r[i] if i < len(r) else None for r in data] for i, k in enumerate("tohlcv")}
+    t, h, l, c = (cols.get(k) or [] for k in "thlc")
     if not t or not (len(t) == len(h) == len(l) == len(c)):
         raise ValueError("日K格式不符")
+    return cols
+
+
+def fetch_history_one(code, run_time):
+    """抓單一股票最近約100個日曆天的日K。回傳由舊到新排列的 [{d,o,h,l,c,v}],只留通過基本檢查的。
+    參數 from/to 的先後順序不確定(有些平台是 from 比 to 大),兩種都試,記住成功的那種。
+    格式不符就丟例外,並把第一筆失敗回應的前300字存起來(寫進 daily_official.json 的 debug),方便診斷。"""
+    to_ts = int(run_time.timestamp())
+    old_ts = to_ts - HISTORY_FETCH_DAYS * 86400
+    variants = [(old_ts, to_ts), (to_ts, old_ts)]
+    order = [_HIST_STATE["variant"]] + [i for i in range(len(variants)) if i != _HIST_STATE["variant"]]
+    last_err = None
+    cols = None
+    for vi in order:
+        frm, to = variants[vi]
+        params = {"resolution": "D", "symbol": f"TWS:{code}:STOCK", "from": frm, "to": to}
+        resp = requests.get(CNYES_HISTORY_URL, params=params, headers=HEADERS, timeout=HISTORY_TIMEOUT)
+        resp.raise_for_status()
+        try:
+            payload = resp.json()
+            cols = _parse_history(payload)
+            _HIST_STATE["variant"] = vi
+            break
+        except (ValueError, TypeError, AttributeError) as e:
+            last_err = e
+            if _HIST_STATE["debug"] is None:
+                txt = getattr(resp, "text", "")
+                _HIST_STATE["debug"] = f"{code} variant{vi} HTTP{getattr(resp, 'status_code', '?')} {str(txt)[:300]}"
+    if cols is None:
+        raise ValueError("日K格式不符")
+    t, o, h, l, c, v = (cols.get(k) or [] for k in "tohlcv")
     bars = []
     for i in range(len(t)):
-        if not _valid_bar(h[i], l[i], c[i]):
+        try:
+            if not _valid_bar(h[i], l[i], c[i]):
+                continue
+            bars.append({
+                "d": _to_date(t[i]),
+                "o": o[i] if i < len(o) else None,
+                "h": h[i], "l": l[i], "c": c[i],
+                "v": v[i] if i < len(v) else None,
+            })
+        except (TypeError, ValueError):
             continue
-        bars.append({
-            "d": datetime.fromtimestamp(t[i], TAIPEI).strftime("%Y-%m-%d"),
-            "o": o[i] if i < len(o) else None,
-            "h": h[i], "l": l[i], "c": c[i],
-            "v": v[i] if i < len(v) else None,
-        })
     bars.sort(key=lambda b: b["d"])
     return bars[-OFFICIAL_KEEP_DAYS:]
 
@@ -472,7 +532,8 @@ def refresh_official_bars(run_time):
     last_try = stored.get("last_attempt")
     if stored.get("last_attempt_date") == today and last_try:
         try:
-            if (run_time - datetime.fromisoformat(last_try)).total_seconds() < 3600:
+            gap = 3600 if any(v == today for v in fetched.values()) else HISTORY_RETRY_GAP_FAIL
+            if (run_time - datetime.fromisoformat(last_try)).total_seconds() < gap:
                 return stored
         except ValueError:
             pass
@@ -504,6 +565,7 @@ def refresh_official_bars(run_time):
         "status": f"{'ok' if ok == total else ('partial' if ok else 'fail')} {ok}/{total}",
         "source": "cnyes 日K歷史API (resolution=D)",
         "errors": errors[:10],
+        "debug": _HIST_STATE["debug"],
         "bars": merged,
     }
     try:
