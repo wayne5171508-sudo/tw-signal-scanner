@@ -309,6 +309,14 @@ def compute_opening_alerts(run_time, watchlist_out, official):
         state = {}
     m = (run_time - run_time.replace(hour=9, minute=0, second=0, microsecond=0)).total_seconds() / 60
     active = OPENING_START_MIN < m <= OPENING_END_MIN
+    # 全天量能倍數:每一檔都算(網頁「今日焦點」用),不只開盤半小時
+    if m > 2:
+        _bars_all = (official or {}).get("bars") or {}
+        for q in watchlist_out:
+            vol_ = q.get("volume")
+            avg_ = _avg_daily_volume(_bars_all, q["code"], today)
+            if _num_ok(vol_) and vol_ >= OPEN_MIN_VOL and avg_:
+                q["pace"] = round(vol_ / (avg_ * curve_frac(min(m, 270))), 2)
     if active:
         bars = (official or {}).get("bars") or {}
         pm = None
