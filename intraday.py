@@ -171,7 +171,7 @@ WATCHLIST_NAMES = {
     "6140": "訊達", "1316": "上曜", "1802": "台玻", "3706": "神達",
     "2365": "昆盈", "7781": "昕力資*", "2887": "台新新光金", "2049": "上銀",
     "4576": "大銀微系統", "2359": "所羅門", "0050": "元大台灣50", "009816": "凱基台灣TOP50",
-    "00988A": "主動統一台股增長", "00685L": "群益臺灣加權正2", "00631L": "元大台灣50正2",
+    "00981A": "主動統一台股增長", "00685L": "群益臺灣加權正2", "00631L": "元大台灣50正2",
 }
 
 
@@ -1199,7 +1199,7 @@ def main():
     }
 
     os.makedirs(DATA_DIR, exist_ok=True)
-    write_json_atomic(OUT_FILE, result, indent=2)
+    write_json_atomic(OUT_FILE, result, separators=(",", ":"))
 
     update_history(run_time, indices_out, watchlist_out)
     if ALERTS_ENABLED:
@@ -1210,3 +1210,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
