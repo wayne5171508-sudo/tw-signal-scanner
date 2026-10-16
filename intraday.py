@@ -119,11 +119,12 @@ DAILY_HLC_FILE = os.path.join(DATA_DIR, "daily_hlc.json")  # v4的舊檔,只用�
 DAILY_BARS_FILE = os.path.join(DATA_DIR, "daily_bars.json")
 DAILY_OFFICIAL_FILE = os.path.join(DATA_DIR, "daily_official.json")
 CNYES_HISTORY_URL = "https://ws.api.cnyes.com/ws/api/v1/charting/history"
-OFFICIAL_KEEP_DAYS = 70
+OFFICIAL_KEEP_DAYS = 260              # 每檔最多留幾根日K(約一年),回測樣本才夠多
 LOW_RELIABILITY_RANGE_PCT = 1.5   # 前一日(高-低)/收 小於這個百分比,視為CDP參考性低
 OFFICIAL_MISMATCH_PCT = 0.3       # 正式日K收盤和今天報價的昨收差超過這個百分比(且超過0.05元),視為對不上,不採用
 OFFICIAL_MAX_AGE_DAYS = 7          # 正式日K最後一根距今超過幾天,視為過期
-HISTORY_FETCH_DAYS = 100           # 向日K API要幾個日曆天(約65個交易日,夠算60日均線)
+HISTORY_FETCH_DAYS = 100           # 備用:長區間抓不到時退回的日曆天數(約65個交易日)
+HISTORY_FETCH_DAYS_LONG = 400      # 優先向日K API要的日曆天數(約260個交易日)
 REFRESH_BUDGET_SECONDS = 90        # 每一輪抓日K最多花幾秒,超過就留給下一輪繼續
 HISTORY_TIMEOUT = 8
 HISTORY_RETRY_GAP_FAIL = 600       # 今天還有沒抓到的股票時,隔幾秒再重試
@@ -437,7 +438,11 @@ def _valid_bar(h, l, c):
 
 _HIST_ALIASES = {"t": ("t", "time", "timestamp", "date"), "o": ("o", "open"), "h": ("h", "high"),
                  "l": ("l", "low"), "c": ("c", "close"), "v": ("v", "volume", "vol")}
-_HIST_STATE = {"variant": 0, "debug": None, "fails": {}}   # variant:上次成功的參數寫法;debug:第一筆失敗回應的樣本(診斷用)
+_HIST_STATE = {"variant": 0, "win": 0, "debug": None, "fails": {}}   # variant:上次成功的參數寫法;debug:第一筆失敗回應的樣本(診斷用)
+
+
+class _EmptyHistory(ValueError):
+    """API 正常回應,但這檔股票沒有任何日K(不是格式問題,重試也沒用)。"""
 
 
 def _to_date(ts):
@@ -469,6 +474,8 @@ def _parse_history(payload):
     elif isinstance(data, list) and data and isinstance(data[0], (list, tuple)) and len(data[0]) >= 5:
         cols = {k: [r[i] if i < len(r) else None for r in data] for i, k in enumerate("tohlcv")}
     t, h, l, c = (cols.get(k) or [] for k in "thlc")
+    if cols and "t" in cols and not t and not h and not l and not c:
+        raise _EmptyHistory("日K無資料")
     if not t or not (len(t) == len(h) == len(l) == len(c)):
         raise ValueError("日K格式不符")
     return cols
@@ -479,29 +486,38 @@ def fetch_history_one(code, run_time):
     參數 from/to 的先後順序不確定(有些平台是 from 比 to 大),兩種都試,記住成功的那種。
     格式不符就丟例外,並把第一筆失敗回應的前300字存起來(寫進 daily_official.json 的 debug),方便診斷。"""
     to_ts = int(run_time.timestamp())
-    old_ts = to_ts - HISTORY_FETCH_DAYS * 86400
-    variants = [(old_ts, to_ts), (to_ts, old_ts)]
-    order = [_HIST_STATE["variant"]] + [i for i in range(len(variants)) if i != _HIST_STATE["variant"]]
-    last_err = None
+    windows = [HISTORY_FETCH_DAYS_LONG, HISTORY_FETCH_DAYS]
+    wins = [_HIST_STATE["win"]] + [i for i in range(len(windows)) if i != _HIST_STATE["win"]]
+    vars_ = [_HIST_STATE["variant"]] + [i for i in range(2) if i != _HIST_STATE["variant"]]
     cols = None
-    for vi in order:
-        frm, to = variants[vi]
-        params = {"resolution": "D", "symbol": f"TWS:{code}:STOCK", "from": frm, "to": to}
-        resp = requests.get(CNYES_HISTORY_URL, params=params, headers=HEADERS, timeout=HISTORY_TIMEOUT)
-        resp.raise_for_status()
-        try:
-            payload = resp.json()
-            cols = _parse_history(payload)
-            _HIST_STATE["variant"] = vi
-            break
-        except (ValueError, TypeError, AttributeError) as e:
-            last_err = e
+    attempts = empties = 0
+    for wi in wins:
+        old_ts = to_ts - windows[wi] * 86400
+        variants = [(old_ts, to_ts), (to_ts, old_ts)]
+        for vi in vars_:
+            frm, to = variants[vi]
+            params = {"resolution": "D", "symbol": f"TWS:{code}:STOCK", "from": frm, "to": to}
+            resp = requests.get(CNYES_HISTORY_URL, params=params, headers=HEADERS, timeout=HISTORY_TIMEOUT)
+            resp.raise_for_status()
+            attempts += 1
+            try:
+                cols = _parse_history(resp.json())
+                _HIST_STATE["variant"], _HIST_STATE["win"] = vi, wi
+                break
+            except _EmptyHistory:
+                empties += 1
+            except (ValueError, TypeError, AttributeError):
+                pass
             txt = getattr(resp, "text", "")
-            sample = f"{code} variant{vi} HTTP{getattr(resp, 'status_code', '?')} {str(txt)[:300]}"
+            sample = f"{code} win{windows[wi]} variant{vi} HTTP{getattr(resp, 'status_code', '?')} {str(txt)[:300]}"
             _HIST_STATE["last_sample"] = sample
             if _HIST_STATE["debug"] is None:
                 _HIST_STATE["debug"] = sample
+        if cols is not None:
+            break
     if cols is None:
+        if attempts and empties == attempts:
+            raise _EmptyHistory("日K無資料")
         if len(_HIST_STATE["fails"]) < 12:
             _HIST_STATE["fails"][code] = _HIST_STATE.get("last_sample", "")
         raise ValueError("日K格式不符")
@@ -530,11 +546,15 @@ def refresh_official_bars(run_time):
     today = run_time.strftime("%Y-%m-%d")
     stored = load_json_safe(DAILY_OFFICIAL_FILE, {}) or {}
     fetched = dict(stored.get("fetched") or {})
+    no_data = set(stored.get("no_data") or [])
+    schema_ok = stored.get("keep_days") == OFFICIAL_KEEP_DAYS
+    if not schema_ok:   # 保留天數改版:今天全部重抓一次,把歷史補長
+        fetched, no_data = {}, set()
     needed = [c for c in WATCHLIST_NAMES if fetched.get(c) != today]
     if not needed:
         return stored
     last_try = stored.get("last_attempt")
-    if stored.get("last_attempt_date") == today and last_try:
+    if schema_ok and stored.get("last_attempt_date") == today and last_try:
         try:
             gap = HISTORY_RETRY_GAP_FAIL
             if (run_time - datetime.fromisoformat(last_try)).total_seconds() < gap:
@@ -554,19 +574,29 @@ def refresh_official_bars(run_time):
             if bars:
                 merged[code] = bars
                 fetched[code] = today
+                no_data.discard(code)
             else:
                 errors.append(f"{code}: 沒有可用資料")
+        except _EmptyHistory:
+            fetched[code] = today     # 來源明確回覆沒有這檔的日K,今天不再重試
+            no_data.add(code)
         except Exception as e:  # noqa: BLE001  日K失敗不能中斷主流程
             errors.append(f"{code}: {type(e).__name__} {str(e)[:60]}")
         time.sleep(0.15)
 
     total = len(WATCHLIST_NAMES)
     ok = sum(1 for c in WATCHLIST_NAMES if fetched.get(c) == today)
+    nd = sorted(c for c in no_data if c in WATCHLIST_NAMES)
+    status = f"{'ok' if ok == total else ('partial' if ok else 'fail')} {ok}/{total}"
+    if nd:
+        status += "(來源無日K:" + ",".join(nd) + ")"
     result = {
         "fetched": fetched,
         "last_attempt": run_time.isoformat(),
         "last_attempt_date": today,
-        "status": f"{'ok' if ok == total else ('partial' if ok else 'fail')} {ok}/{total}",
+        "status": status,
+        "keep_days": OFFICIAL_KEEP_DAYS,
+        "no_data": nd,
         "source": "cnyes 日K歷史API (resolution=D)",
         "errors": errors[:10],
         "debug": _HIST_STATE["debug"],
@@ -604,10 +634,10 @@ def compute_swing(bars):
     return out
 
 
-TOUCH_TOL_PCT = 0.15     # 最高/最低價進到線的 0.15% 以內就算「碰到」
-TOUCH_REV_PCT = 0.5      # 收盤離線 0.5% 以上才算「明確彈開/回落」
+TOUCH_TOL_ADR = 0.06     # 「碰到」的距離 = 該檔近10日平均振幅的 6%(限制在 0.05%~0.5%)
+TOUCH_REV_ADR = 0.25     # 「明確彈開/回落」= 收盤離線至少平均振幅的 25%(限制在 0.2%~2%)
+CONF_ADR = 0.2           # 線疊加的距離 = 平均振幅的 20%(限制在 0.3%~1%)
 TOUCH_BASES = ("cdp", "sw5", "sw10", "sw20", "c1", "c2")   # c2=多條不同類的線疊在一起(疊加強度>=2),c1=單一線
-CONF_TOL_PCT = 0.5       # 不同線的價位相差 0.5% 以內視為疊在同一區
 VP_DAYS = 60             # 量能密集區用最近幾個交易日
 VP_BIN_PCT = 0.5         # 量能分格寬度(佔現價 %)
 VP_NODE_MULT = 1.5       # 某一格成交量 >= 平均 1.5 倍才算密集區
@@ -620,6 +650,19 @@ LINE_FAMILY = {"CDP": "cdp", "5日": "swing", "10日": "swing", "20日": "swing"
 
 def _num_ok(*xs):
     return all(isinstance(x, (int, float)) and not isinstance(x, bool) and x == x for x in xs)
+
+
+def avg_range_pct(hist, n=10):
+    """最近 n 根日K的平均振幅 (高-低)/收 %,資料不足回傳預設 2.0。用來讓各項門檻跟著每檔股票自己的波動走。"""
+    rs = [(x["h"] - x["l"]) / x["c"] * 100 for x in (hist or [])[-n:] if _num_ok(x.get("h"), x.get("l"), x.get("c")) and x["c"] > 0]
+    return sum(rs) / len(rs) if len(rs) >= 3 else 2.0
+
+
+def touch_params(adr):
+    tol = min(max(TOUCH_TOL_ADR * adr, 0.05), 0.5)
+    rev = min(max(TOUCH_REV_ADR * adr, 0.2), 2.0)
+    conf = min(max(CONF_ADR * adr, 0.3), 1.0)
+    return tol, rev, conf
 
 
 def regime_label(median_pct):
@@ -714,12 +757,12 @@ def level_candidates(hist, ref_price):
     return [(p, s) for p, s in out if _num_ok(p) and p > 0]
 
 
-def cluster_levels(cands):
-    """把相差 CONF_TOL_PCT 以內的線併成一區。strength=區內「不同類別」的線有幾類
+def cluster_levels(cands, tol_pct=0.5):
+    """把相差 tol_pct(%)以內的線併成一區。strength=區內「不同類別」的線有幾類
     (CDP、波段高低、均線、量能區各算一類;5日高和10日高同價不會被算成兩條)。"""
     groups = []
     for p, s in sorted(cands):
-        if groups and p - groups[-1]["start"] <= groups[-1]["start"] * CONF_TOL_PCT / 100:
+        if groups and p - groups[-1]["start"] <= groups[-1]["start"] * tol_pct / 100:
             groups[-1]["items"].append((p, s))
         else:
             groups.append({"start": p, "items": [(p, s)]})
@@ -735,9 +778,9 @@ def cluster_levels(cands):
     return out
 
 
-def split_clusters(cands, ref_price):
-    res = cluster_levels([(p, s) for p, s in cands if p > ref_price])
-    sup = cluster_levels([(p, s) for p, s in cands if p < ref_price])
+def split_clusters(cands, ref_price, tol_pct=0.5):
+    res = cluster_levels([(p, s) for p, s in cands if p > ref_price], tol_pct)
+    sup = cluster_levels([(p, s) for p, s in cands if p < ref_price], tol_pct)
     return res, sup
 
 
@@ -767,8 +810,9 @@ def add_stats(dst, src):
 def compute_touch_stats(series, regime=None):
     """觸及回測:用正式日K(由舊到新、不含今天)逐日檢驗「前一天收盤時就能算出來的線」。
     每一天只用當時看得到的資料算 CDP 近高/近低、5/10/20日高低(不含當天),再看當天:
-      壓力:最高價進到線的 TOUCH_TOL_PCT 內算碰到;收盤沒站上算 held;收盤低於線 TOUCH_REV_PCT 以上算 rev。
-      支撐:最低價進到線內算碰到;收盤沒跌破算 held;收盤高於線 TOUCH_REV_PCT 以上算 rev。
+      壓力:最高價進到線的 tol 內算碰到;收盤沒站上算 held;收盤低於線 rev 以上算 rev。
+      支撐:最低價進到線內算碰到;收盤沒跌破算 held;收盤高於線 rev 以上算 rev。
+      tol / rev / 疊加距離都依「該檔近10日平均振幅」換算(touch_params),高低波動的股票才有可比性。
     另外把所有候選線(含均線、量能密集區)併成「疊加區」:c2=不同類的線疊在一起,c1=單一線。
     並把每次碰線依「當天是否放量」「大盤強弱」分開統計(只記 n 與 rev)。
     開盤就跳空越過線的日子不算;CDP 前一天若振幅太小(漲跌停鎖死)也不算。
@@ -777,7 +821,7 @@ def compute_touch_stats(series, regime=None):
     if len(bars) < 6:
         return None
     st = new_touch_stats()
-    tol, rev = TOUCH_TOL_PCT / 100, TOUCH_REV_PCT / 100
+    tol = rev = 0.0015
 
     def test(side, line, b, o):
         """回傳 (有碰到, 收盤守住, 明確彈開/回落);跳空越過回傳 None"""
@@ -796,6 +840,8 @@ def compute_touch_stats(series, regime=None):
     for i in range(1, len(bars)):
         b, pb = bars[i], bars[i - 1]
         o = b.get("o") if _num_ok(b.get("o")) else None
+        tol_p, rev_p, conf_p = touch_params(avg_range_pct(bars[:i]))
+        tol, rev = tol_p / 100, rev_p / 100
         lv = {}
         pr = (pb["h"] - pb["l"]) / pb["c"] * 100 if pb["c"] else 0
         if pr >= LOW_RELIABILITY_RANGE_PCT:
@@ -823,7 +869,7 @@ def compute_touch_stats(series, regime=None):
         if len(vols) >= 3 and _num_ok(b.get("v")) and b["v"] > 0:
             vol_hi = b["v"] >= VOL_HI_MULT * (sum(vols) / len(vols))
         rg = regime_label(regime.get(b.get("d"))) if regime else None
-        res_cl, sup_cl = split_clusters(level_candidates(hist, ref), ref)
+        res_cl, sup_cl = split_clusters(level_candidates(hist, ref), ref, conf_p)
         for side, cls in (("res", res_cl), ("sup", sup_cl)):
             for cl in cls:
                 r = test(side, cl["price"], b, o)
@@ -960,7 +1006,7 @@ def build_levels(watchlist_out, prev_bars, history_days, official, today):
         try:
             ref = q.get("last") if _num_ok(q.get("last")) and q["last"] > 0 else None
             if ref and series:
-                res_cl, sup_cl = split_clusters(level_candidates(series, ref), ref)
+                res_cl, sup_cl = split_clusters(level_candidates(series, ref), ref, touch_params(avg_range_pct(series))[2])
                 res_cl = sorted(res_cl, key=lambda c: c["price"])[:2]
                 sup_cl = sorted(sup_cl, key=lambda c: -c["price"])[:2]
                 q["conf"] = {"res": res_cl, "sup": sup_cl}
