@@ -1103,22 +1103,28 @@ function lvExtra(q){
   return (parts.length ? `<div class="lvextra">${parts.join('')}</div>` : '') + confRows(q) + tr;
 }
 
-// 觸及回測:a/b = 近N日碰到這條線b次,其中a次收盤明確彈開/回落(離線超過0.5%)。樣本少於5次的淡化顯示
+// 觸及回測:顯示「碰到線後明確回落/彈開」的比例與碰到次數。樣本少的個股,比例會往「全部自選股的平均」拉近
+// (調整後 = (實際次數 + K×全體比例) / (碰到次數 + K)),避免碰到3次就顯示100%。次數少於5次的淡化顯示。
+const SHRINK_K = 8;
 function touchRows(q){
   const t = q && q.touch;
   if(!t || typeof t !== 'object') return '';
+  const pool = (INTRADAY && INTRADAY.touch_summary) || {};
   const defs = [['cdp','CDP'],['sw5','5日'],['sw10','10日'],['sw20','20日']];
   const row = (side, label) => {
     const bits = [];
     for(const [k, nm] of defs){
       const r = t[k] && t[k][side];
       if(!r || !(r.n > 0)) continue;
-      bits.push(`<span class="${r.n < 5 ? 'dim2' : ''}">${nm} ${r.rev}/${r.n}</span>`);
+      const g = pool[k] && pool[k][side];
+      const p0 = (g && g.n > 0) ? g.rev / g.n : 0.5;
+      const adj = Math.round((r.rev + SHRINK_K * p0) / (r.n + SHRINK_K) * 100);
+      bits.push(`<span class="${r.n < 5 ? 'dim2' : ''}" title="實際 ${r.rev}/${r.n}">${nm} ${adj}%(${r.n}次)</span>`);
     }
     return bits.length ? `<div class="lvextra tchrow"><span><b>${label}</b></span>${bits.join('')}</div>` : '';
   };
   const out = row('res', '壓力回測(回落)') + row('sup', '支撐回測(彈開)');
-  return out ? out + `<div class="tchnote">近${t.days}個交易日。a/b=碰到b次,其中a次收盤明確離開線0.5%以上</div>` : '';
+  return out ? out + `<div class="tchnote">近${t.days}個交易日。百分比=碰到線後收盤明確離開的比例,次數少時已往全體平均調整</div>` : '';
 }
 
 const pct2 = r => (r && r.n > 0) ? `${Math.round(r.rev / r.n * 100)}%(${r.n})` : '-';
