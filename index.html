@@ -220,6 +220,7 @@
 <div class="meta" id="pageMeta">載入中...</div>
 <div class="freshbar" id="freshBar"></div>
 
+<div id="focusBox" style="display:none"></div>
 <div id="openingBox" style="display:none"></div>
 
 <div class="idxgrid" id="indicesGrid"></div>
@@ -993,6 +994,7 @@ async function loadAll(opts){
 
   const safe = (name, fn) => { try { fn(); } catch(e) { console.error('render ' + name, e); } };
   safe('fresh', () => renderFresh(intraday));
+  safe('focus', () => renderFocus(intraday));
   safe('opening', () => renderOpening(intraday));
   safe('touchnote', () => renderTouchNote(intraday));
   safe('srcnote', () => { const sn = document.getElementById('srcNote'); if(sn) sn.textContent = (intraday && intraday.official_bars_status) ? ' 日K資料狀態:' + intraday.official_bars_status + '。' : ''; });
@@ -1191,6 +1193,53 @@ function pool_fol(side){
 }
 const pct2 = r => (r && r.n > 0) ? `${Math.round(r.rev / r.n * 100)}%(${r.n})` : '-';
 
+function renderFocus(intraday){
+  const el = document.getElementById('focusBox');
+  if(!el) return;
+  const qs = (intraday && intraday.watchlist_quotes) || [];
+  const oa = intraday && intraday.opening_alerts;
+  const peak = {};
+  ((oa && oa.items) || []).forEach(x => { peak[x.code] = x; });
+  const cands = [];
+  for(const q of qs){
+    if(num(q.last) === null) continue;
+    const pace = num(q.pace);
+    const op = peak[q.code];
+    const p = Math.max(pace || 0, (oa && oa.active && op) ? op.pace || 0 : 0);
+    const lv = lvInfo(q);
+    const st = lv ? lv.state : 'mid';
+    const lvBonus = (st === 'breakout' || st === 'breakdown') ? 3 : (st === 'nearRes' || st === 'nearSup') ? 1.5 : 0;
+    const hot = p >= 2.5, edge = p >= 1.5 && lvBonus > 0;
+    if(!hot && !edge) continue;
+    const pct = num(q.pct);
+    const side = (pct === null || Math.abs(pct) < 0.5) ? 'flat' : (pct > 0 ? 'in' : 'out');
+    const bits = [`量能 ${p.toFixed(1)}倍`];
+    if(lv){
+      const kl = lv.kl;
+      if(st === 'breakout') bits.push(`已突破壓力 ${fmtNum(lv.res)}`);
+      else if(st === 'breakdown') bits.push(`已跌破支撐 ${fmtNum(lv.sup)}`);
+      else if(st === 'nearRes') bits.push(`逼近壓力 ${fmtNum(lv.res)}(差${lv.dRes.toFixed(1)}%)`);
+      else if(st === 'nearSup') bits.push(`逼近支撐 ${fmtNum(lv.sup)}(差${lv.dSup.toFixed(1)}%)`);
+    }
+    cands.push({q, side, p, pct, bits, score: Math.min(p, 10) + lvBonus + (Math.abs(pct || 0) >= 3 ? 1 : 0)});
+  }
+  cands.sort((a, b) => b.score - a.score);
+  const top = cands.slice(0, 5);
+  const t = intraday && intraday.checked_at ? fmtTime(intraday.checked_at) : '';
+  const tagTxt = {in:'進場', out:'出場', flat:'震盪'};
+  const row = c => `<div class="orow" onclick="searchAndOpen('${c.q.code}')">
+      <span class="tag ${c.side}">${tagTxt[c.side]}</span>
+      <span class="nm">${c.p >= 6 ? '🔥' : ''}${c.q.name}<small>${c.q.code}</small><div style="font-size:11px;color:var(--muted)">${c.bits.join(',')}</div></span>
+      <span class="rt"><b>${fmtNum(c.q.last)}</b><br>${c.pct === null ? '-' : fmtPct(c.pct)}</span>
+    </div>`;
+  const live = oa && oa.active;
+  el.className = 'openbox' + (top.length ? ' live' : '');
+  el.innerHTML = `<div class="ohd"><b>今日焦點${live ? '(開盤爆量中)' : ''}</b><small>${t ? t + ' 更新' : ''}</small></div>`
+    + (top.length ? top.map(row).join('') : `<div style="color:var(--muted)">目前沒有量能異常的標的。${live ? '' : '盤中每5分鐘更新。'}</div>`)
+    + `<div class="onote">只列「量能明顯高於平常」或「量大且貼近/突破關鍵價位」的自選股,最多5檔,由強到弱。進場=量大且上漲,出場=量大且下跌(推測)。這是觀察清單,不是買賣建議。</div>`;
+  el.style.display = '';
+}
+
 function renderOpening(intraday){
   const el = document.getElementById('openingBox');
   if(!el) return;
@@ -1210,17 +1259,9 @@ function renderOpening(intraday){
     </div>`;
   };
   let h;
-  if(oa.active){
-    h = `<div class="ohd"><b>開盤爆量監測</b><small>09:00~09:30,${oa.as_of} 更新</small></div>`
-      + (items.length ? items.map(row).join('') : '<div style="color:var(--muted)">目前沒有明顯爆量的標的,每5分鐘更新。</div>');
-    el.className = 'openbox' + (items.some(x => x.hot_now) ? ' live' : '');
-  } else {
-    const top = items.slice(0, 5), rest = items.slice(5);
-    h = `<div class="ohd"><b>今日開盤爆量名單</b><small>09:00~09:30 已結束</small></div>` + top.map(row).join('')
-      + (rest.length ? `<details><summary style="padding:6px 0;color:var(--muted);cursor:pointer">其餘 ${rest.length} 檔</summary>${rest.map(row).join('')}</details>` : '');
-    el.className = 'openbox';
-  }
-  h += `<div class="onote">量能倍數=目前累積量 ÷ (該檔近20日日成交量中位數 × 此時間點一般已成交的比例),比例是估計的U型曲線,請當相對強弱看。進場=爆量且上漲,出場=爆量且下跌,是依漲跌推測,成交量本身分不出買方賣方。標籤依最新漲跌幅更新,倍數越大代表越異常。</div>`;
+  if(oa.active){ el.style.display = 'none'; return; }   // 開盤半小時內由上方「今日焦點」直接顯示
+  h = `<details><summary style="cursor:pointer"><b>今日開盤爆量名單</b> <small style="color:var(--muted)">09:00~09:30,共 ${items.length} 檔,點開看</small></summary>${items.map(row).join('')}<div class="onote">量能倍數是估計值,標籤依09:30當時漲跌推測。</div></details>`;
+  el.className = 'openbox';
   el.innerHTML = h; el.style.display = '';
 }
 
