@@ -179,6 +179,21 @@
   .lvnodata{font-size:12.5px;color:var(--muted);margin-top:8px}
   .lvhint{font-size:10.5px;color:var(--muted);margin-top:4px}
   .lvextra{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:8px;padding-top:7px;border-top:1px dashed var(--border);font-size:11px;color:var(--sec);font-variant-numeric:tabular-nums}
+  .openbox{margin:8px 0;padding:10px 12px;border-radius:10px;border:1px solid var(--border,#e3e1da);background:var(--card,#fff);font-size:13px}
+  .openbox .ohd{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:6px}
+  .openbox .ohd b{font-size:14px}
+  .openbox .ohd small{color:var(--muted);font-size:11px}
+  .openbox.live{border-color:#d1403f;box-shadow:0 0 0 2px rgba(209,64,63,0.10)}
+  .orow{display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid rgba(128,128,128,0.15);cursor:pointer}
+  .orow .tag{flex:none;min-width:44px;text-align:center;font-size:11px;font-weight:700;padding:2px 6px;border-radius:6px;color:#fff}
+  .orow .tag.in{background:var(--up,#d1403f)}
+  .orow .tag.out{background:var(--down,#188f63)}
+  .orow .tag.flat{background:#8a8780}
+  .orow .nm{flex:1;min-width:0;line-height:1.3}
+  .orow .nm small{color:var(--muted);margin-left:4px}
+  .orow .rt{flex:none;text-align:right;font-size:12px;line-height:1.35}
+  .orow .cool{opacity:.55}
+  .onote{margin-top:6px;color:var(--muted);font-size:11px;line-height:1.5}
   .regimebox{margin:8px 0;padding:8px 10px;border-radius:8px;font-size:12px;line-height:1.5}
   .regimebox.weak{background:rgba(24,143,99,0.12);color:var(--down)}
   .regimebox.strong{background:rgba(209,64,63,0.12);color:var(--up)}
@@ -204,6 +219,8 @@
 <h1>爆量雷達 <span class="refresh" onclick="loadAll()">重新整理</span></h1>
 <div class="meta" id="pageMeta">載入中...</div>
 <div class="freshbar" id="freshBar"></div>
+
+<div id="openingBox" style="display:none"></div>
 
 <div class="idxgrid" id="indicesGrid"></div>
 
@@ -976,6 +993,7 @@ async function loadAll(opts){
 
   const safe = (name, fn) => { try { fn(); } catch(e) { console.error('render ' + name, e); } };
   safe('fresh', () => renderFresh(intraday));
+  safe('opening', () => renderOpening(intraday));
   safe('touchnote', () => renderTouchNote(intraday));
   safe('srcnote', () => { const sn = document.getElementById('srcNote'); if(sn) sn.textContent = (intraday && intraday.official_bars_status) ? ' 日K資料狀態:' + intraday.official_bars_status + '。' : ''; });
   safe('indices', () => renderIndices(intraday));
@@ -1172,6 +1190,39 @@ function pool_fol(side){
   return {p1: (r && r.n1 > 0) ? r.ok1 / r.n1 : 0.5, p3: (r && r.n3 > 0) ? r.ok3 / r.n3 : 0.5};
 }
 const pct2 = r => (r && r.n > 0) ? `${Math.round(r.rev / r.n * 100)}%(${r.n})` : '-';
+
+function renderOpening(intraday){
+  const el = document.getElementById('openingBox');
+  if(!el) return;
+  const oa = intraday && intraday.opening_alerts;
+  if(!oa){ el.style.display = 'none'; return; }
+  const items = Array.isArray(oa.items) ? oa.items : [];
+  if(!oa.active && !items.length){ el.style.display = 'none'; return; }
+  const tagTxt = {in:'進場', out:'出場', flat:'震盪'};
+  const row = x => {
+    const pc = (x.pct == null) ? '-' : fmtPct(x.pct);
+    const cool = (oa.active && !x.hot_now) ? ' cool' : '';
+    const burst = (x.burst != null && x.burst >= 2) ? `,近5分 ${x.burst}倍` : '';
+    return `<div class="orow${cool}" onclick="searchAndOpen('${x.code}')">
+      <span class="tag ${x.side}">${tagTxt[x.side] || ''}</span>
+      <span class="nm">${x.strong ? '🔥' : ''}${x.name}<small>${x.code}</small></span>
+      <span class="rt"><b>${fmtNum(x.last)}</b> ${pc}<br>量能 ${x.pace}倍${x.peak_pace > x.pace ? '(高點 ' + x.peak_pace + ')' : ''}${burst}</span>
+    </div>`;
+  };
+  let h;
+  if(oa.active){
+    h = `<div class="ohd"><b>開盤爆量監測</b><small>09:00~09:30,${oa.as_of} 更新</small></div>`
+      + (items.length ? items.map(row).join('') : '<div style="color:var(--muted)">目前沒有明顯爆量的標的,每5分鐘更新。</div>');
+    el.className = 'openbox' + (items.some(x => x.hot_now) ? ' live' : '');
+  } else {
+    const top = items.slice(0, 5), rest = items.slice(5);
+    h = `<div class="ohd"><b>今日開盤爆量名單</b><small>09:00~09:30 已結束</small></div>` + top.map(row).join('')
+      + (rest.length ? `<details><summary style="padding:6px 0;color:var(--muted);cursor:pointer">其餘 ${rest.length} 檔</summary>${rest.map(row).join('')}</details>` : '');
+    el.className = 'openbox';
+  }
+  h += `<div class="onote">量能倍數=目前累積量 ÷ (該檔近20日日成交量中位數 × 此時間點一般已成交的比例),比例是估計的U型曲線,請當相對強弱看。進場=爆量且上漲,出場=爆量且下跌,是依漲跌推測,成交量本身分不出買方賣方。標籤依最新漲跌幅更新,倍數越大代表越異常。</div>`;
+  el.innerHTML = h; el.style.display = '';
+}
 
 function renderTouchNote(intraday){
   const el = document.getElementById('touchNote');
