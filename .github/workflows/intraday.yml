@@ -59,6 +59,8 @@ jobs:
               git push || (git pull --rebase origin main && git push) || { git rebase --abort 2>/dev/null; echo "push失敗,下一輪再推"; }
             fi
             elapsed=$(( $(date +%s) - loop_start ))
-            sleep_for=$(( 300 - elapsed ))
+            gap=300
+            [ "$(TZ=Asia/Taipei date +%H%M)" -lt 0930 ] && gap=180
+            sleep_for=$(( gap - elapsed ))
             [ "$sleep_for" -gt 0 ] && sleep "$sleep_for"
           done
