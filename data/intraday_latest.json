@@ -1,6 +1,6 @@
 {
-  "checked_at": "2026-10-16T09:50:34.229198+08:00",
-  "data_as_of": "2026-10-16T09:49:00+08:00",
+  "checked_at": "2026-10-16T09:55:34.999244+08:00",
+  "data_as_of": "2026-10-16T09:54:35+08:00",
   "check_frequency_note": "開盤期間每約5分鐘由GitHub Actions排程抓一次,非逐秒即時報價",
   "official_bars_status": "partial 72/75(來源無日K:7781)",
   "touch_summary": {
@@ -133,46 +133,46 @@
     "days": 258,
     "stocks": 73,
     "regime_today": {
-      "median_pct": 2.2,
+      "median_pct": 1.95,
       "label": "strong"
     }
   },
   "market_regime": {
-    "median_pct": 2.2,
+    "median_pct": 1.95,
     "label": "strong"
   },
   "indices": [
     {
       "code": "TWS:TSE01:INDEX",
       "name": "集中市場加權指數",
-      "last": 47407.32,
-      "change": 437.45,
-      "pct": 0.93,
+      "last": 47414.04,
+      "change": 444.17,
+      "pct": 0.95,
       "open": 46995.03,
       "high": 47504.44,
       "low": 46995.03,
       "prev_close": 46969.87,
-      "volume": 4552749.0,
+      "volume": 4805456.0,
       "upper_limit": null,
       "lower_limit": null,
       "limit_flag": 1,
-      "ts": 1792115340
+      "ts": 1792115675
     },
     {
       "code": "TWS:OTC01:INDEX",
       "name": "櫃買市場加權指數",
-      "last": 404.47,
-      "change": 7.57,
-      "pct": 1.91,
+      "last": 404.07,
+      "change": 7.17,
+      "pct": 1.81,
       "open": 397.67,
-      "high": 404.61,
+      "high": 404.62,
       "low": 397.67,
       "prev_close": 396.9,
-      "volume": 1043296.0,
+      "volume": 1138798.0,
       "upper_limit": null,
       "lower_limit": null,
       "limit_flag": 1,
-      "ts": 1792115340
+      "ts": 1792115640
     },
     {
       "code": "GI:DJI:INDEX",
@@ -243,18 +243,18 @@
     {
       "code": "2455",
       "name": "全新",
-      "last": 493.0,
-      "change": 9.5,
-      "pct": 1.96,
+      "last": 495.0,
+      "change": 11.5,
+      "pct": 2.38,
       "open": 492.0,
       "high": 497.0,
       "low": 487.0,
       "prev_close": 483.5,
-      "volume": 1243.0,
+      "volume": 1315.0,
       "upper_limit": 531.0,
       "lower_limit": 435.5,
       "limit_flag": 1,
-      "ts": 1792115336,
+      "ts": 1792115667,
       "cdp": {
         "cdp": 489.0,
         "nh": 498.0,
@@ -430,7 +430,7 @@
             ]
           },
           {
-            "price": 510.1275,
+            "price": 508.6875,
             "n": 1,
             "srcs": [
               "量能區"
@@ -457,10 +457,10 @@
         ]
       },
       "vp": {
-        "res": 510.1275,
-        "sup": 409.0625
+        "res": 508.6875,
+        "sup": 409.6875
       },
-      "volume_multiple": 0.16,
+      "volume_multiple": 0.17,
       "cdp_trend": [
         {
           "date": "2026-10-08",
@@ -503,18 +503,18 @@
     {
       "code": "3374",
       "name": "精材",
-      "last": 453.0,
-      "change": 0.5,
-      "pct": 0.11,
+      "last": 450.5,
+      "change": -2.0,
+      "pct": -0.44,
       "open": 459.0,
       "high": 468.0,
-      "low": 451.0,
+      "low": 450.0,
       "prev_close": 452.5,
-      "volume": 4094.0,
+      "volume": 4414.0,
       "upper_limit": 497.5,
       "lower_limit": 407.5,
-      "limit_flag": 1,
-      "ts": 1792115340,
+      "limit_flag": 2,
+      "ts": 1792115679,
       "cdp": {
         "cdp": 459.625,
         "nh": 469.75,
@@ -717,9 +717,9 @@
       },
       "vp": {
         "res": null,
-        "sup": 423.0075
+        "sup": 422.0638
       },
-      "volume_multiple": 0.37,
+      "volume_multiple": 0.4,
       "cdp_trend": [
         {
           "date": "2026-10-08",
@@ -762,18 +762,18 @@
     {
       "code": "2408",
       "name": "南亞科",
-      "last": 457.0,
-      "change": 17.5,
-      "pct": 3.98,
+      "last": 456.5,
+      "change": 17.0,
+      "pct": 3.87,
       "open": 446.0,
       "high": 461.0,
       "low": 443.5,
       "prev_close": 439.5,
-      "volume": 24087.0,
+      "volume": 25104.0,
       "upper_limit": 483.0,
       "lower_limit": 396.0,
       "limit_flag": 1,
-      "ts": 1792115341,
+      "ts": 1792115677,
       "cdp": {
         "cdp": 442.125,
         "nh": 451.75,
@@ -942,7 +942,7 @@
       "conf": {
         "res": [
           {
-            "price": 480.8075,
+            "price": 480.6338,
             "n": 1,
             "srcs": [
               "量能區"
@@ -976,10 +976,10 @@
         ]
       },
       "vp": {
-        "res": 480.8075,
+        "res": 480.6338,
         "sup": null
       },
-      "volume_multiple": 0.38,
+      "volume_multiple": 0.4,
       "cdp_trend": [
         {
           "date": "2026-10-08",
@@ -1029,11 +1029,11 @@
       "high": 165.0,
       "low": 156.0,
       "prev_close": 155.0,
-      "volume": 23904.0,
+      "volume": 24915.0,
       "upper_limit": 170.5,
       "lower_limit": 139.5,
       "limit_flag": 1,
-      "ts": 1792115334,
+      "ts": 1792115678,
       "cdp": {
         "cdp": 155.5,
         "nh": 158.0,
@@ -1241,7 +1241,7 @@
         "res": 166.4588,
         "sup": null
       },
-      "volume_multiple": 0.32,
+      "volume_multiple": 0.33,
       "cdp_trend": [
         {
           "date": "2026-10-08",
@@ -1284,18 +1284,18 @@
     {
       "code": "6147",
       "name": "頎邦",
-      "last": 212.5,
-      "change": -2.0,
-      "pct": -0.93,
+      "last": 211.5,
+      "change": -3.0,
+      "pct": -1.4,
       "open": 216.0,
       "high": 216.0,
       "low": 211.5,
       "prev_close": 214.5,
-      "volume": 9105.0,
+      "volume": 9559.0,
       "upper_limit": 235.5,
       "lower_limit": 193.5,
       "limit_flag": 2,
-      "ts": 1792115333,
+      "ts": 1792115677,
       "cdp": {
         "cdp": 215.375,
         "nh": 220.25,
@@ -1464,7 +1464,7 @@
       "conf": {
         "res": [
           {
-            "price": 213.9062,
+            "price": 213.4338,
             "n": 1,
             "srcs": [
               "量能區"
@@ -1490,7 +1490,7 @@
             ]
           },
           {
-            "price": 197.9688,
+            "price": 197.5713,
             "n": 1,
             "srcs": [
               "量能區"
@@ -1499,10 +1499,10 @@
         ]
       },
       "vp": {
-        "res": 213.9062,
-        "sup": 197.9688
+        "res": 213.4338,
+        "sup": 197.5713
       },
-      "volume_multiple": 0.25,
+      "volume_multiple": 0.26,
       "cdp_trend": [
         {
           "date": "2026-10-08",
@@ -1545,18 +1545,18 @@
     {
       "code": "8021",
       "name": "尖點",
-      "last": 507.0,
-      "change": 1.0,
-      "pct": 0.2,
+      "last": 510.0,
+      "change": 4.0,
+      "pct": 0.79,
       "open": 514.0,
       "high": 524.0,
       "low": 503.0,
       "prev_close": 506.0,
-      "volume": 226.0,
+      "volume": 266.0,
       "upper_limit": 556.0,
       "lower_limit": 455.5,
       "limit_flag": 1,
-      "ts": 1792115288,
+      "ts": 1792115649,
       "cdp": {
         "cdp": 507.0,
         "nh": 518.0,
@@ -1760,9 +1760,9 @@
       },
       "vp": {
         "res": null,
-        "sup": 461.1825
+        "sup": 474.975
       },
-      "volume_multiple": 0.08,
+      "volume_multiple": 0.09,
       "cdp_trend": [
         {
           "date": "2026-10-08",
@@ -1812,11 +1812,11 @@
       "high": 311.5,
       "low": 288.5,
       "prev_close": 283.5,
-      "volume": 26094.0,
+      "volume": 26147.0,
       "upper_limit": 311.5,
       "lower_limit": 255.5,
       "limit_flag": 3,
-      "ts": 1792115324,
+      "ts": 1792115668,
       "cdp": {
         "cdp": 294.25,
         "nh": 305.0,
@@ -2060,18 +2060,18 @@
     {
       "code": "8358",
       "name": "金居",
-      "last": 485.0,
-      "change": 23.5,
-      "pct": 5.09,
+      "last": 486.5,
+      "change": 25.0,
+      "pct": 5.42,
       "open": 474.0,
       "high": 497.5,
       "low": 472.0,
       "prev_close": 461.5,
-      "volume": 6433.0,
+      "volume": 6755.0,
       "upper_limit": 507.0,
       "lower_limit": 415.5,
       "limit_flag": 1,
-      "ts": 1792115336,
+      "ts": 1792115676,
       "cdp": {
         "cdp": 463.5,
         "nh": 474.0,
@@ -2240,7 +2240,7 @@
       "conf": {
         "res": [
           {
-            "price": 495.3125,
+            "price": 496.0063,
             "n": 1,
             "srcs": [
               "量能區"
@@ -2276,10 +2276,10 @@
         ]
       },
       "vp": {
-        "res": 495.3125,
-        "sup": 417.7125
+        "res": 496.0063,
+        "sup": 418.1662
       },
-      "volume_multiple": 2.28,
+      "volume_multiple": 2.4,
       "cdp_trend": [
         {
           "date": "2026-10-08",
@@ -2322,18 +2322,18 @@
     {
       "code": "3264",
       "name": "欣銓",
-      "last": 264.0,
-      "change": -4.0,
-      "pct": -1.49,
+      "last": 263.5,
+      "change": -4.5,
+      "pct": -1.68,
       "open": 270.5,
       "high": 270.5,
       "low": 261.5,
       "prev_close": 268.0,
-      "volume": 7912.0,
+      "volume": 8062.0,
       "upper_limit": 294.5,
       "lower_limit": 241.5,
       "limit_flag": 2,
-      "ts": 1792115334,
+      "ts": 1792115676,
       "cdp": {
         "cdp": 266.875,
         "nh": 273.25,
@@ -2502,7 +2502,7 @@
       "conf": {
         "res": [
           {
-            "price": 267.59,
+            "price": 267.4881,
             "n": 2,
             "srcs": [
               "量能區",
@@ -2519,7 +2519,7 @@
         ],
         "sup": [
           {
-            "price": 262.025,
+            "price": 261.9281,
             "n": 2,
             "srcs": [
               "量能區",
@@ -2536,10 +2536,10 @@
         ]
       },
       "vp": {
-        "res": 266.58,
-        "sup": 261.3
+        "res": 266.3762,
+        "sup": 261.1062
       },
-      "volume_multiple": 0.31,
+      "volume_multiple": 0.32,
       "cdp_trend": [
         {
           "date": "2026-10-08",
@@ -2582,18 +2582,18 @@
     {
       "code": "4979",
       "name": "華星光",
-      "last": 539.0,
-      "change": -3.0,
-      "pct": -0.55,
+      "last": 537.0,
+      "change": -5.0,
+      "pct": -0.92,
       "open": 551.0,
       "high": 552.0,
       "low": 535.0,
       "prev_close": 542.0,
-      "volume": 2910.0,
+      "volume": 3094.0,
       "upper_limit": 596.0,
       "lower_limit": 488.0,
       "limit_flag": 2,
-      "ts": 1792115325,
+      "ts": 1792115673,
       "cdp": {
         "cdp": 549.25,
         "nh": 559.5,
@@ -2762,7 +2762,7 @@
       "conf": {
         "res": [
           {
-            "price": 561.3475,
+            "price": 561.0758,
             "n": 3,
             "srcs": [
               "CDP",
@@ -2799,10 +2799,10 @@
         ]
       },
       "vp": {
-        "res": 562.1425,
-        "sup": 424.6975
+        "res": 561.3275,
+        "sup": null
       },
-      "volume_multiple": 0.43,
+      "volume_multiple": 0.46,
       "cdp_trend": [
         {
           "date": "2026-10-08",
@@ -2845,18 +2845,18 @@
     {
       "code": "3105",
       "name": "穩懋",
-      "last": 507.0,
-      "change": 5.0,
-      "pct": 1.0,
+      "last": 508.0,
+      "change": 6.0,
+      "pct": 1.2,
       "open": 510.0,
       "high": 510.0,
       "low": 497.0,
       "prev_close": 502.0,
-      "volume": 4929.0,
+      "volume": 5268.0,
       "upper_limit": 552.0,
       "lower_limit": 452.0,
       "limit_flag": 1,
-      "ts": 1792115298,
+      "ts": 1792115666,
       "cdp": {
         "cdp": 508.0,
         "nh": 514.0,
@@ -3049,7 +3049,7 @@
             ]
           },
           {
-            "price": 489.4413,
+            "price": 489.665,
             "n": 2,
             "srcs": [
               "量能區",
@@ -3060,9 +3060,9 @@
       },
       "vp": {
         "res": null,
-        "sup": 488.8825
+        "sup": 489.33
       },
-      "volume_multiple": 0.28,
+      "volume_multiple": 0.3,
       "cdp_trend": [
         {
           "date": "2026-10-08",
@@ -3161,18 +3161,18 @@
     {
       "code": "3016",
       "name": "嘉晶",
-      "last": 153.5,
-      "change": -3.0,
-      "pct": -1.92,
+      "last": 153.0,
+      "change": -3.5,
+      "pct": -2.24,
       "open": 161.0,
       "high": 161.0,
       "low": 153.0,
       "prev_close": 156.5,
-      "volume": 4405.0,
+      "volume": 4744.0,
       "upper_limit": 172.0,
       "lower_limit": 141.0,
       "limit_flag": 2,
-      "ts": 1792115342,
+      "ts": 1792115676,
       "cdp": {
         "cdp": 158.375,
         "nh": 161.25,
@@ -3375,10 +3375,10 @@
         ]
       },
       "vp": {
-        "res": 165.1838,
-        "sup": 115.2963
+        "res": 164.8825,
+        "sup": 115.1575
       },
-      "volume_multiple": 0.43,
+      "volume_multiple": 0.47,
       "cdp_trend": [
         {
           "date": "2026-10-08",
@@ -3421,18 +3421,18 @@
     {
       "code": "1727",
       "name": "中華化",
-      "last": 98.8,
-      "change": 2.7,
-      "pct": 2.81,
+      "last": 98.6,
+      "change": 2.5,
+      "pct": 2.6,
       "open": 97.4,
       "high": 100.5,
       "low": 97.2,
       "prev_close": 96.1,
-      "volume": 1413.0,
+      "volume": 1452.0,
       "upper_limit": 105.5,
       "lower_limit": 86.5,
       "limit_flag": 1,
-      "ts": 1792115214,
+      "ts": 1792115676,
       "cdp": {
         "cdp": 97.075,
         "nh": 98.05,
@@ -3608,7 +3608,7 @@
             ]
           },
           {
-            "price": 103.937,
+            "price": 103.8515,
             "n": 1,
             "srcs": [
               "量能區"
@@ -3634,8 +3634,8 @@
         ]
       },
       "vp": {
-        "res": 103.937,
-        "sup": 94.551
+        "res": 103.8515,
+        "sup": 94.4845
       },
       "volume_multiple": 0.24,
       "cdp_trend": [
@@ -3680,18 +3680,18 @@
     {
       "code": "8042",
       "name": "金山電",
-      "last": 154.5,
-      "change": 6.5,
-      "pct": 4.39,
+      "last": 154.0,
+      "change": 6.0,
+      "pct": 4.05,
       "open": 151.0,
       "high": 156.0,
       "low": 151.0,
       "prev_close": 148.0,
-      "volume": 8827.0,
+      "volume": 8973.0,
       "upper_limit": 162.5,
       "lower_limit": 133.5,
       "limit_flag": 1,
-      "ts": 1792115338,
+      "ts": 1792115674,
       "cdp": {
         "cdp": 152.25,
         "nh": 157.5,
@@ -3895,7 +3895,7 @@
       },
       "vp": {
         "res": null,
-        "sup": 121.6037
+        "sup": 121.495
       },
       "volume_multiple": 0.3,
       "cdp_trend": [
@@ -3947,11 +3947,11 @@
       "high": 18.75,
       "low": 18.5,
       "prev_close": 18.45,
-      "volume": 27.0,
+      "volume": 29.0,
       "upper_limit": 20.25,
       "lower_limit": 16.65,
       "limit_flag": 1,
-      "ts": 1792115228,
+      "ts": 1792115649,
       "cdp": {
         "cdp": 18.6125,
         "nh": 18.775,
@@ -4159,7 +4159,7 @@
         "res": null,
         "sup": 18.4415
       },
-      "volume_multiple": 0.13,
+      "volume_multiple": 0.14,
       "cdp_trend": [
         {
           "date": "2026-10-08",
@@ -4202,18 +4202,18 @@
     {
       "code": "4303",
       "name": "信立",
-      "last": 32.2,
-      "change": 0.9,
-      "pct": 2.88,
+      "last": 32.15,
+      "change": 0.85,
+      "pct": 2.72,
       "open": 31.5,
       "high": 32.4,
       "low": 31.5,
       "prev_close": 31.3,
-      "volume": 250.0,
+      "volume": 258.0,
       "upper_limit": 34.4,
       "lower_limit": 28.2,
       "limit_flag": 1,
-      "ts": 1792115325,
+      "ts": 1792115426,
       "cdp": {
         "cdp": 31.45,
         "nh": 31.75,
@@ -4382,7 +4382,7 @@
       "conf": {
         "res": [
           {
-            "price": 33.342,
+            "price": 33.3409,
             "n": 3,
             "srcs": [
               "月線",
@@ -4400,7 +4400,7 @@
         ],
         "sup": [
           {
-            "price": 32.0403,
+            "price": 32.0396,
             "n": 2,
             "srcs": [
               "量能區",
@@ -4418,10 +4418,10 @@
         ]
       },
       "vp": {
-        "res": 33.3235,
-        "sup": 32.0355
+        "res": 33.3201,
+        "sup": 32.0341
       },
-      "volume_multiple": 0.32,
+      "volume_multiple": 0.33,
       "cdp_trend": [
         {
           "date": "2026-10-08",
@@ -4464,18 +4464,18 @@
     {
       "code": "8111",
       "name": "立碁",
-      "last": 83.0,
-      "change": 1.0,
-      "pct": 1.22,
+      "last": 82.8,
+      "change": 0.8,
+      "pct": 0.98,
       "open": 84.0,
       "high": 84.4,
-      "low": 83.0,
+      "low": 82.8,
       "prev_close": 82.0,
-      "volume": 611.0,
+      "volume": 660.0,
       "upper_limit": 90.2,
       "lower_limit": 73.8,
       "limit_flag": 1,
-      "ts": 1792115288,
+      "ts": 1792115648,
       "cdp": {
         "cdp": 82.925,
         "nh": 84.15,
@@ -4660,28 +4660,28 @@
         ],
         "sup": [
           {
-            "price": 81.3487,
-            "n": 2,
+            "price": 81.535,
+            "n": 1,
             "srcs": [
-              "量能區",
               "月線"
             ]
           },
           {
-            "price": 79.975,
-            "n": 2,
+            "price": 80.0657,
+            "n": 3,
             "srcs": [
               "CDP",
-              "5日"
+              "5日",
+              "量能區"
             ]
           }
         ]
       },
       "vp": {
         "res": null,
-        "sup": 81.1625
+        "sup": 80.247
       },
-      "volume_multiple": 0.05,
+      "volume_multiple": 0.06,
       "cdp_trend": [
         {
           "date": "2026-10-08",
@@ -4724,18 +4724,18 @@
     {
       "code": "1815",
       "name": "富喬",
-      "last": 139.5,
-      "change": 12.0,
-      "pct": 9.41,
+      "last": 140.0,
+      "change": 12.5,
+      "pct": 9.8,
       "open": 129.5,
-      "high": 139.5,
+      "high": 140.0,
       "low": 128.5,
       "prev_close": 127.5,
-      "volume": 55129.0,
+      "volume": 83374.0,
       "upper_limit": 140.0,
       "lower_limit": 115.0,
-      "limit_flag": 1,
-      "ts": 1792115342,
+      "limit_flag": 3,
+      "ts": 1792115678,
       "cdp": {
         "cdp": 128.125,
         "nh": 131.25,
@@ -4923,9 +4923,10 @@
             ]
           },
           {
-            "price": 128.45,
-            "n": 1,
+            "price": 127.9,
+            "n": 2,
             "srcs": [
+              "量能區",
               "10日線"
             ]
           }
@@ -4933,9 +4934,9 @@
       },
       "vp": {
         "res": null,
-        "sup": 127.1062
+        "sup": 127.35
       },
-      "volume_multiple": 0.7,
+      "volume_multiple": 1.05,
       "cdp_trend": [
         {
           "date": "2026-10-08",
@@ -4978,18 +4979,18 @@
     {
       "code": "2630",
       "name": "亞航",
-      "last": 45.1,
-      "change": 1.1,
-      "pct": 2.5,
+      "last": 45.05,
+      "change": 1.05,
+      "pct": 2.39,
       "open": 44.4,
       "high": 45.45,
       "low": 44.4,
       "prev_close": 44.0,
-      "volume": 261.0,
+      "volume": 269.0,
       "upper_limit": 48.4,
       "lower_limit": 39.6,
       "limit_flag": 1,
-      "ts": 1792115247,
+      "ts": 1792115580,
       "cdp": {
         "cdp": 44.2125,
         "nh": 44.475,
@@ -5190,10 +5191,10 @@
         ]
       },
       "vp": {
-        "res": 50.8278,
+        "res": 50.8201,
         "sup": null
       },
-      "volume_multiple": 0.53,
+      "volume_multiple": 0.55,
       "cdp_trend": [
         {
           "date": "2026-10-08",
@@ -5236,18 +5237,18 @@
     {
       "code": "2883",
       "name": "凱基金",
-      "last": 39.1,
-      "change": 0.7,
-      "pct": 1.82,
+      "last": 39.05,
+      "change": 0.65,
+      "pct": 1.69,
       "open": 38.5,
       "high": 39.2,
       "low": 38.35,
       "prev_close": 38.4,
-      "volume": 11006.0,
+      "volume": 11249.0,
       "upper_limit": 42.2,
       "lower_limit": 34.6,
       "limit_flag": 1,
-      "ts": 1792115340,
+      "ts": 1792115663,
       "cdp": {
         "cdp": 38.375,
         "nh": 38.75,
@@ -5416,6 +5417,14 @@
       "conf": {
         "res": [
           {
+            "price": 39.1,
+            "n": 1,
+            "srcs": [
+              "10日",
+              "5日"
+            ]
+          },
+          {
             "price": 40.8,
             "n": 1,
             "srcs": [
@@ -5425,7 +5434,7 @@
         ],
         "sup": [
           {
-            "price": 38.7796,
+            "price": 38.7729,
             "n": 2,
             "srcs": [
               "CDP",
@@ -5444,9 +5453,9 @@
       },
       "vp": {
         "res": null,
-        "sup": 38.8093
+        "sup": 38.7959
       },
-      "volume_multiple": 0.25,
+      "volume_multiple": 0.26,
       "cdp_trend": [
         {
           "date": "2026-10-08",
@@ -5489,18 +5498,18 @@
     {
       "code": "2881",
       "name": "富邦金",
-      "last": 161.5,
-      "change": 2.0,
-      "pct": 1.25,
+      "last": 161.0,
+      "change": 1.5,
+      "pct": 0.94,
       "open": 159.0,
       "high": 162.0,
       "low": 158.0,
       "prev_close": 159.5,
-      "volume": 4332.0,
+      "volume": 4559.0,
       "upper_limit": 175.0,
       "lower_limit": 144.0,
       "limit_flag": 1,
-      "ts": 1792115341,
+      "ts": 1792115679,
       "cdp": {
         "cdp": 159.125,
         "nh": 161.25,
@@ -5667,15 +5676,19 @@
         "days": 258
       },
       "conf": {
-        "res": [],
-        "sup": [
+        "res": [
           {
-            "price": 161.25,
-            "n": 1,
+            "price": 161.4375,
+            "n": 2,
             "srcs": [
-              "CDP"
+              "CDP",
+              "10日",
+              "20日",
+              "5日"
             ]
-          },
+          }
+        ],
+        "sup": [
           {
             "price": 158.025,
             "n": 2,
@@ -5683,14 +5696,21 @@
               "CDP",
               "週線"
             ]
+          },
+          {
+            "price": 155.45,
+            "n": 1,
+            "srcs": [
+              "10日線"
+            ]
           }
         ]
       },
       "vp": {
         "res": null,
-        "sup": 151.5888
+        "sup": 151.4925
       },
-      "volume_multiple": 0.21,
+      "volume_multiple": 0.22,
       "cdp_trend": [
         {
           "date": "2026-10-08",
@@ -5733,18 +5753,18 @@
     {
       "code": "2313",
       "name": "華通",
-      "last": 242.0,
-      "change": 14.0,
-      "pct": 6.14,
+      "last": 244.0,
+      "change": 16.0,
+      "pct": 7.02,
       "open": 234.0,
-      "high": 243.0,
+      "high": 244.5,
       "low": 233.0,
       "prev_close": 228.0,
-      "volume": 10611.0,
+      "volume": 12139.0,
       "upper_limit": 250.5,
       "lower_limit": 205.5,
       "limit_flag": 1,
-      "ts": 1792115341,
+      "ts": 1792115676,
       "cdp": {
         "cdp": 231.125,
         "nh": 234.25,
@@ -5913,11 +5933,11 @@
       "conf": {
         "res": [
           {
-            "price": 243.6675,
+            "price": 245.255,
             "n": 2,
             "srcs": [
-              "量能區",
-              "週線"
+              "週線",
+              "量能區"
             ]
           },
           {
@@ -5932,7 +5952,7 @@
         ],
         "sup": [
           {
-            "price": 241.2075,
+            "price": 240.955,
             "n": 2,
             "srcs": [
               "量能區",
@@ -5950,10 +5970,10 @@
         ]
       },
       "vp": {
-        "res": 242.935,
-        "sup": 240.515
+        "res": 246.11,
+        "sup": 240.01
       },
-      "volume_multiple": 0.36,
+      "volume_multiple": 0.41,
       "cdp_trend": [
         {
           "date": "2026-10-08",
@@ -5996,18 +6016,18 @@
     {
       "code": "4919",
       "name": "新唐",
-      "last": 143.0,
-      "change": 4.5,
-      "pct": 3.25,
+      "last": 142.5,
+      "change": 4.0,
+      "pct": 2.89,
       "open": 139.5,
       "high": 144.5,
       "low": 139.5,
       "prev_close": 138.5,
-      "volume": 2422.0,
+      "volume": 2488.0,
       "upper_limit": 152.0,
       "lower_limit": 125.0,
       "limit_flag": 1,
-      "ts": 1792115326,
+      "ts": 1792115653,
       "cdp": {
         "cdp": 139.875,
         "nh": 141.75,
@@ -6192,7 +6212,7 @@
         ],
         "sup": [
           {
-            "price": 142.0387,
+            "price": 141.9656,
             "n": 2,
             "srcs": [
               "CDP",
@@ -6210,7 +6230,7 @@
       },
       "vp": {
         "res": null,
-        "sup": 142.3275
+        "sup": 142.1813
       },
       "volume_multiple": 0.17,
       "cdp_trend": [
@@ -6255,18 +6275,18 @@
     {
       "code": "6217",
       "name": "中探針",
-      "last": 202.5,
-      "change": 7.5,
-      "pct": 3.85,
+      "last": 203.0,
+      "change": 8.0,
+      "pct": 4.1,
       "open": 191.5,
       "high": 206.5,
       "low": 187.0,
       "prev_close": 195.0,
-      "volume": 10841.0,
+      "volume": 11045.0,
       "upper_limit": 214.5,
       "lower_limit": 175.5,
       "limit_flag": 1,
-      "ts": 1792115335,
+      "ts": 1792115678,
       "cdp": {
         "cdp": 202.375,
         "nh": 209.75,
@@ -6453,7 +6473,7 @@
         ],
         "sup": [
           {
-            "price": 198.3937,
+            "price": 198.6525,
             "n": 1,
             "srcs": [
               "量能區"
@@ -6470,9 +6490,9 @@
       },
       "vp": {
         "res": null,
-        "sup": 198.3937
+        "sup": 198.6525
       },
-      "volume_multiple": 0.63,
+      "volume_multiple": 0.64,
       "cdp_trend": [
         {
           "date": "2026-10-08",
@@ -6522,11 +6542,11 @@
       "high": 320.0,
       "low": 310.5,
       "prev_close": 314.5,
-      "volume": 55036.0,
+      "volume": 57974.0,
       "upper_limit": 345.5,
       "lower_limit": 283.5,
       "limit_flag": 0,
-      "ts": 1792115342,
+      "ts": 1792115679,
       "cdp": {
         "cdp": 320.5,
         "nh": 326.5,
@@ -6731,7 +6751,7 @@
         "res": null,
         "sup": 235.3537
       },
-      "volume_multiple": 0.51,
+      "volume_multiple": 0.53,
       "cdp_trend": [
         {
           "date": "2026-10-08",
@@ -6774,18 +6794,18 @@
     {
       "code": "3051",
       "name": "力特",
-      "last": 21.7,
-      "change": 0.5,
-      "pct": 2.36,
+      "last": 21.65,
+      "change": 0.45,
+      "pct": 2.12,
       "open": 21.35,
       "high": 21.8,
       "low": 21.35,
       "prev_close": 21.2,
-      "volume": 95.0,
+      "volume": 96.0,
       "upper_limit": 23.3,
       "lower_limit": 19.1,
       "limit_flag": 1,
-      "ts": 1792114992,
+      "ts": 1792115480,
       "cdp": {
         "cdp": 21.2875,
         "nh": 21.525,
@@ -6989,10 +7009,10 @@
         ]
       },
       "vp": {
-        "res": 22.5497,
+        "res": 22.5439,
         "sup": null
       },
-      "volume_multiple": 0.23,
+      "volume_multiple": 0.24,
       "cdp_trend": [
         {
           "date": "2026-10-08",
@@ -7035,18 +7055,18 @@
     {
       "code": "6937",
       "name": "天虹",
-      "last": 279.5,
-      "change": 10.0,
-      "pct": 3.71,
+      "last": 278.0,
+      "change": 8.5,
+      "pct": 3.15,
       "open": 270.5,
       "high": 280.0,
       "low": 270.5,
       "prev_close": 269.5,
-      "volume": 93.0,
+      "volume": 102.0,
       "upper_limit": 296.0,
       "lower_limit": 243.0,
       "limit_flag": 1,
-      "ts": 1792115150,
+      "ts": 1792115537,
       "cdp": {
         "cdp": 270.0,
         "nh": 276.0,
@@ -7215,11 +7235,10 @@
       "conf": {
         "res": [
           {
-            "price": 281.9602,
-            "n": 2,
+            "price": 281.1167,
+            "n": 1,
             "srcs": [
-              "季線",
-              "量能區"
+              "季線"
             ]
           },
           {
@@ -7251,10 +7270,10 @@
         ]
       },
       "vp": {
-        "res": 282.8037,
+        "res": 286.685,
         "sup": null
       },
-      "volume_multiple": 0.24,
+      "volume_multiple": 0.26,
       "cdp_trend": [
         {
           "date": "2026-10-08",
@@ -7304,11 +7323,11 @@
       "high": 109.0,
       "low": 106.0,
       "prev_close": 104.5,
-      "volume": 6696.0,
+      "volume": 6785.0,
       "upper_limit": 114.5,
       "lower_limit": 94.1,
       "limit_flag": 1,
-      "ts": 1792115342,
+      "ts": 1792115671,
       "cdp": {
         "cdp": 104.75,
         "nh": 106.5,
@@ -7515,7 +7534,7 @@
         "res": 117.99,
         "sup": null
       },
-      "volume_multiple": 0.17,
+      "volume_multiple": 0.18,
       "cdp_trend": [
         {
           "date": "2026-10-08",
@@ -7558,18 +7577,18 @@
     {
       "code": "6257",
       "name": "矽格",
-      "last": 256.0,
-      "change": -2.0,
-      "pct": -0.78,
+      "last": 255.5,
+      "change": -2.5,
+      "pct": -0.97,
       "open": 259.5,
       "high": 260.5,
       "low": 254.5,
       "prev_close": 258.0,
-      "volume": 4142.0,
+      "volume": 4241.0,
       "upper_limit": 283.5,
       "lower_limit": 232.5,
       "limit_flag": 2,
-      "ts": 1792115339,
+      "ts": 1792115654,
       "cdp": {
         "cdp": 258.875,
         "nh": 264.25,
@@ -7771,10 +7790,10 @@
         ]
       },
       "vp": {
-        "res": 275.82,
-        "sup": 214.38
+        "res": 275.6163,
+        "sup": 215.5738
       },
-      "volume_multiple": 0.22,
+      "volume_multiple": 0.23,
       "cdp_trend": [
         {
           "date": "2026-10-08",
@@ -7817,18 +7836,18 @@
     {
       "code": "3090",
       "name": "日電貿",
-      "last": 174.5,
-      "change": 3.0,
-      "pct": 1.75,
+      "last": 174.0,
+      "change": 2.5,
+      "pct": 1.46,
       "open": 173.0,
       "high": 177.5,
       "low": 171.5,
       "prev_close": 171.5,
-      "volume": 4819.0,
+      "volume": 4917.0,
       "upper_limit": 188.5,
       "lower_limit": 154.5,
       "limit_flag": 1,
-      "ts": 1792115340,
+      "ts": 1792115661,
       "cdp": {
         "cdp": 176.625,
         "nh": 182.25,
@@ -8015,7 +8034,7 @@
         ],
         "sup": [
           {
-            "price": 173.4221,
+            "price": 173.365,
             "n": 2,
             "srcs": [
               "10日線",
@@ -8034,9 +8053,9 @@
       },
       "vp": {
         "res": null,
-        "sup": 173.7663
+        "sup": 173.595
       },
-      "volume_multiple": 0.35,
+      "volume_multiple": 0.36,
       "cdp_trend": [
         {
           "date": "2026-10-08",
@@ -8086,11 +8105,11 @@
       "high": 136.0,
       "low": 133.5,
       "prev_close": 133.5,
-      "volume": 22850.0,
+      "volume": 24581.0,
       "upper_limit": 146.5,
       "lower_limit": 120.5,
       "limit_flag": 1,
-      "ts": 1792115341,
+      "ts": 1792115676,
       "cdp": {
         "cdp": 134.125,
         "nh": 135.75,
@@ -8296,7 +8315,7 @@
         "res": 137.9375,
         "sup": 127.1375
       },
-      "volume_multiple": 0.18,
+      "volume_multiple": 0.19,
       "cdp_trend": [
         {
           "date": "2026-10-08",
@@ -8339,18 +8358,18 @@
     {
       "code": "2379",
       "name": "瑞昱",
-      "last": 788.0,
-      "change": 24.0,
-      "pct": 3.14,
+      "last": 786.0,
+      "change": 22.0,
+      "pct": 2.88,
       "open": 774.0,
       "high": 793.0,
       "low": 773.0,
       "prev_close": 764.0,
-      "volume": 921.0,
+      "volume": 935.0,
       "upper_limit": 840.0,
       "lower_limit": 688.0,
       "limit_flag": 1,
-      "ts": 1792115320,
+      "ts": 1792115675,
       "cdp": {
         "cdp": 766.75,
         "nh": 773.5,
@@ -8546,7 +8565,7 @@
       },
       "vp": {
         "res": null,
-        "sup": 759.41
+        "sup": 759.145
       },
       "volume_multiple": 0.42,
       "cdp_trend": [
@@ -8591,18 +8610,18 @@
     {
       "code": "2609",
       "name": "陽明",
-      "last": 65.2,
-      "change": 1.9,
-      "pct": 3.0,
+      "last": 65.1,
+      "change": 1.8,
+      "pct": 2.84,
       "open": 63.4,
       "high": 65.4,
       "low": 63.1,
       "prev_close": 63.3,
-      "volume": 12080.0,
+      "volume": 14042.0,
       "upper_limit": 69.6,
       "lower_limit": 57.0,
       "limit_flag": 1,
-      "ts": 1792115342,
+      "ts": 1792115679,
       "cdp": {
         "cdp": 63.725,
         "nh": 64.45,
@@ -8799,9 +8818,9 @@
       },
       "vp": {
         "res": null,
-        "sup": 58.791
+        "sup": 58.7767
       },
-      "volume_multiple": 0.21,
+      "volume_multiple": 0.25,
       "cdp_trend": [
         {
           "date": "2026-10-08",
@@ -8844,18 +8863,18 @@
     {
       "code": "3231",
       "name": "緯創",
-      "last": 179.0,
-      "change": 3.0,
-      "pct": 1.7,
+      "last": 178.5,
+      "change": 2.5,
+      "pct": 1.42,
       "open": 178.0,
       "high": 182.5,
       "low": 177.5,
       "prev_close": 176.0,
-      "volume": 11991.0,
+      "volume": 12271.0,
       "upper_limit": 193.5,
       "lower_limit": 158.5,
       "limit_flag": 1,
-      "ts": 1792115341,
+      "ts": 1792115675,
       "cdp": {
         "cdp": 177.5,
         "nh": 181.5,
@@ -9024,7 +9043,7 @@
       "conf": {
         "res": [
           {
-            "price": 181.1238,
+            "price": 181.0731,
             "n": 2,
             "srcs": [
               "量能區",
@@ -9041,7 +9060,7 @@
         ],
         "sup": [
           {
-            "price": 178.0625,
+            "price": 176.1838,
             "n": 1,
             "srcs": [
               "量能區"
@@ -9059,10 +9078,10 @@
         ]
       },
       "vp": {
-        "res": 180.7475,
-        "sup": 178.0625
+        "res": 180.6463,
+        "sup": 176.1838
       },
-      "volume_multiple": 0.28,
+      "volume_multiple": 0.29,
       "cdp_trend": [
         {
           "date": "2026-10-08",
@@ -9105,18 +9124,18 @@
     {
       "code": "3707",
       "name": "漢磊",
-      "last": 77.6,
-      "change": 0.6,
-      "pct": 0.78,
+      "last": 77.9,
+      "change": 0.9,
+      "pct": 1.17,
       "open": 78.5,
       "high": 78.9,
       "low": 77.5,
       "prev_close": 77.0,
-      "volume": 2485.0,
+      "volume": 2684.0,
       "upper_limit": 84.7,
       "lower_limit": 69.3,
       "limit_flag": 1,
-      "ts": 1792115331,
+      "ts": 1792115666,
       "cdp": {
         "cdp": 77.825,
         "nh": 78.65,
@@ -9301,7 +9320,7 @@
         ],
         "sup": [
           {
-            "price": 76.24,
+            "price": 76.2944,
             "n": 2,
             "srcs": [
               "5日",
@@ -9320,10 +9339,10 @@
         ]
       },
       "vp": {
-        "res": 85.016,
-        "sup": 76.48
+        "res": 85.1577,
+        "sup": 76.5888
       },
-      "volume_multiple": 0.16,
+      "volume_multiple": 0.17,
       "cdp_trend": [
         {
           "date": "2026-10-08",
@@ -9366,18 +9385,18 @@
     {
       "code": "5425",
       "name": "台半",
-      "last": 94.4,
-      "change": 1.9,
-      "pct": 2.05,
+      "last": 94.6,
+      "change": 2.1,
+      "pct": 2.27,
       "open": 93.3,
       "high": 94.8,
       "low": 93.0,
       "prev_close": 92.5,
-      "volume": 1038.0,
+      "volume": 1067.0,
       "upper_limit": 101.5,
       "lower_limit": 83.3,
       "limit_flag": 1,
-      "ts": 1792115336,
+      "ts": 1792115643,
       "cdp": {
         "cdp": 93.375,
         "nh": 94.25,
@@ -9546,7 +9565,7 @@
       "conf": {
         "res": [
           {
-            "price": 95.228,
+            "price": 94.8165,
             "n": 1,
             "srcs": [
               "量能區"
@@ -9563,26 +9582,26 @@
         ],
         "sup": [
           {
-            "price": 94.267,
-            "n": 2,
+            "price": 94.25,
+            "n": 1,
             "srcs": [
-              "CDP",
-              "量能區"
+              "CDP"
             ]
           },
           {
-            "price": 92.5,
-            "n": 1,
+            "price": 92.7992,
+            "n": 2,
             "srcs": [
               "10日",
-              "5日"
+              "5日",
+              "量能區"
             ]
           }
         ]
       },
       "vp": {
-        "res": 95.228,
-        "sup": 94.284
+        "res": 94.8165,
+        "sup": 93.3975
       },
       "volume_multiple": 0.15,
       "cdp_trend": [
@@ -9634,11 +9653,11 @@
       "high": 161.5,
       "low": 155.5,
       "prev_close": 155.5,
-      "volume": 3631.0,
+      "volume": 3814.0,
       "upper_limit": 171.0,
       "lower_limit": 140.0,
       "limit_flag": 1,
-      "ts": 1792115342,
+      "ts": 1792115673,
       "cdp": {
         "cdp": 157.125,
         "nh": 159.75,
@@ -9847,7 +9866,7 @@
         "res": 160.9262,
         "sup": 155.3438
       },
-      "volume_multiple": 0.25,
+      "volume_multiple": 0.26,
       "cdp_trend": [
         {
           "date": "2026-10-08",
@@ -9897,11 +9916,11 @@
       "high": 51.6,
       "low": 50.9,
       "prev_close": 50.2,
-      "volume": 61.0,
+      "volume": 65.0,
       "upper_limit": 55.2,
       "lower_limit": 45.2,
       "limit_flag": 1,
-      "ts": 1792115217,
+      "ts": 1792115612,
       "cdp": {
         "cdp": 50.4875,
         "nh": 51.025,
@@ -10108,7 +10127,7 @@
         "res": 52.1812,
         "sup": 51.4087
       },
-      "volume_multiple": 0.19,
+      "volume_multiple": 0.21,
       "cdp_trend": [
         {
           "date": "2026-10-08",
@@ -10158,11 +10177,11 @@
       "high": 169.0,
       "low": 163.0,
       "prev_close": 161.5,
-      "volume": 3126.0,
+      "volume": 3182.0,
       "upper_limit": 177.5,
       "lower_limit": 145.5,
       "limit_flag": 1,
-      "ts": 1792115338,
+      "ts": 1792115673,
       "cdp": {
         "cdp": 163.25,
         "nh": 166.0,
@@ -10420,11 +10439,11 @@
       "high": 112.5,
       "low": 110.5,
       "prev_close": 110.0,
-      "volume": 8650.0,
+      "volume": 8817.0,
       "upper_limit": 121.0,
       "lower_limit": 99.0,
       "limit_flag": 1,
-      "ts": 1792115338,
+      "ts": 1792115675,
       "cdp": {
         "cdp": 111.25,
         "nh": 112.5,
@@ -10631,7 +10650,7 @@
         "res": 111.2375,
         "sup": 110.1275
       },
-      "volume_multiple": 0.22,
+      "volume_multiple": 0.23,
       "cdp_trend": [
         {
           "date": "2026-10-08",
@@ -10674,18 +10693,18 @@
     {
       "code": "2351",
       "name": "順德",
-      "last": 209.5,
-      "change": 4.5,
-      "pct": 2.2,
+      "last": 210.5,
+      "change": 5.5,
+      "pct": 2.68,
       "open": 206.5,
-      "high": 210.0,
+      "high": 212.0,
       "low": 206.5,
       "prev_close": 205.0,
-      "volume": 577.0,
+      "volume": 719.0,
       "upper_limit": 225.5,
       "lower_limit": 184.5,
       "limit_flag": 1,
-      "ts": 1792115331,
+      "ts": 1792115641,
       "cdp": {
         "cdp": 204.375,
         "nh": 210.75,
@@ -10854,15 +10873,14 @@
       "conf": {
         "res": [
           {
-            "price": 210.325,
-            "n": 2,
+            "price": 210.75,
+            "n": 1,
             "srcs": [
-              "週線",
               "CDP"
             ]
           },
           {
-            "price": 213.3806,
+            "price": 213.5944,
             "n": 2,
             "srcs": [
               "10日線",
@@ -10872,29 +10890,26 @@
         ],
         "sup": [
           {
+            "price": 209.9,
+            "n": 1,
+            "srcs": [
+              "週線"
+            ]
+          },
+          {
             "price": 201.2083,
             "n": 1,
             "srcs": [
               "季線"
             ]
-          },
-          {
-            "price": 198.3125,
-            "n": 2,
-            "srcs": [
-              "10日",
-              "20日",
-              "5日",
-              "CDP"
-            ]
           }
         ]
       },
       "vp": {
-        "res": 213.5613,
+        "res": 213.9887,
         "sup": null
       },
-      "volume_multiple": 0.22,
+      "volume_multiple": 0.27,
       "cdp_trend": [
         {
           "date": "2026-10-08",
@@ -10937,18 +10952,18 @@
     {
       "code": "2449",
       "name": "京元電子",
-      "last": 275.5,
-      "change": 3.5,
-      "pct": 1.29,
+      "last": 275.0,
+      "change": 3.0,
+      "pct": 1.1,
       "open": 272.0,
       "high": 277.5,
       "low": 271.5,
       "prev_close": 272.0,
-      "volume": 6354.0,
+      "volume": 6518.0,
       "upper_limit": 299.0,
       "lower_limit": 245.0,
       "limit_flag": 1,
-      "ts": 1792115339,
+      "ts": 1792115673,
       "cdp": {
         "cdp": 272.75,
         "nh": 277.5,
@@ -11133,7 +11148,7 @@
         ],
         "sup": [
           {
-            "price": 274.2063,
+            "price": 274.0625,
             "n": 1,
             "srcs": [
               "量能區"
@@ -11152,10 +11167,10 @@
         ]
       },
       "vp": {
-        "res": 296.2462,
-        "sup": 274.2063
+        "res": 296.0625,
+        "sup": 274.0625
       },
-      "volume_multiple": 0.14,
+      "volume_multiple": 0.15,
       "cdp_trend": [
         {
           "date": "2026-10-08",
@@ -11198,18 +11213,18 @@
     {
       "code": "6239",
       "name": "力成",
-      "last": 276.5,
-      "change": 6.0,
-      "pct": 2.22,
+      "last": 275.0,
+      "change": 4.5,
+      "pct": 1.66,
       "open": 274.0,
       "high": 277.5,
       "low": 271.5,
       "prev_close": 270.5,
-      "volume": 2404.0,
+      "volume": 2623.0,
       "upper_limit": 297.5,
       "lower_limit": 243.5,
       "limit_flag": 1,
-      "ts": 1792115309,
+      "ts": 1792115679,
       "cdp": {
         "cdp": 274.125,
         "nh": 279.25,
@@ -11378,25 +11393,24 @@
       "conf": {
         "res": [
           {
-            "price": 278.9276,
-            "n": 3,
+            "price": 278.4833,
+            "n": 2,
             "srcs": [
               "季線",
-              "CDP",
-              "量能區"
+              "CDP"
             ]
           },
           {
-            "price": 291.15,
+            "price": 283.5625,
             "n": 1,
             "srcs": [
-              "月線"
+              "量能區"
             ]
           }
         ],
         "sup": [
           {
-            "price": 275.6687,
+            "price": 271.1875,
             "n": 1,
             "srcs": [
               "量能區"
@@ -11414,10 +11428,10 @@
         ]
       },
       "vp": {
-        "res": 279.8162,
-        "sup": 275.6687
+        "res": 283.5625,
+        "sup": 271.1875
       },
-      "volume_multiple": 0.16,
+      "volume_multiple": 0.18,
       "cdp_trend": [
         {
           "date": "2026-10-08",
@@ -11460,18 +11474,18 @@
     {
       "code": "8150",
       "name": "南茂",
-      "last": 107.5,
-      "change": 2.0,
-      "pct": 1.9,
+      "last": 106.5,
+      "change": 1.0,
+      "pct": 0.95,
       "open": 106.0,
       "high": 108.5,
       "low": 104.5,
       "prev_close": 105.5,
-      "volume": 6850.0,
+      "volume": 7208.0,
       "upper_limit": 116.0,
       "lower_limit": 95.0,
       "limit_flag": 1,
-      "ts": 1792115337,
+      "ts": 1792115677,
       "cdp": {
         "cdp": 106.875,
         "nh": 108.25,
@@ -11647,7 +11661,7 @@
             ]
           },
           {
-            "price": 110.0206,
+            "price": 110.0831,
             "n": 2,
             "srcs": [
               "量能區",
@@ -11657,12 +11671,12 @@
         ],
         "sup": [
           {
-            "price": 105.5812,
+            "price": 105.4571,
             "n": 2,
             "srcs": [
+              "量能區",
               "10日",
-              "5日",
-              "量能區"
+              "5日"
             ]
           },
           {
@@ -11675,10 +11689,10 @@
         ]
       },
       "vp": {
-        "res": 109.5062,
-        "sup": 105.7438
+        "res": 109.6312,
+        "sup": 105.3713
       },
-      "volume_multiple": 0.22,
+      "volume_multiple": 0.23,
       "cdp_trend": [
         {
           "date": "2026-10-08",
@@ -11721,18 +11735,18 @@
     {
       "code": "4958",
       "name": "臻鼎-KY",
-      "last": 561.0,
-      "change": 42.0,
-      "pct": 8.09,
+      "last": 563.0,
+      "change": 44.0,
+      "pct": 8.48,
       "open": 537.0,
-      "high": 562.0,
+      "high": 565.0,
       "low": 537.0,
       "prev_close": 519.0,
-      "volume": 13120.0,
+      "volume": 14053.0,
       "upper_limit": 570.0,
       "lower_limit": 467.5,
       "limit_flag": 1,
-      "ts": 1792115340,
+      "ts": 1792115677,
       "cdp": {
         "cdp": 523.25,
         "nh": 528.5,
@@ -11901,14 +11915,6 @@
       "conf": {
         "res": [
           {
-            "price": 562.45,
-            "n": 1,
-            "srcs": [
-              "週線",
-              "10日線"
-            ]
-          },
-          {
             "price": 613.0,
             "n": 1,
             "srcs": [
@@ -11920,26 +11926,27 @@
         ],
         "sup": [
           {
+            "price": 562.45,
+            "n": 1,
+            "srcs": [
+              "週線",
+              "10日線"
+            ]
+          },
+          {
             "price": 528.5,
             "n": 1,
             "srcs": [
               "CDP"
-            ]
-          },
-          {
-            "price": 523.0,
-            "n": 1,
-            "srcs": [
-              "月線"
             ]
           }
         ]
       },
       "vp": {
         "res": null,
-        "sup": 515.2625
+        "sup": 504.5275
       },
-      "volume_multiple": 0.5,
+      "volume_multiple": 0.54,
       "cdp_trend": [
         {
           "date": "2026-10-08",
@@ -11989,11 +11996,11 @@
       "high": 1125.0,
       "low": 1085.0,
       "prev_close": 1075.0,
-      "volume": 5384.0,
+      "volume": 5611.0,
       "upper_limit": 1180.0,
       "lower_limit": 968.0,
       "limit_flag": 1,
-      "ts": 1792115320,
+      "ts": 1792115672,
       "cdp": {
         "cdp": 1083.75,
         "nh": 1097.5,
@@ -12198,7 +12205,7 @@
         "res": 1154.2,
         "sup": 1115.0
       },
-      "volume_multiple": 0.35,
+      "volume_multiple": 0.36,
       "cdp_trend": [
         {
           "date": "2026-10-08",
@@ -12241,18 +12248,18 @@
     {
       "code": "6488",
       "name": "環球晶",
-      "last": 920.0,
-      "change": -3.0,
-      "pct": -0.33,
+      "last": 919.0,
+      "change": -4.0,
+      "pct": -0.43,
       "open": 936.0,
       "high": 936.0,
       "low": 915.0,
       "prev_close": 923.0,
-      "volume": 4887.0,
+      "volume": 5025.0,
       "upper_limit": 1015.0,
       "lower_limit": 831.0,
       "limit_flag": 2,
-      "ts": 1792115341,
+      "ts": 1792115655,
       "cdp": {
         "cdp": 936.0,
         "nh": 954.0,
@@ -12421,7 +12428,7 @@
       "conf": {
         "res": [
           {
-            "price": 922.9,
+            "price": 922.7425,
             "n": 1,
             "srcs": [
               "量能區"
@@ -12437,7 +12444,7 @@
         ],
         "sup": [
           {
-            "price": 915.0333,
+            "price": 914.9858,
             "n": 2,
             "srcs": [
               "量能區",
@@ -12456,10 +12463,10 @@
         ]
       },
       "vp": {
-        "res": 922.9,
-        "sup": 909.1
+        "res": 922.7425,
+        "sup": 908.9575
       },
-      "volume_multiple": 0.35,
+      "volume_multiple": 0.36,
       "cdp_trend": [
         {
           "date": "2026-10-08",
@@ -12502,18 +12509,18 @@
     {
       "code": "3490",
       "name": "單井",
-      "last": 43.4,
-      "change": 1.1,
-      "pct": 2.6,
+      "last": 43.35,
+      "change": 1.05,
+      "pct": 2.48,
       "open": 42.7,
       "high": 43.4,
       "low": 42.6,
       "prev_close": 42.3,
-      "volume": 288.0,
+      "volume": 292.0,
       "upper_limit": 46.5,
       "lower_limit": 38.1,
       "limit_flag": 1,
-      "ts": 1792115259,
+      "ts": 1792115563,
       "cdp": {
         "cdp": 42.45,
         "nh": 43.3,
@@ -12682,7 +12689,7 @@
       "conf": {
         "res": [
           {
-            "price": 43.5782,
+            "price": 43.5677,
             "n": 2,
             "srcs": [
               "量能區",
@@ -12699,7 +12706,7 @@
         ],
         "sup": [
           {
-            "price": 43.1762,
+            "price": 43.1659,
             "n": 2,
             "srcs": [
               "量能區",
@@ -12719,8 +12726,8 @@
         ]
       },
       "vp": {
-        "res": 43.4865,
-        "sup": 43.0525
+        "res": 43.4654,
+        "sup": 43.0319
       },
       "volume_multiple": 0.2,
       "cdp_trend": [
@@ -12765,18 +12772,18 @@
     {
       "code": "2409",
       "name": "友達",
-      "last": 36.3,
-      "change": 1.4,
-      "pct": 4.01,
+      "last": 36.4,
+      "change": 1.5,
+      "pct": 4.3,
       "open": 35.65,
       "high": 36.75,
       "low": 35.55,
       "prev_close": 34.9,
-      "volume": 155515.0,
+      "volume": 158448.0,
       "upper_limit": 38.35,
       "lower_limit": 31.45,
       "limit_flag": 1,
-      "ts": 1792115341,
+      "ts": 1792115677,
       "cdp": {
         "cdp": 35.3,
         "nh": 35.7,
@@ -12961,7 +12968,7 @@
         ],
         "sup": [
           {
-            "price": 35.6311,
+            "price": 35.6437,
             "n": 3,
             "srcs": [
               "週線",
@@ -12980,7 +12987,7 @@
       },
       "vp": {
         "res": null,
-        "sup": 35.7032
+        "sup": 35.741
       },
       "volume_multiple": 0.48,
       "cdp_trend": [
@@ -13025,18 +13032,18 @@
     {
       "code": "2882",
       "name": "國泰金",
-      "last": 115.5,
-      "change": 2.0,
-      "pct": 1.76,
+      "last": 116.0,
+      "change": 2.5,
+      "pct": 2.2,
       "open": 113.0,
       "high": 116.0,
       "low": 113.0,
       "prev_close": 113.5,
-      "volume": 6009.0,
+      "volume": 6215.0,
       "upper_limit": 124.5,
       "lower_limit": 102.5,
       "limit_flag": 1,
-      "ts": 1792115335,
+      "ts": 1792115669,
       "cdp": {
         "cdp": 113.5,
         "nh": 114.5,
@@ -13216,10 +13223,11 @@
             ]
           },
           {
-            "price": 112.75,
-            "n": 2,
+            "price": 112.67,
+            "n": 3,
             "srcs": [
               "CDP",
+              "量能區",
               "週線"
             ]
           }
@@ -13227,7 +13235,7 @@
       },
       "vp": {
         "res": null,
-        "sup": 112.4237
+        "sup": 112.51
       },
       "volume_multiple": null,
       "cdp_trend": [
@@ -13272,18 +13280,18 @@
     {
       "code": "2327",
       "name": "國巨",
-      "last": 591.0,
-      "change": 18.0,
-      "pct": 3.14,
+      "last": 588.0,
+      "change": 15.0,
+      "pct": 2.62,
       "open": 581.0,
       "high": 595.0,
       "low": 577.0,
       "prev_close": 573.0,
-      "volume": 14289.0,
+      "volume": 14628.0,
       "upper_limit": 630.0,
       "lower_limit": 516.0,
       "limit_flag": 1,
-      "ts": 1792115341,
+      "ts": 1792115678,
       "cdp": {
         "cdp": 577.25,
         "nh": 584.5,
@@ -13452,7 +13460,7 @@
       "conf": {
         "res": [
           {
-            "price": 599.8175,
+            "price": 599.09,
             "n": 1,
             "srcs": [
               "量能區"
@@ -13469,26 +13477,25 @@
         ],
         "sup": [
           {
-            "price": 585.375,
-            "n": 2,
+            "price": 586.25,
+            "n": 1,
             "srcs": [
-              "CDP",
               "月線"
             ]
           },
           {
-            "price": 577.5846,
+            "price": 581.7458,
             "n": 2,
             "srcs": [
-              "量能區",
-              "季線"
+              "季線",
+              "CDP"
             ]
           }
         ]
       },
       "vp": {
-        "res": 599.8175,
-        "sup": 576.1775
+        "res": 599.09,
+        "sup": 575.57
       },
       "volume_multiple": null,
       "cdp_trend": [
@@ -13533,18 +13540,18 @@
     {
       "code": "3624",
       "name": "光頡",
-      "last": 155.0,
-      "change": 3.5,
-      "pct": 2.31,
+      "last": 153.5,
+      "change": 2.0,
+      "pct": 1.32,
       "open": 154.5,
       "high": 157.0,
       "low": 151.0,
       "prev_close": 151.5,
-      "volume": 5701.0,
+      "volume": 5881.0,
       "upper_limit": 166.5,
       "lower_limit": 136.5,
       "limit_flag": 1,
-      "ts": 1792115342,
+      "ts": 1792115668,
       "cdp": {
         "cdp": 154.25,
         "nh": 157.0,
@@ -13730,7 +13737,7 @@
         ],
         "sup": [
           {
-            "price": 153.3625,
+            "price": 153.1887,
             "n": 1,
             "srcs": [
               "量能區"
@@ -13747,7 +13754,7 @@
       },
       "vp": {
         "res": null,
-        "sup": 153.3625
+        "sup": 153.1887
       },
       "volume_multiple": null,
       "cdp_trend": [
@@ -13792,18 +13799,18 @@
     {
       "code": "3605",
       "name": "宏致",
-      "last": 171.5,
-      "change": -3.5,
-      "pct": -2.0,
+      "last": 172.5,
+      "change": -2.5,
+      "pct": -1.43,
       "open": 175.0,
       "high": 176.5,
       "low": 171.0,
       "prev_close": 175.0,
-      "volume": 3794.0,
+      "volume": 3905.0,
       "upper_limit": 192.5,
       "lower_limit": 157.5,
       "limit_flag": 2,
-      "ts": 1792115341,
+      "ts": 1792115653,
       "cdp": {
         "cdp": 177.625,
         "nh": 180.25,
@@ -13972,7 +13979,7 @@
       "conf": {
         "res": [
           {
-            "price": 174.7456,
+            "price": 174.6031,
             "n": 2,
             "srcs": [
               "10日線",
@@ -13996,7 +14003,7 @@
             ]
           },
           {
-            "price": 168.6444,
+            "price": 168.4844,
             "n": 2,
             "srcs": [
               "月線",
@@ -14006,8 +14013,8 @@
         ]
       },
       "vp": {
-        "res": 175.2413,
-        "sup": 169.2388
+        "res": 174.9563,
+        "sup": 168.9187
       },
       "volume_multiple": null,
       "cdp_trend": [
@@ -14052,18 +14059,18 @@
     {
       "code": "6456",
       "name": "GIS-KY",
-      "last": 91.8,
-      "change": 3.1,
-      "pct": 3.49,
+      "last": 91.3,
+      "change": 2.6,
+      "pct": 2.93,
       "open": 89.1,
       "high": 94.3,
       "low": 88.0,
       "prev_close": 88.7,
-      "volume": 9428.0,
+      "volume": 9788.0,
       "upper_limit": 97.5,
       "lower_limit": 79.9,
       "limit_flag": 1,
-      "ts": 1792115340,
+      "ts": 1792115677,
       "cdp": {
         "cdp": 90.225,
         "nh": 93.35,
@@ -14239,7 +14246,7 @@
             ]
           },
           {
-            "price": 95.5475,
+            "price": 95.4662,
             "n": 2,
             "srcs": [
               "10日線",
@@ -14250,7 +14257,7 @@
         ],
         "sup": [
           {
-            "price": 90.5035,
+            "price": 90.7437,
             "n": 1,
             "srcs": [
               "量能區"
@@ -14266,8 +14273,8 @@
         ]
       },
       "vp": {
-        "res": 95.5525,
-        "sup": 90.5035
+        "res": 95.3088,
+        "sup": 90.7437
       },
       "volume_multiple": null,
       "cdp_trend": [
@@ -14312,18 +14319,18 @@
     {
       "code": "2492",
       "name": "華新科",
-      "last": 416.5,
-      "change": 11.0,
-      "pct": 2.71,
+      "last": 415.0,
+      "change": 9.5,
+      "pct": 2.34,
       "open": 414.0,
       "high": 418.0,
       "low": 407.0,
       "prev_close": 405.5,
-      "volume": 2166.0,
+      "volume": 2264.0,
       "upper_limit": 446.0,
       "lower_limit": 365.0,
       "limit_flag": 1,
-      "ts": 1792115290,
+      "ts": 1792115651,
       "cdp": {
         "cdp": 409.125,
         "nh": 416.25,
@@ -14492,6 +14499,13 @@
       "conf": {
         "res": [
           {
+            "price": 416.25,
+            "n": 1,
+            "srcs": [
+              "CDP"
+            ]
+          },
+          {
             "price": 431.5,
             "n": 1,
             "srcs": [
@@ -14503,11 +14517,10 @@
         ],
         "sup": [
           {
-            "price": 414.275,
-            "n": 2,
+            "price": 412.3,
+            "n": 1,
             "srcs": [
-              "週線",
-              "CDP"
+              "週線"
             ]
           },
           {
@@ -14522,7 +14535,7 @@
       },
       "vp": {
         "res": null,
-        "sup": 309.9137
+        "sup": 309.5125
       },
       "volume_multiple": null,
       "cdp_trend": [
@@ -14567,18 +14580,18 @@
     {
       "code": "4991",
       "name": "環宇-KY",
-      "last": 446.0,
-      "change": 4.5,
-      "pct": 1.02,
+      "last": 446.5,
+      "change": 5.0,
+      "pct": 1.13,
       "open": 446.0,
       "high": 453.5,
       "low": 443.5,
       "prev_close": 441.5,
-      "volume": 809.0,
+      "volume": 852.0,
       "upper_limit": 485.5,
       "lower_limit": 397.5,
       "limit_flag": 1,
-      "ts": 1792115325,
+      "ts": 1792115668,
       "cdp": {
         "cdp": 446.75,
         "nh": 454.5,
@@ -14747,7 +14760,7 @@
       "conf": {
         "res": [
           {
-            "price": 452.9775,
+            "price": 453.0506,
             "n": 2,
             "srcs": [
               "量能區",
@@ -14781,7 +14794,7 @@
         ]
       },
       "vp": {
-        "res": 451.455,
+        "res": 451.6012,
         "sup": null
       },
       "volume_multiple": null,
@@ -14827,18 +14840,18 @@
     {
       "code": "6278",
       "name": "台表科",
-      "last": 304.0,
-      "change": 1.0,
-      "pct": 0.33,
+      "last": 301.0,
+      "change": -2.0,
+      "pct": -0.66,
       "open": 303.0,
       "high": 314.5,
       "low": 298.0,
       "prev_close": 303.0,
-      "volume": 21778.0,
+      "volume": 22705.0,
       "upper_limit": 333.0,
       "lower_limit": 273.0,
-      "limit_flag": 1,
-      "ts": 1792115340,
+      "limit_flag": 2,
+      "ts": 1792115679,
       "cdp": {
         "cdp": 299.25,
         "nh": 316.5,
@@ -15032,7 +15045,7 @@
             ]
           },
           {
-            "price": 282.28,
+            "price": 282.2625,
             "n": 1,
             "srcs": [
               "量能區"
@@ -15042,7 +15055,7 @@
       },
       "vp": {
         "res": null,
-        "sup": 282.28
+        "sup": 282.2625
       },
       "volume_multiple": null,
       "cdp_trend": [
@@ -15087,18 +15100,18 @@
     {
       "code": "3042",
       "name": "晶技",
-      "last": 191.0,
-      "change": 1.5,
-      "pct": 0.79,
+      "last": 190.0,
+      "change": 0.5,
+      "pct": 0.26,
       "open": 191.5,
       "high": 193.0,
       "low": 188.5,
       "prev_close": 189.5,
-      "volume": 2418.0,
+      "volume": 2555.0,
       "upper_limit": 208.0,
       "lower_limit": 171.0,
       "limit_flag": 1,
-      "ts": 1792115287,
+      "ts": 1792115678,
       "cdp": {
         "cdp": 191.25,
         "nh": 196.0,
@@ -15267,7 +15280,7 @@
       "conf": {
         "res": [
           {
-            "price": 195.3212,
+            "price": 195.6375,
             "n": 2,
             "srcs": [
               "量能區",
@@ -15285,7 +15298,7 @@
         ],
         "sup": [
           {
-            "price": 186.9858,
+            "price": 186.8917,
             "n": 2,
             "srcs": [
               "10日",
@@ -15304,8 +15317,8 @@
         ]
       },
       "vp": {
-        "res": 194.6425,
-        "sup": 187.9575
+        "res": 195.275,
+        "sup": 187.675
       },
       "volume_multiple": null,
       "cdp_trend": [
@@ -15354,14 +15367,14 @@
       "change": 0.6,
       "pct": 0.79,
       "open": 76.0,
-      "high": 76.6,
+      "high": 76.7,
       "low": 75.9,
       "prev_close": 76.0,
-      "volume": 441.0,
+      "volume": 523.0,
       "upper_limit": 83.6,
       "lower_limit": 68.4,
       "limit_flag": 1,
-      "ts": 1792115326,
+      "ts": 1792115640,
       "cdp": {
         "cdp": 76.325,
         "nh": 76.85,
@@ -15610,18 +15623,18 @@
     {
       "code": "6140",
       "name": "訊達電腦",
-      "last": 21.25,
-      "change": 1.1,
-      "pct": 5.46,
+      "last": 21.3,
+      "change": 1.15,
+      "pct": 5.71,
       "open": 20.05,
       "high": 21.6,
       "low": 20.0,
       "prev_close": 20.15,
-      "volume": 446.0,
+      "volume": 461.0,
       "upper_limit": 22.15,
       "lower_limit": 18.15,
       "limit_flag": 1,
-      "ts": 1792115290,
+      "ts": 1792115646,
       "cdp": {
         "cdp": 20.1625,
         "nh": 20.625,
@@ -15797,7 +15810,7 @@
             ]
           },
           {
-            "price": 23.0719,
+            "price": 23.0907,
             "n": 1,
             "srcs": [
               "量能區"
@@ -15813,17 +15826,17 @@
             ]
           },
           {
-            "price": 20.8406,
+            "price": 20.7425,
             "n": 1,
             "srcs": [
-              "量能區"
+              "月線"
             ]
           }
         ]
       },
       "vp": {
-        "res": 23.0719,
-        "sup": 20.8406
+        "res": 23.0907,
+        "sup": 20.5348
       },
       "volume_multiple": null,
       "cdp_trend": [
@@ -15868,18 +15881,18 @@
     {
       "code": "1316",
       "name": "上曜",
-      "last": 10.65,
-      "change": 0.25,
-      "pct": 2.4,
+      "last": 10.55,
+      "change": 0.15,
+      "pct": 1.44,
       "open": 10.45,
       "high": 10.65,
       "low": 10.45,
       "prev_close": 10.4,
-      "volume": 481.0,
+      "volume": 512.0,
       "upper_limit": 11.4,
       "lower_limit": 9.36,
       "limit_flag": 1,
-      "ts": 1792115201,
+      "ts": 1792115625,
       "cdp": {
         "cdp": 10.425,
         "nh": 10.5,
@@ -16048,24 +16061,24 @@
       "conf": {
         "res": [
           {
-            "price": 10.8006,
-            "n": 2,
+            "price": 10.65,
+            "n": 1,
             "srcs": [
-              "10日",
-              "量能區"
+              "5日"
             ]
           },
           {
-            "price": 11.25,
-            "n": 1,
+            "price": 10.7939,
+            "n": 2,
             "srcs": [
-              "20日"
+              "量能區",
+              "10日"
             ]
           }
         ],
         "sup": [
           {
-            "price": 10.5174,
+            "price": 10.5147,
             "n": 3,
             "srcs": [
               "CDP",
@@ -16085,8 +16098,8 @@
         ]
       },
       "vp": {
-        "res": 10.8011,
-        "sup": 10.5349
+        "res": 10.7879,
+        "sup": 10.5241
       },
       "volume_multiple": null,
       "cdp_trend": [
@@ -16131,18 +16144,18 @@
     {
       "code": "1802",
       "name": "台玻",
-      "last": 67.9,
-      "change": 5.2,
-      "pct": 8.29,
+      "last": 67.7,
+      "change": 5.0,
+      "pct": 7.97,
       "open": 63.4,
-      "high": 68.2,
+      "high": 68.5,
       "low": 62.9,
       "prev_close": 62.7,
-      "volume": 69783.0,
+      "volume": 77963.0,
       "upper_limit": 68.9,
       "lower_limit": 56.5,
       "limit_flag": 1,
-      "ts": 1792115342,
+      "ts": 1792115679,
       "cdp": {
         "cdp": 63.125,
         "nh": 64.25,
@@ -16309,7 +16322,17 @@
         "days": 258
       },
       "conf": {
-        "res": [],
+        "res": [
+          {
+            "price": 67.9,
+            "n": 1,
+            "srcs": [
+              "10日",
+              "20日",
+              "5日"
+            ]
+          }
+        ],
         "sup": [
           {
             "price": 64.015,
@@ -16320,7 +16343,7 @@
             ]
           },
           {
-            "price": 62.9292,
+            "price": 62.8678,
             "n": 1,
             "srcs": [
               "量能區"
@@ -16330,7 +16353,7 @@
       },
       "vp": {
         "res": null,
-        "sup": 62.9292
+        "sup": 62.8678
       },
       "volume_multiple": null,
       "cdp_trend": [
@@ -16375,18 +16398,18 @@
     {
       "code": "3706",
       "name": "神達",
-      "last": 82.6,
-      "change": 1.1,
-      "pct": 1.35,
+      "last": 82.5,
+      "change": 1.0,
+      "pct": 1.23,
       "open": 82.2,
       "high": 83.2,
       "low": 82.2,
       "prev_close": 81.5,
-      "volume": 1282.0,
+      "volume": 1312.0,
       "upper_limit": 89.6,
       "lower_limit": 73.4,
       "limit_flag": 1,
-      "ts": 1792115339,
+      "ts": 1792115655,
       "cdp": {
         "cdp": 82.025,
         "nh": 82.55,
@@ -16555,6 +16578,13 @@
       "conf": {
         "res": [
           {
+            "price": 82.55,
+            "n": 1,
+            "srcs": [
+              "CDP"
+            ]
+          },
+          {
             "price": 85.0,
             "n": 1,
             "srcs": [
@@ -16562,22 +16592,14 @@
               "20日",
               "5日"
             ]
-          },
-          {
-            "price": 86.8833,
-            "n": 1,
-            "srcs": [
-              "季線"
-            ]
           }
         ],
         "sup": [
           {
-            "price": 82.435,
-            "n": 2,
+            "price": 82.32,
+            "n": 1,
             "srcs": [
-              "週線",
-              "CDP"
+              "週線"
             ]
           },
           {
@@ -16590,7 +16612,7 @@
         ]
       },
       "vp": {
-        "res": 91.8485,
+        "res": 91.8312,
         "sup": null
       },
       "volume_multiple": null,
@@ -16643,11 +16665,11 @@
       "high": 27.2,
       "low": 26.65,
       "prev_close": 26.55,
-      "volume": 172.0,
+      "volume": 183.0,
       "upper_limit": 29.2,
       "lower_limit": 23.9,
       "limit_flag": 1,
-      "ts": 1792115325,
+      "ts": 1792115644,
       "cdp": {
         "cdp": 26.6125,
         "nh": 26.975,
@@ -16916,18 +16938,18 @@
     {
       "code": "2887",
       "name": "台新新光金",
-      "last": 42.55,
-      "change": 0.95,
-      "pct": 2.28,
+      "last": 42.4,
+      "change": 0.8,
+      "pct": 1.92,
       "open": 42.0,
       "high": 42.65,
       "low": 41.9,
       "prev_close": 41.6,
-      "volume": 11366.0,
+      "volume": 11768.0,
       "upper_limit": 45.75,
       "lower_limit": 37.45,
       "limit_flag": 1,
-      "ts": 1792115340,
+      "ts": 1792115676,
       "cdp": {
         "cdp": 41.65,
         "nh": 42.1,
@@ -17096,9 +17118,10 @@
       "conf": {
         "res": [
           {
-            "price": 42.5939,
-            "n": 1,
+            "price": 42.5192,
+            "n": 2,
             "srcs": [
+              "月線",
               "量能區"
             ]
           },
@@ -17113,25 +17136,26 @@
         ],
         "sup": [
           {
-            "price": 42.4825,
-            "n": 1,
-            "srcs": [
-              "月線"
-            ]
-          },
-          {
             "price": 42.175,
             "n": 2,
             "srcs": [
               "CDP",
               "週線"
             ]
+          },
+          {
+            "price": 41.835,
+            "n": 2,
+            "srcs": [
+              "10日線",
+              "量能區"
+            ]
           }
         ]
       },
       "vp": {
-        "res": 42.5939,
-        "sup": 41.9556
+        "res": 42.556,
+        "sup": 41.92
       },
       "volume_multiple": null,
       "cdp_trend": [
@@ -17183,11 +17207,11 @@
       "high": 318.5,
       "low": 313.0,
       "prev_close": 311.0,
-      "volume": 363.0,
+      "volume": 374.0,
       "upper_limit": 342.0,
       "lower_limit": 280.0,
       "limit_flag": 1,
-      "ts": 1792115325,
+      "ts": 1792115632,
       "cdp": {
         "cdp": 315.0,
         "nh": 319.0,
@@ -17436,18 +17460,18 @@
     {
       "code": "4576",
       "name": "大銀微系統",
-      "last": 210.0,
-      "change": 4.5,
-      "pct": 2.19,
+      "last": 209.5,
+      "change": 4.0,
+      "pct": 1.95,
       "open": 207.0,
       "high": 211.0,
       "low": 207.0,
       "prev_close": 205.5,
-      "volume": 200.0,
+      "volume": 207.0,
       "upper_limit": 226.0,
       "lower_limit": 185.0,
       "limit_flag": 1,
-      "ts": 1792115157,
+      "ts": 1792115625,
       "cdp": {
         "cdp": 208.5,
         "nh": 212.0,
@@ -17623,7 +17647,7 @@
             ]
           },
           {
-            "price": 218.5583,
+            "price": 218.4915,
             "n": 2,
             "srcs": [
               "量能區",
@@ -17651,7 +17675,7 @@
         ]
       },
       "vp": {
-        "res": 218.175,
+        "res": 218.0412,
         "sup": null
       },
       "volume_multiple": null,
@@ -17697,18 +17721,18 @@
     {
       "code": "2359",
       "name": "所羅門",
-      "last": 123.5,
-      "change": 3.5,
-      "pct": 2.92,
+      "last": 123.0,
+      "change": 3.0,
+      "pct": 2.5,
       "open": 122.5,
       "high": 124.0,
       "low": 121.0,
       "prev_close": 120.0,
-      "volume": 349.0,
+      "volume": 367.0,
       "upper_limit": 132.0,
       "lower_limit": 108.0,
       "limit_flag": 1,
-      "ts": 1792115310,
+      "ts": 1792115677,
       "cdp": {
         "cdp": 120.875,
         "nh": 121.75,
@@ -17911,7 +17935,7 @@
         ]
       },
       "vp": {
-        "res": 127.8063,
+        "res": 127.7625,
         "sup": null
       },
       "volume_multiple": null,
@@ -17957,18 +17981,18 @@
     {
       "code": "0050",
       "name": "元大台灣50",
-      "last": 109.5,
-      "change": 0.6,
-      "pct": 0.55,
+      "last": 109.4,
+      "change": 0.5,
+      "pct": 0.46,
       "open": 109.45,
       "high": 109.5,
       "low": 109.0,
       "prev_close": 108.9,
-      "volume": 32088.0,
+      "volume": 35014.0,
       "upper_limit": 119.75,
       "lower_limit": 98.05,
       "limit_flag": 1,
-      "ts": 1792115342,
+      "ts": 1792115678,
       "cdp": {
         "cdp": 109.125,
         "nh": 109.7,
@@ -18138,7 +18162,7 @@
       "conf": {
         "res": [
           {
-            "price": 109.5938,
+            "price": 109.5775,
             "n": 1,
             "srcs": [
               "量能區"
@@ -18162,7 +18186,7 @@
             ]
           },
           {
-            "price": 106.9248,
+            "price": 106.9179,
             "n": 2,
             "srcs": [
               "量能區",
@@ -18172,8 +18196,8 @@
         ]
       },
       "vp": {
-        "res": 109.5938,
-        "sup": 106.8563
+        "res": 109.5775,
+        "sup": 106.8425
       },
       "volume_multiple": null,
       "cdp_trend": [
@@ -18218,18 +18242,18 @@
     {
       "code": "009816",
       "name": "凱基台灣TOP50",
-      "last": 16.3,
-      "change": 0.11,
-      "pct": 0.68,
+      "last": 16.29,
+      "change": 0.1,
+      "pct": 0.62,
       "open": 16.26,
       "high": 16.31,
       "low": 16.25,
       "prev_close": 16.19,
-      "volume": 31239.0,
+      "volume": 33334.0,
       "upper_limit": 17.8,
       "lower_limit": 14.58,
       "limit_flag": 1,
-      "ts": 1792115342,
+      "ts": 1792115679,
       "cdp": {
         "cdp": 16.22,
         "nh": 16.26,
@@ -18415,7 +18439,7 @@
         ],
         "sup": [
           {
-            "price": 16.1721,
+            "price": 16.1715,
             "n": 2,
             "srcs": [
               "量能區",
@@ -18434,7 +18458,7 @@
       },
       "vp": {
         "res": null,
-        "sup": 16.1562
+        "sup": 16.1544
       },
       "volume_multiple": null,
       "cdp_trend": [
@@ -18479,18 +18503,18 @@
     {
       "code": "00988A",
       "name": "主動統一全球創新",
-      "last": 15.54,
-      "change": 0.16,
-      "pct": 1.04,
+      "last": 15.53,
+      "change": 0.15,
+      "pct": 0.98,
       "open": 15.49,
-      "high": 15.54,
+      "high": 15.55,
       "low": 15.46,
       "prev_close": 15.38,
-      "volume": 6957.0,
+      "volume": 7125.0,
       "upper_limit": null,
       "lower_limit": null,
       "limit_flag": 1,
-      "ts": 1792115336,
+      "ts": 1792115676,
       "cdp": {
         "cdp": 15.4225,
         "nh": 15.545,
@@ -18666,7 +18690,7 @@
             ]
           },
           {
-            "price": 16.2721,
+            "price": 16.2707,
             "n": 1,
             "srcs": [
               "量能區"
@@ -18693,7 +18717,7 @@
         ]
       },
       "vp": {
-        "res": 16.2721,
+        "res": 16.2707,
         "sup": null
       },
       "volume_multiple": null,
@@ -18739,18 +18763,18 @@
     {
       "code": "00685L",
       "name": "群益臺灣加權正2",
-      "last": 12.43,
-      "change": 0.17,
-      "pct": 1.39,
+      "last": 12.42,
+      "change": 0.16,
+      "pct": 1.31,
       "open": 12.36,
       "high": 12.45,
       "low": 12.33,
       "prev_close": 12.26,
-      "volume": 79339.0,
+      "volume": 81528.0,
       "upper_limit": null,
       "lower_limit": null,
       "limit_flag": 1,
-      "ts": 1792115341,
+      "ts": 1792115670,
       "cdp": {
         "cdp": 12.3375,
         "nh": 12.415,
@@ -18919,7 +18943,7 @@
       "conf": {
         "res": [
           {
-            "price": 12.5701,
+            "price": 12.5671,
             "n": 1,
             "srcs": [
               "量能區"
@@ -18942,7 +18966,7 @@
             ]
           },
           {
-            "price": 12.3215,
+            "price": 12.3187,
             "n": 1,
             "srcs": [
               "量能區"
@@ -18951,8 +18975,8 @@
         ]
       },
       "vp": {
-        "res": 12.5701,
-        "sup": 12.3215
+        "res": 12.5671,
+        "sup": 12.3187
       },
       "volume_multiple": null,
       "cdp_trend": [
@@ -18997,18 +19021,18 @@
     {
       "code": "00631L",
       "name": "元大台灣50正2",
-      "last": 37.49,
-      "change": 0.35,
-      "pct": 0.94,
+      "last": 37.44,
+      "change": 0.3,
+      "pct": 0.81,
       "open": 37.36,
       "high": 37.6,
       "low": 37.26,
       "prev_close": 37.14,
-      "volume": 61058.0,
+      "volume": 63541.0,
       "upper_limit": null,
       "lower_limit": null,
       "limit_flag": 1,
-      "ts": 1792115339,
+      "ts": 1792115679,
       "cdp": {
         "cdp": 37.325,
         "nh": 37.51,
@@ -19184,7 +19208,7 @@
             ]
           },
           {
-            "price": 37.9609,
+            "price": 37.9468,
             "n": 1,
             "srcs": [
               "量能區"
@@ -19193,26 +19217,25 @@
         ],
         "sup": [
           {
-            "price": 37.1637,
-            "n": 2,
+            "price": 37.3852,
+            "n": 1,
             "srcs": [
-              "10日",
-              "5日",
               "量能區"
             ]
           },
           {
-            "price": 36.77,
+            "price": 37.14,
             "n": 1,
             "srcs": [
-              "CDP"
+              "10日",
+              "5日"
             ]
           }
         ]
       },
       "vp": {
-        "res": 37.9609,
-        "sup": 37.2111
+        "res": 37.9468,
+        "sup": 37.3852
       },
       "volume_multiple": null,
       "cdp_trend": [
