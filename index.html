@@ -267,6 +267,18 @@ const PCT_CLASS = p => { const v = num(p); return v > 0 ? 'up' : (v < 0 ? 'down'
 const ARROW = p => { const v = num(p); return v > 0 ? '▲' : (v < 0 ? '▼' : '—'); };
 const fmtPct = p => { const v = num(p); return v === null ? '-' : (v > 0 ? '+' : '') + v.toFixed(2) + '%'; };
 const fmtNum = n => { const v = num(n); return v === null ? '-' : (Number.isInteger(v) ? String(v) : v.toFixed(2)); };
+// 台股跳動檔位:股票 <10:0.01、<50:0.05、<100:0.1、<500:0.5、<1000:1、>=1000:5;ETF <50:0.01、其餘 0.05。指數不取整。
+function tickOf(code, p){
+  if(!code || String(code).includes(':')) return 0;
+  const etf = /^00/.test(String(code));
+  if(etf) return p < 50 ? 0.01 : 0.05;
+  return p < 10 ? 0.01 : p < 50 ? 0.05 : p < 100 ? 0.1 : p < 500 ? 0.5 : p < 1000 ? 1 : 5;
+}
+function toTick(p, code){
+  const v = num(p); if(v === null) return p;
+  const t = tickOf(code, v); if(!t) return v;
+  return Math.round(Math.round(v / t) * t * 100) / 100;
+}
 const fmtChange = c => { const v = num(c); return v === null ? '-' : (v > 0 ? '+' : '') + fmtNum(v); };
 const fmtTime = iso => {
   if(!iso) return '-';
@@ -693,10 +705,12 @@ function keyLevels(q){
     const n = +mode; swDays = sw['d' + n];
     resTarget = sw['h' + n]; supTarget = sw['l' + n]; resBase = `近${swDays}日高`; supBase = `近${swDays}日低`;
   }
+  // 顯示用價位取到台股實際可下單的跳動檔位(算法本身不動)
+  resTarget = toTick(resTarget, q.code); supTarget = toTick(supTarget, q.code);
   // 壓力不可能高過今天漲停、支撐不可能低過今天跌停(今天碰不到),一律封頂
   if(resTarget != null && q.upper_limit != null) resTarget = Math.min(resTarget, q.upper_limit);
   if(supTarget != null && q.lower_limit != null) supTarget = Math.max(supTarget, q.lower_limit);
-  const midVal = hasCdp ? cdp.cdp : q.prev_close;
+  const midVal = toTick(hasCdp ? cdp.cdp : q.prev_close, q.code);
   const midLabel = hasCdp ? 'CDP樞紐價' : '昨收';
   const hitUpper = q.upper_limit != null && resTarget != null && resTarget >= q.upper_limit - 0.005;
   const hitLower = q.lower_limit != null && supTarget != null && supTarget <= q.lower_limit + 0.005;
@@ -710,9 +724,20 @@ function keyLevels(q){
 // ---- 關鍵價位 chips:壓力(CDP近高,沒資料時退回今日高) / 交界(CDP樞紐價,沒資料時退回昨收) / 支撐(CDP近低,沒資料時退回今日低) ----
 function levelChips(q, isIndex){
   const distPct = (target, base) => (target != null && base) ? (((target - base) / base) * 100) : null;
-  const {resTarget, resLabel, supTarget, supLabel, midVal, midLabel, usingCdp} = keyLevels(q);
-  const dRes = distPct(resTarget, q.last);
-  const dSup = distPct(q.last, supTarget);
+  let {resTarget, resLabel, supTarget, supLabel, midVal, midLabel, usingCdp} = keyLevels(q);
+  let dRes = distPct(resTarget, q.last);
+  let dSup = distPct(q.last, supTarget);
+  // 已突破壓力或跌破支撐:換成「現價上方、下方最近的一條線」(來自日K算出的各類線),並標出剛被突破的那條
+  let brokeNote = '';
+  const cf = q.conf;
+  if(!isIndex && cf && ((dRes !== null && dRes < 0) || (dSup !== null && dSup < 0))){
+    const nm = x => (x.srcs || []).join('+') + (x.n >= 2 ? '★' : '');
+    const nr = (cf.res || [])[0], ns = (cf.sup || [])[0];
+    if(dRes < 0){ brokeNote = `已突破 ${resLabel} ${fmtNum(resTarget)},下方最近的線是支撐觀察`; }
+    else { brokeNote = `已跌破 ${supLabel} ${fmtNum(supTarget)},上方最近的線是壓力觀察`; }
+    if(nr){ resTarget = toTick(nr.price, q.code); resLabel = nm(nr); dRes = distPct(resTarget, q.last); }
+    if(ns){ supTarget = toTick(ns.price, q.code); supLabel = nm(ns); dSup = distPct(q.last, supTarget); }
+  }
 
   return `
     <div class="levelchips">
@@ -732,6 +757,7 @@ function levelChips(q, isIndex){
         <div class="sub">${dSup === null ? '距現價 -' : (dSup < 0 ? '已跌破 ' + Math.abs(dSup).toFixed(2) + '%,轉為壓力觀察' : '距現價 -' + dSup.toFixed(2) + '%')}</div>
       </div>
     </div>
+    ${brokeNote ? `<div class="lvhint">${brokeNote}</div>` : ''}
     ${!isIndex ? levelWhy(q) : ''}`;
 }
 
@@ -1123,10 +1149,28 @@ function touchRows(q){
     }
     return bits.length ? `<div class="lvextra tchrow"><span><b>${label}</b></span>${bits.join('')}</div>` : '';
   };
-  const out = row('res', '壓力回測(回落)') + row('sup', '支撐回測(彈開)');
+  let out = row('res', '壓力回測(回落)') + row('sup', '支撐回測(彈開)');
+  const fol = t.fol;
+  if(fol){
+    const f = side => {
+      const r = fol[side]; if(!r || !(r.n1 > 0)) return '';
+      const g = (pool_fol(side));
+      const a1 = Math.round((r.ok1 + SHRINK_K * g.p1) / (r.n1 + SHRINK_K) * 100);
+      const a3 = r.n3 > 0 ? Math.round((r.ok3 + SHRINK_K * g.p3) / (r.n3 + SHRINK_K) * 100) : null;
+      return `<span class="${r.n1 < 5 ? 'dim2' : ''}" title="隔天 ${r.ok1}/${r.n1},第3天 ${r.ok3}/${r.n3}">隔天 ${a1}%${a3 !== null ? ',第3天 ' + a3 + '%' : ''}(${r.n1}次)</span>`;
+    };
+    const fr = f('res'), fs = f('sup');
+    if(fr) out += `<div class="lvextra tchrow"><span><b>壓力守住後</b></span>${fr}</div>`;
+    if(fs) out += `<div class="lvextra tchrow"><span><b>支撐守住後</b></span>${fs}</div>`;
+  }
   return out ? out + `<div class="tchnote">近${t.days}個交易日。百分比=碰到線後收盤明確離開的比例,次數少時已往全體平均調整</div>` : '';
 }
 
+function pool_fol(side){
+  const g = ((INTRADAY && INTRADAY.touch_summary) || {}).fol;
+  const r = g && g[side];
+  return {p1: (r && r.n1 > 0) ? r.ok1 / r.n1 : 0.5, p3: (r && r.n3 > 0) ? r.ok3 / r.n3 : 0.5};
+}
 const pct2 = r => (r && r.n > 0) ? `${Math.round(r.rev / r.n * 100)}%(${r.n})` : '-';
 
 function renderTouchNote(intraday){
@@ -1160,6 +1204,10 @@ function renderTouchNote(intraday){
   if(s.reg){
     h += `<br><b>大盤強弱</b>(當天自選股中位數漲跌):弱日(≤-1%)支撐彈開 ${pct2(s.reg.weak.sup)}、平常 ${pct2(s.reg.normal.sup)};強日(≥+1%)壓力回落 ${pct2(s.reg.strong.res)}、平常 ${pct2(s.reg.normal.res)}。`;
   }
+  if(s.fol && s.fol.res && s.fol.sup){
+    const a = (n, k) => n > 0 ? Math.round(k / n * 100) + '%' : '-';
+    h += `<br><b>後續</b>(碰線當天守住的那些次):壓力線守住後,隔天仍在線下 ${a(s.fol.res.n1, s.fol.res.ok1)}、第3天 ${a(s.fol.res.n3, s.fol.res.ok3)};支撐線守住後,隔天仍在線上 ${a(s.fol.sup.n1, s.fol.sup.ok1)}、第3天 ${a(s.fol.sup.n3, s.fol.sup.ok3)}。`;
+  }
   h += `<br>這是過去的結果。碰到線本來就容易收在線的同一側,所以請拿不同線、不同條件互相比較,不要把比例當成勝率;弱日、強日的樣本通常很少。`;
   el.innerHTML = h;
 }
@@ -1171,7 +1219,7 @@ function confRows(q){
     if(!Array.isArray(arr) || !arr.length) return '';
     const items = arr.filter(x => x && num(x.price) != null).map(x => {
       const stars = x.n >= 2 ? '★'.repeat(Math.min(x.n, 4)) : '';
-      return `<span class="${x.n >= 2 ? 'confstrong' : 'dim2'}">${fmtNum(x.price)} ${stars} ${(x.srcs || []).join('+')}</span>`;
+      return `<span class="${x.n >= 2 ? 'confstrong' : 'dim2'}">${fmtNum(toTick(x.price, q.code))} ${stars} ${(x.srcs || []).join('+')}</span>`;
     });
     return items.length ? `<div class="lvextra confrow"><span><b>${label}</b></span>${items.join('')}</div>` : '';
   };
