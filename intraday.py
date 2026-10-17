@@ -1302,11 +1302,11 @@ def main():
     touch_summary = build_levels(watchlist_out, prev_bars, history_days, official, run_time.strftime("%Y-%m-%d"))
 
     # 用任一筆有拿到時間戳的資料,換算成「資料實際代表的時間」,跟「程式執行的時間」分開揭露
+    # 取所有報價裡「最新」的時間戳(之前取第一筆有時間的,指數報價偶爾停在幾分鐘前,會讓頁面誤報延遲)
     data_ts = None
     for q in indices_out + watchlist_out:
-        if q.get("ts"):
+        if q.get("ts") and (data_ts is None or q["ts"] > data_ts):
             data_ts = q["ts"]
-            break
     data_as_of = (
         datetime.fromtimestamp(data_ts, TAIPEI).isoformat()
         if data_ts else None
