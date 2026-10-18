@@ -172,6 +172,7 @@ WATCHLIST_NAMES = {
     "2365": "昆盈", "7781": "昕力資*", "2887": "台新新光金", "2049": "上銀",
     "4576": "大銀微系統", "2359": "所羅門", "0050": "元大台灣50", "009816": "凱基台灣TOP50",
     "00981A": "主動統一台股增長", "00685L": "群益臺灣加權正2", "00631L": "元大台灣50正2",
+    "8033": "雷虎", "6505": "台塑化", "2368": "金像電", "6209": "今國光",
 }
 
 
@@ -666,7 +667,11 @@ def refresh_official_bars(run_time):
     schema_ok = stored.get("keep_days") == OFFICIAL_KEEP_DAYS
     if not schema_ok:   # 保留天數改版:今天全部重抓一次,把歷史補長
         fetched, no_data = {}, set()
-    needed = [c for c in WATCHLIST_NAMES if fetched.get(c) != today]
+    # 收盤後(13:32起)再把今天的日K整批重抓一次:盤中抓到的今天那根是「抓當下」的半成品,
+    # 收盤後才是正式的高低收量。每檔收盤後抓成功就記進 finalized。
+    after_close = run_time.hour * 60 + run_time.minute >= 13 * 60 + 32
+    finalized = dict(stored.get("finalized") or {}) if schema_ok else {}
+    needed = [c for c in WATCHLIST_NAMES if fetched.get(c) != today or (after_close and finalized.get(c) != today)]
     if not needed:
         return stored
     last_try = stored.get("last_attempt")
@@ -690,11 +695,15 @@ def refresh_official_bars(run_time):
             if bars:
                 merged[code] = bars
                 fetched[code] = today
+                if after_close:
+                    finalized[code] = today
                 no_data.discard(code)
             else:
                 errors.append(f"{code}: 沒有可用資料")
         except _EmptyHistory:
             fetched[code] = today     # 來源明確回覆沒有這檔的日K,今天不再重試
+            if after_close:
+                finalized[code] = today
             no_data.add(code)
         except Exception as e:  # noqa: BLE001  日K失敗不能中斷主流程
             errors.append(f"{code}: {type(e).__name__} {str(e)[:60]}")
@@ -708,6 +717,7 @@ def refresh_official_bars(run_time):
         status += "(來源無日K:" + ",".join(nd) + ")"
     result = {
         "fetched": fetched,
+        "finalized": finalized,
         "last_attempt": run_time.isoformat(),
         "last_attempt_date": today,
         "status": status,
