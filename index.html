@@ -1237,7 +1237,25 @@ function renderFocus(intraday){
   el.innerHTML = `<div class="ohd"><b>今日焦點${live ? '(開盤爆量中)' : ''}</b><small>${t ? t + ' 更新' : ''}</small></div>`
     + (top.length ? top.map(row).join('') : `<div style="color:var(--muted)">目前沒有量能異常的標的。${live ? '' : '盤中每5分鐘更新。'}</div>`)
     + `<div class="onote">只列「量能明顯高於平常」或「量大且貼近/突破關鍵價位」的自選股,最多5檔,由強到弱。進場=量大且上漲,出場=量大且下跌(推測)。這是觀察清單,不是買賣建議。</div>`;
+  el.innerHTML += focusStatsHtml(intraday && intraday.focus_stats);
   el.style.display = '';
+}
+
+function focusStatsHtml(fs){
+  const pc = (w, n) => n > 0 ? Math.round(w / n * 100) + '%' : '-';
+  let body;
+  if(!fs || !(fs.n > 0)){
+    body = '尚無資料。每天收盤後自動評估當天焦點,累積幾天後這裡會出現結果。';
+  } else {
+    const side = (nm, r) => (r && r.n > 0)
+      ? `<div>${nm}:${r.n} 筆,收盤方向正確 ${pc(r.win, r.n)},平均收盤 ${r.avg_ret > 0 ? '+' : ''}${r.avg_ret}%,盤中最有利 ${r.avg_fav > 0 ? '+' : ''}${r.avg_fav}%,最不利 ${r.avg_adv}%</div>` : '';
+    const bk = fs.buckets || {};
+    const bkt = ['2.5-4', '4-6', '6+'].map(k => bk[k] && bk[k].n > 0 ? `${k}倍 ${pc(bk[k].win, bk[k].n)}(${bk[k].n}筆)` : '').filter(Boolean).join('、');
+    body = side('進場(量大上漲)', fs.in) + side('出場(量大下跌)', fs.out)
+      + (bkt ? `<div>依量能倍數的方向正確率:${bkt}</div>` : '')
+      + `<div style="margin-top:4px">資料:${fs.days} 個交易日、${fs.n} 筆(方向不明 ${fs.flat ? fs.flat.n : 0} 筆未計入方向)。記錄價=名單第一次出現當下的價格,收盤價以收盤前最後一筆計。樣本少時請勿過度解讀。</div>`;
+  }
+  return `<details style="margin-top:8px"><summary style="cursor:pointer;color:var(--muted);font-size:12px">焦點成績單(過去的表現)</summary><div class="onote" style="margin-top:6px">${body}</div></details>`;
 }
 
 function renderOpening(intraday){
@@ -1382,4 +1400,5 @@ setInterval(() => loadAll({silent: true}), 60000);
 </script>
 </body>
 </html>
+
 
