@@ -33,8 +33,6 @@ jobs:
       - name: 安裝套件
         run: pip install requests
       - name: 迴圈:每5分鐘抓報價並存回repo,直到收盤
-        env:
-          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
         run: |
           git config user.name "tw-signal-scanner-bot"
           git config user.email "actions@users.noreply.github.com"
@@ -64,4 +62,5 @@ jobs:
             sleep_for=$(( gap - elapsed ))
             [ "$sleep_for" -gt 0 ] && sleep "$sleep_for"
           done
+
 
