@@ -179,6 +179,49 @@
   .lvnodata{font-size:12.5px;color:var(--muted);margin-top:8px}
   .lvhint{font-size:10.5px;color:var(--muted);margin-top:4px}
   .lvextra{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:8px;padding-top:7px;border-top:1px dashed var(--border);font-size:11px;color:var(--sec);font-variant-numeric:tabular-nums}
+  .focusbox{margin:8px 0 12px}
+  .focusbox .ohd{display:flex;justify-content:space-between;align-items:baseline;margin:10px 0 6px}
+  .focusbox .ohd b{font-size:15px}
+  .focusbox .ohd small{color:var(--muted);font-size:11px}
+  .up{color:var(--up)} .down{color:var(--down)}
+  .mood{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 12px}
+  .moodhd{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;color:var(--muted)}
+  .moodhd b{font-size:15px;color:var(--text)} .moodhd b.up{color:var(--up)} .moodhd b.down{color:var(--down)}
+  .moodbar{position:relative;height:10px;border-radius:6px;margin:8px 0 4px;background:linear-gradient(90deg,#188f63 0%,#cfd3cc 50%,#d1403f 100%)}
+  .moodmark{position:absolute;top:-4px;width:6px;height:18px;margin-left:-3px;border-radius:3px;background:var(--text);box-shadow:0 0 0 2px var(--card)}
+  .moodft{display:flex;justify-content:space-between;font-size:10px;color:var(--muted)}
+  .fcard{display:flex;gap:10px;background:var(--card);border:1px solid var(--border);border-left:5px solid #8a8780;border-radius:12px;padding:10px 12px;margin-bottom:8px;cursor:pointer}
+  .fcard.in{border-left-color:var(--up)} .fcard.out{border-left-color:var(--down)}
+  .fic{flex:none;width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;color:#fff;background:#8a8780}
+  .fic.in{background:var(--up)} .fic.out{background:var(--down)}
+  .fbody{flex:1;min-width:0}
+  .ftop{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+  .fname{font-size:15px;font-weight:700} .fname small{font-weight:400;color:var(--muted);margin-left:5px;font-size:11px}
+  .fprice{text-align:right;line-height:1.25} .fprice b{font-size:17px;display:block} .fprice span{font-size:12px;font-weight:600} .fprice span.flat{color:var(--muted)}
+  .fmid{display:flex;align-items:center;gap:8px;margin:6px 0 4px;flex-wrap:wrap}
+  .fverdict{font-size:12px;font-weight:700;color:#fff;border-radius:999px;padding:2px 10px;background:#8a8780}
+  .fverdict.in{background:var(--up)} .fverdict.out{background:var(--down)}
+  .flames{font-size:12px;letter-spacing:1px} .fl0{color:#cfcdc6;font-size:8px;letter-spacing:2px;vertical-align:middle}
+  .fx{font-size:11px;color:var(--muted)}
+  .pbar{display:flex;align-items:center;gap:6px;margin-top:6px}
+  .pbl{font-size:11px;color:var(--muted);min-width:34px;text-align:center}
+  .pbt{position:relative;flex:1;height:8px;border-radius:4px;background:linear-gradient(90deg,rgba(24,143,99,.35),#ecebe6 50%,rgba(209,64,63,.35))}
+  .pdot{position:absolute;top:-3px;width:14px;height:14px;margin-left:-7px;border-radius:50%;background:#555;border:2px solid #fff;box-shadow:0 0 0 1px #999}
+  .pdot.in{background:var(--up)} .pdot.out{background:var(--down)}
+  .pdot.hollow{background:#fff !important;border-color:currentColor}
+  .pdot.hollow.in{border-color:var(--up)} .pdot.hollow.out{border-color:var(--down)}
+  .pcap{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin:2px 40px 0}
+  .fempty{background:var(--card);border:1px dashed var(--border);border-radius:12px;padding:16px;text-align:center;color:var(--muted);font-size:13px}
+  .minimap{margin-top:10px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 12px}
+  .mmhd{font-size:11px;color:var(--muted);margin-bottom:6px}
+  .mmgrid{display:flex;flex-wrap:wrap;gap:3px}
+  .mm{display:block;width:14px;height:14px;border-radius:3px;cursor:pointer}
+  .mm.hot{box-shadow:0 0 0 2px #f2a900}
+  .howto{margin-top:6px} .howto summary{cursor:pointer;color:var(--muted);font-size:12px}
+  .lvrr{margin-top:8px}
+  .lvrr .rrbar{display:flex;height:10px;border-radius:5px;overflow:hidden;background:#ecebe6}
+  .lvrr .rrdn{background:var(--down)} .lvrr .rrup{background:var(--up)}
+  .lvrr .rrft{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:3px}
   .openbox{margin:8px 0;padding:10px 12px;border-radius:10px;border:1px solid var(--border,#e3e1da);background:var(--card,#fff);font-size:13px}
   .openbox .ohd{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:6px}
   .openbox .ohd b{font-size:14px}
@@ -775,6 +818,7 @@ function levelChips(q, isIndex){
         <div class="sub">${dSup === null ? '距現價 -' : (dSup < 0 ? '已跌破 ' + Math.abs(dSup).toFixed(2) + '%,轉為壓力觀察' : '距現價 -' + dSup.toFixed(2) + '%')}</div>
       </div>
     </div>
+    ${(dRes !== null && dSup !== null && dRes > 0 && dSup > 0) ? `<div class="lvrr"><div class="rrbar"><i class="rrdn" style="width:${dSup / (dRes + dSup) * 100}%"></i><i class="rrup" style="width:${dRes / (dRes + dSup) * 100}%"></i></div><div class="rrft"><span class="down">下行風險 -${dSup.toFixed(1)}%</span><span>損益比 ${(dRes / dSup).toFixed(1)}:1</span><span class="up">上行空間 +${dRes.toFixed(1)}%</span></div></div>` : ''}
     ${brokeNote ? `<div class="lvhint">${brokeNote}</div>` : ''}
     ${!isIndex ? levelWhy(q) : ''}`;
 }
@@ -1183,7 +1227,7 @@ function touchRows(q){
     if(fr) out += `<div class="lvextra tchrow"><span><b>壓力守住後</b></span>${fr}</div>`;
     if(fs) out += `<div class="lvextra tchrow"><span><b>支撐守住後</b></span>${fs}</div>`;
   }
-  return out ? out + `<div class="tchnote">近${t.days}個交易日。百分比=碰到線後收盤明確離開的比例,次數少時已往全體平均調整</div>` : '';
+  return out ? out + `<div class="tchnote">近${t.days}個交易日。${(pool.base && pool.base.res && pool.base.res.n > 0) ? '隨機價位對照:壓力回落 ' + Math.round(pool.base.res.rev / pool.base.res.n * 100) + '%、支撐彈開 ' + Math.round(pool.base.sup.rev / pool.base.sup.n * 100) + '%。' : ''}百分比=碰到線後收盤明確離開的比例,次數少時已往全體平均調整</div>` : '';
 }
 
 function pool_fol(side){
@@ -1192,6 +1236,52 @@ function pool_fol(side){
   return {p1: (r && r.n1 > 0) ? r.ok1 / r.n1 : 0.5, p3: (r && r.n3 > 0) ? r.ok3 / r.n3 : 0.5};
 }
 const pct2 = r => (r && r.n > 0) ? `${Math.round(r.rev / r.n * 100)}%(${r.n})` : '-';
+
+function flameCount(p){ return [1.5, 2.5, 4, 6, 8].filter(t => p >= t).length; }
+
+function focusVerdict(side, st){
+  if(side === 'in'){
+    if(st === 'breakout') return '強勢突破';
+    if(st === 'nearRes') return '衝壓力中';
+    return '放量上攻';
+  }
+  if(side === 'out'){
+    if(st === 'breakdown') return '放量跌破';
+    if(st === 'nearSup') return '測支撐中';
+    return '放量下殺';
+  }
+  if(st === 'breakout') return '量大過壓力';
+  if(st === 'breakdown') return '量大破支撐';
+  return '量大震盪';
+}
+
+function moodHtml(intraday, qs){
+  let med = intraday && intraday.market_regime ? num(intraday.market_regime.median_pct) : null;
+  if(med === null){
+    const ps = qs.map(q => num(q.pct)).filter(v => v !== null).sort((a, b) => a - b);
+    med = ps.length ? ps[Math.floor(ps.length / 2)] : null;
+  }
+  if(med === null) return '';
+  const pos = Math.max(0, Math.min(100, (med + 3) / 6 * 100));
+  const label = med <= -1 ? '偏弱' : (med >= 1 ? '偏強' : '平穩');
+  const cls = med <= -1 ? 'down' : (med >= 1 ? 'up' : '');
+  const up = qs.filter(q => num(q.pct) > 0).length, dn = qs.filter(q => num(q.pct) < 0).length;
+  return `<div class="mood">
+    <div class="moodhd"><span>自選股今日溫度</span><b class="${cls}">${label} ${fmtPct(med)}</b></div>
+    <div class="moodbar"><i class="moodmark" style="left:${pos}%"></i></div>
+    <div class="moodft"><span>-3%</span><span>紅 ${up} 檔漲 / 綠 ${dn} 檔跌</span><span>+3%</span></div>
+  </div>`;
+}
+
+function miniMapHtml(qs){
+  const list = [...qs].filter(q => num(q.last) !== null).sort((a, b) => (num(b.pct) ?? -999) - (num(a.pct) ?? -999));
+  const sq = q => {
+    const {bg} = heatColor(q.pct);
+    const hot = num(q.pace) !== null && q.pace >= 2.5;
+    return `<i class="mm${hot ? ' hot' : ''}" style="background:${bg}" title="${q.name} ${fmtPct(q.pct)}${hot ? ' 量能 ' + q.pace + '倍' : ''}" onclick="searchAndOpen('${q.code}')"></i>`;
+  };
+  return `<div class="minimap"><div class="mmhd">全部 ${list.length} 檔(由漲到跌,黃框=量能異常)</div><div class="mmgrid">${list.map(sq).join('')}</div></div>`;
+}
 
 function renderFocus(intraday){
   const el = document.getElementById('focusBox');
@@ -1213,31 +1303,39 @@ function renderFocus(intraday){
     if(!hot && !edge) continue;
     const pct = num(q.pct);
     const side = (pct === null || Math.abs(pct) < 0.5) ? 'flat' : (pct > 0 ? 'in' : 'out');
-    const bits = [`量能 ${p.toFixed(1)}倍`];
-    if(lv){
-      const kl = lv.kl;
-      if(st === 'breakout') bits.push(`已突破壓力 ${fmtNum(lv.res)}`);
-      else if(st === 'breakdown') bits.push(`已跌破支撐 ${fmtNum(lv.sup)}`);
-      else if(st === 'nearRes') bits.push(`逼近壓力 ${fmtNum(lv.res)}(差${lv.dRes.toFixed(1)}%)`);
-      else if(st === 'nearSup') bits.push(`逼近支撐 ${fmtNum(lv.sup)}(差${lv.dSup.toFixed(1)}%)`);
-    }
-    cands.push({q, side, p, pct, bits, score: Math.min(p, 10) + lvBonus + (Math.abs(pct || 0) >= 3 ? 1 : 0)});
+    cands.push({q, lv, st, side, p, pct, score: Math.min(p, 10) + lvBonus + (Math.abs(pct || 0) >= 3 ? 1 : 0)});
   }
   cands.sort((a, b) => b.score - a.score);
   const top = cands.slice(0, 5);
   const t = intraday && intraday.checked_at ? fmtTime(intraday.checked_at) : '';
-  const tagTxt = {in:'進場', out:'出場', flat:'震盪'};
-  const row = c => `<div class="orow" onclick="searchAndOpen('${c.q.code}')">
-      <span class="tag ${c.side}">${tagTxt[c.side]}</span>
-      <span class="nm">${c.p >= 6 ? '🔥' : ''}${c.q.name}<small>${c.q.code}</small><div style="font-size:11px;color:var(--muted)">${c.bits.join(',')}</div></span>
-      <span class="rt"><b>${fmtNum(c.q.last)}</b><br>${c.pct === null ? '-' : fmtPct(c.pct)}</span>
-    </div>`;
   const live = oa && oa.active;
-  el.className = 'openbox' + (top.length ? ' live' : '');
-  el.innerHTML = `<div class="ohd"><b>今日焦點${live ? '(開盤爆量中)' : ''}</b><small>${t ? t + ' 更新' : ''}</small></div>`
-    + (top.length ? top.map(row).join('') : `<div style="color:var(--muted)">目前沒有量能異常的標的。${live ? '' : '盤中每5分鐘更新。'}</div>`)
-    + `<div class="onote">只列「量能明顯高於平常」或「量大且貼近/突破關鍵價位」的自選股,最多5檔,由強到弱。進場=量大且上漲,出場=量大且下跌(推測)。這是觀察清單,不是買賣建議。</div>`;
-  el.innerHTML += focusStatsHtml(intraday && intraday.focus_stats);
+  const icon = {in:'▲', out:'▼', flat:'◆'};
+  const card = c => {
+    const n = flameCount(c.p);
+    const flames = '🔥'.repeat(n) + '<span class="fl0">' + '●'.repeat(5 - n) + '</span>';
+    let bar = '';
+    if(c.lv){
+      const pos = Math.max(0, Math.min(100, (c.q.last - c.lv.sup) / (c.lv.res - c.lv.sup) * 100));
+      const out = c.st === 'breakout' || c.st === 'breakdown';
+      bar = `<div class="pbar"><div class="pbl">${fmtNum(c.lv.sup)}</div><div class="pbt"><i class="pdot ${out ? 'hollow' : ''} ${c.side}" style="left:${pos}%"></i></div><div class="pbl">${fmtNum(c.lv.res)}</div></div>
+             <div class="pcap"><span>支撐</span><span>${c.st === 'breakout' ? '已突破壓力' : (c.st === 'breakdown' ? '已跌破支撐' : '現價位置')}</span><span>壓力</span></div>`;
+    }
+    return `<div class="fcard ${c.side}" onclick="searchAndOpen('${c.q.code}')">
+      <div class="fic ${c.side}">${icon[c.side]}</div>
+      <div class="fbody">
+        <div class="ftop"><div class="fname">${c.q.name}<small>${c.q.code}</small></div><div class="fprice"><b>${fmtNum(c.q.last)}</b><span class="${c.side}">${c.pct === null ? '-' : fmtPct(c.pct)}</span></div></div>
+        <div class="fmid"><span class="fverdict ${c.side}">${focusVerdict(c.side, c.st)}</span><span class="flames" title="量能 ${c.p.toFixed(1)} 倍">${flames}</span><span class="fx">${c.p.toFixed(1)}倍</span></div>
+        ${bar}
+      </div>
+    </div>`;
+  };
+  el.className = 'focusbox';
+  el.innerHTML = moodHtml(intraday, qs)
+    + `<div class="ohd"><b>今日焦點${live ? '(開盤爆量中)' : ''}</b><small>${t ? t + ' 更新' : ''}</small></div>`
+    + (top.length ? top.map(card).join('') : `<div class="fempty">目前沒有量能異常的標的</div>`)
+    + miniMapHtml(qs)
+    + `<details class="howto"><summary>怎麼看這些圖示</summary><div class="onote">▲紅=量大且上漲(疑似進場),▼綠=量大且下跌(疑似出場),◆灰=量大但漲跌小。🔥越多代表量能比平常越大(5格=約8倍以上)。橫條是現價在「支撐到壓力」之間的位置,圓點空心代表已經超出範圍。標籤是依漲跌推測,成交量本身分不出買方賣方。這是觀察清單,不是買賣建議。</div></details>`
+    + focusStatsHtml(intraday && intraday.focus_stats);
   el.style.display = '';
 }
 
@@ -1305,6 +1403,23 @@ function renderTouchNote(intraday){
   let h = `<b>回測統計</b>(自選${s.stocks}檔、近${s.days}個交易日,全部加總)<br>`
     + `壓力線碰到後明確回落:CDP ${pct(s.cdp.res)}、5日高 ${pct(s.sw5.res)}、20日高 ${pct(s.sw20.res)}。`
     + `支撐線碰到後明確彈開:CDP ${pct(s.cdp.sup)}、5日低 ${pct(s.sw5.sup)}、20日低 ${pct(s.sw20.sup)}。`;
+  if(s.base && s.base.res && s.base.sup && s.base.res.n > 0){
+    const d = (a, b) => (a && a.n > 0 && b && b.n > 0) ? Math.round((a.rev / a.n - b.rev / b.n) * 100) : null;
+    const sg = v => v === null ? '-' : (v > 0 ? '+' + v : String(v));
+    const items = [['CDP', s.cdp], ['5日', s.sw5], ['20日', s.sw20]];
+    const rs = items.map(([n, x]) => `${n} ${sg(d(x && x.res, s.base.res))}`).join('、');
+    const ss = items.map(([n, x]) => `${n} ${sg(d(x && x.sup, s.base.sup))}`).join('、');
+    const all = items.flatMap(([n, x]) => [d(x && x.res, s.base.res), d(x && x.sup, s.base.sup)]).filter(v => v !== null);
+    const off = [];
+    items.forEach(([n, x]) => {
+      const a1 = d(x && x.res, s.base.res), a2 = d(x && x.sup, s.base.sup);
+      if(a1 !== null && Math.abs(a1) >= 4) off.push(`壓力${n} ${sg(a1)}`);
+      if(a2 !== null && Math.abs(a2) >= 4) off.push(`支撐${n} ${sg(a2)}`);
+    });
+    h += `<br><b>對照組(隨機價位)</b>:壓力回落 ${pct(s.base.res)}、支撐彈開 ${pct(s.base.sup)}。與對照組的差(百分點,正=比隨機好):壓力 ${rs};支撐 ${ss}。`
+      + (off.length ? `<br>明顯偏離隨機的只有:${off.join('、')}(負=比隨機還差,例如跌到近20日低點後,反而更容易繼續跌破)。其餘和隨機價位差不多。` : `<br>差距都在4個百分點內,和隨機價位差不多。`)
+      + `<br>所以碰線後回彈主要是股價本來就會來回震盪,這些線請當「風險參考線」用(跌破就認錯、看損益比),不要當成預測回彈的依據。`;
+  }
   if(s.c2 && s.c1){
     h += `<br><b>線疊加</b>:多類線疊在一起的區域,壓力回落 ${pct(s.c2.res)}、支撐彈開 ${pct(s.c2.sup)};單一線則是 ${pct(s.c1.res)}、${pct(s.c1.sup)}。`;
   }
@@ -1400,5 +1515,6 @@ setInterval(() => loadAll({silent: true}), 60000);
 </script>
 </body>
 </html>
+
 
 
