@@ -113,6 +113,8 @@ TIMEOUT = 20
 DATA_DIR = "data"
 OUT_FILE = os.path.join(DATA_DIR, "intraday_latest.json")
 HISTORY_FILE = os.path.join(DATA_DIR, "intraday_history.json")
+CURVE_FILE = os.path.join(DATA_DIR, "volume_curve.json")     # 每檔每天的「累積量占全天量比例」曲線(越累積越準)
+FOCUS_FILE = os.path.join(DATA_DIR, "focus_log.json")       # 焦點成績單:每天哪些標的達標、之後表現如何
 ALERTS_CONFIG_FILE = os.path.join(DATA_DIR, "alerts.json")
 ALERTS_STATE_FILE = os.path.join(DATA_DIR, "alerts_state.json")
 DAILY_HLC_FILE = os.path.join(DATA_DIR, "daily_hlc.json")  # v4的舊檔,只用來搬資料,之後不再寫入
@@ -284,6 +286,201 @@ def curve_frac(m):
     return 1.0
 
 
+CURVE_GRID = [1, 5, 10, 15, 20, 30, 45, 60, 90, 120, 180, 240, 270]   # 開盤後第幾分鐘
+CURVE_KEEP_DAYS = 15
+CURVE_MIN_DAYS = 5          # 單檔至少累積幾天才開始採用自己的曲線
+CURVE_SHRINK_N = 5          # 採用比例 = n/(n+5);天數越多越信自己的曲線
+FOCUS_LOG_PACE = 2.5        # 量能倍數>=2.5 才記進成績單
+FOCUS_KEEP_DAYS = 60
+
+
+def _interp(points, m):
+    """points=[(minute, value)] 由小到大;線性內插,超出範圍取端點。"""
+    if m <= points[0][0]:
+        return points[0][1]
+    for (m0, v0), (m1, v1) in zip(points, points[1:]):
+        if m <= m1:
+            return v0 + (v1 - v0) * (m - m0) / (m1 - m0) if m1 > m0 else v1
+    return points[-1][1]
+
+
+def _median(vals):
+    vs = sorted(vals)
+    n = len(vs)
+    return vs[n // 2] if n % 2 else (vs[n // 2 - 1] + vs[n // 2]) / 2
+
+
+def load_curves():
+    """回傳 (每檔曲線字典, 全體合併曲線)。合併曲線用所有股票所有天的中位數,資料不夠(<100筆)就是 None,改用內建估計曲線。"""
+    data = load_json_safe(CURVE_FILE, {}) or {}
+    per = {}
+    for _d, day in (data.get("days") or {}).items():
+        for code, fr in day.items():
+            if isinstance(fr, list) and len(fr) == len(CURVE_GRID):
+                per.setdefault(code, []).append(fr)
+    pooled = None
+    allv = [fr for lst in per.values() for fr in lst]
+    if len(allv) >= 100:
+        pooled = [_median([fr[i] for fr in allv]) for i in range(len(CURVE_GRID))]
+        for i in range(1, len(pooled)):
+            pooled[i] = max(pooled[i], pooled[i - 1])
+    return per, pooled
+
+
+def frac_for(code, m, per, pooled):
+    m = min(m, 270)
+    if pooled:
+        gen = _interp([(0, 0.0)] + list(zip(CURVE_GRID, pooled)), m)
+    else:
+        gen = curve_frac(m)
+    lst = (per or {}).get(code) or []
+    if len(lst) >= CURVE_MIN_DAYS:
+        med = [_median([fr[i] for fr in lst]) for i in range(len(CURVE_GRID))]
+        for i in range(1, len(med)):
+            med[i] = max(med[i], med[i - 1])
+        mine = _interp([(0, 0.0)] + list(zip(CURVE_GRID, med)), m)
+        n = len(lst)
+        return max(0.003, (n * mine + CURVE_SHRINK_N * gen) / (n + CURVE_SHRINK_N))
+    return max(0.003, gen)
+
+
+def _minute_of(iso, day_start):
+    try:
+        return (datetime.fromisoformat(iso) - day_start).total_seconds() / 60
+    except (ValueError, TypeError):
+        return None
+
+
+def _day_start(run_time):
+    return run_time.replace(hour=9, minute=0, second=0, microsecond=0)
+
+
+def record_focus(run_time, watchlist_out):
+    """盤中每一輪:量能倍數>=FOCUS_LOG_PACE 的標的,當天第一次出現就記下時間、價格、方向。"""
+    today = run_time.strftime("%Y-%m-%d")
+    m = (run_time - _day_start(run_time)).total_seconds() / 60
+    if not (2 < m <= 271):
+        return
+    log = load_json_safe(FOCUS_FILE, {}) or {}
+    days = log.setdefault("days", {})
+    day = days.setdefault(today, {"picks": {}, "evaluated": False})
+    if day.get("evaluated"):
+        return
+    changed = False
+    for q in watchlist_out:
+        pace, last = q.get("pace"), q.get("last")
+        if not (_num_ok(pace) and _num_ok(last)) or pace < FOCUS_LOG_PACE or q["code"] in day["picks"]:
+            continue
+        pct = q.get("pct")
+        side = "flat" if (not _num_ok(pct) or abs(pct) < 0.5) else ("in" if pct > 0 else "out")
+        day["picks"][q["code"]] = {"name": q.get("name"), "t": run_time.isoformat(), "price": last, "pct": pct,
+                                   "pace": pace, "side": side}
+        changed = True
+    if changed:
+        for d in sorted(days)[:-FOCUS_KEEP_DAYS]:
+            days.pop(d, None)
+        write_json_atomic(FOCUS_FILE, log, separators=(",", ":"))
+
+
+def process_end_of_day(run_time):
+    """13:31 之後第一輪(歷史檔已含收盤前最後一筆):
+    1) 把今天每檔的累積量曲線存進 volume_curve.json;2) 評估今天焦點名單收盤時的結果。"""
+    today = run_time.strftime("%Y-%m-%d")
+    ds = _day_start(run_time)
+    m_now = (run_time - ds).total_seconds() / 60
+    if m_now < 271:
+        return
+    hist = load_json_safe(HISTORY_FILE, {}) or {}
+    if hist.get("date") != today:
+        return
+    pts = []
+    for p in hist.get("points") or []:
+        mm = _minute_of(p.get("t"), ds)
+        if mm is not None and p.get("wlv"):
+            pts.append((mm, p))
+    if len(pts) < 20 or pts[-1][0] < 268:
+        return
+    # 1) 量能曲線
+    cur = load_json_safe(CURVE_FILE, {}) or {}
+    days = cur.setdefault("days", {})
+    if today not in days:
+        day = {}
+        codes = set()
+        for _m, p in pts:
+            codes.update(p["wlv"].keys())
+        for code in codes:
+            series = [(mm, p["wlv"][code]) for mm, p in pts if _num_ok(p["wlv"].get(code))]
+            if len(series) < 20:
+                continue
+            final = series[-1][1]
+            if final < OPEN_MIN_VOL:
+                continue
+            xs = [(0.0, 0.0)] + [(mm, v) for mm, v in series]
+            day[code] = [round(min(1.0, _interp(xs, g) / final), 4) for g in CURVE_GRID]
+        days[today] = day
+        for d in sorted(days)[:-CURVE_KEEP_DAYS]:
+            days.pop(d, None)
+        write_json_atomic(CURVE_FILE, cur, separators=(",", ":"))
+    # 2) 焦點成績單
+    log = load_json_safe(FOCUS_FILE, {}) or {}
+    d = (log.get("days") or {}).get(today)
+    if d and not d.get("evaluated"):
+        for code, pk in d["picks"].items():
+            t0 = _minute_of(pk["t"], ds)
+            prices = [(mm, p["wl"][code]) for mm, p in pts if t0 is not None and mm >= t0 and _num_ok((p.get("wl") or {}).get(code))]
+            if len(prices) < 2:
+                continue
+            first = pk["price"]
+            close = prices[-1][1]
+            up = max((v - first) / first * 100 for _m, v in prices)
+            dn = min((v - first) / first * 100 for _m, v in prices)
+            pk["ret"] = round((close - first) / first * 100, 2)
+            pk["up"] = round(up, 2)
+            pk["dn"] = round(dn, 2)
+        d["evaluated"] = True
+        write_json_atomic(FOCUS_FILE, log, separators=(",", ":"))
+
+
+def focus_stats():
+    """彙總焦點成績單:依方向、依量能倍數分組。進場=收盤高於記錄價算對,出場=收盤低於記錄價算對。"""
+    log = load_json_safe(FOCUS_FILE, {}) or {}
+    ev_days = [d for d, v in (log.get("days") or {}).items() if v.get("evaluated")]
+    rows = []
+    for d in ev_days:
+        for code, pk in log["days"][d]["picks"].items():
+            if "ret" in pk:
+                rows.append(pk)
+
+    def agg(rs, side):
+        if not rs:
+            return {"n": 0}
+        n = len(rs)
+        if side == "in":
+            win = sum(1 for r in rs if r["ret"] > 0)
+            fav = [r["up"] for r in rs]
+            adv = [r["dn"] for r in rs]
+            rets = [r["ret"] for r in rs]
+        else:
+            win = sum(1 for r in rs if r["ret"] < 0)
+            fav = [-r["dn"] for r in rs]
+            adv = [-r["up"] for r in rs]
+            rets = [-r["ret"] for r in rs]
+        return {"n": n, "win": win, "avg_ret": round(sum(rets) / n, 2), "avg_fav": round(sum(fav) / n, 2),
+                "avg_adv": round(sum(adv) / n, 2)}
+
+    out = {"days": len(ev_days), "n": len(rows)}
+    for side in ("in", "out"):
+        out[side] = agg([r for r in rows if r["side"] == side], side)
+    out["flat"] = {"n": sum(1 for r in rows if r["side"] == "flat")}
+    buckets = {}
+    for nm, lo, hi in (("2.5-4", 2.5, 4), ("4-6", 4, 6), ("6+", 6, 1e9)):
+        sub = [r for r in rows if r["side"] in ("in", "out") and lo <= r["pace"] < hi]
+        win = sum(1 for r in sub if (r["ret"] > 0 if r["side"] == "in" else r["ret"] < 0))
+        buckets[nm] = {"n": len(sub), "win": win}
+    out["buckets"] = buckets
+    return out
+
+
 def _avg_daily_volume(official_bars, code, today):
     bars = [b for b in (official_bars.get(code) or []) if b.get("d") and b["d"] < today and _num_ok(b.get("v")) and b["v"] > 0]
     bars = bars[-OPEN_AVG_DAYS:]
@@ -310,6 +507,7 @@ def compute_opening_alerts(run_time, watchlist_out, official):
         state = {}
     m = (run_time - run_time.replace(hour=9, minute=0, second=0, microsecond=0)).total_seconds() / 60
     active = OPENING_START_MIN < m <= OPENING_END_MIN
+    curves_per, curves_pooled = load_curves()
     # 全天量能倍數:每一檔都算(網頁「今日焦點」用),不只開盤半小時
     if m > 2:
         _bars_all = (official or {}).get("bars") or {}
@@ -317,7 +515,7 @@ def compute_opening_alerts(run_time, watchlist_out, official):
             vol_ = q.get("volume")
             avg_ = _avg_daily_volume(_bars_all, q["code"], today)
             if _num_ok(vol_) and vol_ >= OPEN_MIN_VOL and avg_:
-                q["pace"] = round(vol_ / (avg_ * curve_frac(min(m, 270))), 2)
+                q["pace"] = round(vol_ / (avg_ * frac_for(q["code"], m, curves_per, curves_pooled)), 2)
     if active:
         bars = (official or {}).get("bars") or {}
         pm = None
@@ -332,7 +530,7 @@ def compute_opening_alerts(run_time, watchlist_out, official):
             if not _num_ok(vol) or vol < OPEN_MIN_VOL:
                 continue
             avg = _avg_daily_volume(bars, code, today)
-            exp = (avg * curve_frac(m)) if avg else None
+            exp = (avg * frac_for(code, m, curves_per, curves_pooled)) if avg else None
             if not exp:
                 continue
             pace = vol / exp
@@ -340,7 +538,7 @@ def compute_opening_alerts(run_time, watchlist_out, official):
             if prev_pt and pm is not None and pm >= 0 and m - pm >= 2:
                 pv = (prev_pt.get("wlv") or {}).get(code)
                 if _num_ok(pv) and vol >= pv:
-                    e5 = avg * (curve_frac(m) - curve_frac(pm))
+                    e5 = avg * (frac_for(code, m, curves_per, curves_pooled) - frac_for(code, pm, curves_per, curves_pooled))
                     burst = (vol - pv) / e5 if e5 > 0 else None
             pct = q.get("pct")
             cur = {"pace": round(pace, 2), "burst": round(burst, 2) if burst is not None else None}
@@ -1331,6 +1529,7 @@ def main():
     result = {
         "checked_at": run_time.isoformat(),
         "opening_alerts": opening_out,
+        "focus_stats": None,
         "data_as_of": data_as_of,
         "check_frequency_note": "開盤期間每約5分鐘由GitHub Actions排程抓一次,非逐秒即時報價",
         "official_bars_status": (official or {}).get("status"),
@@ -1344,6 +1543,13 @@ def main():
     write_json_atomic(OUT_FILE, result, separators=(",", ":"))
 
     update_history(run_time, indices_out, watchlist_out, opening_state)
+    try:
+        record_focus(run_time, watchlist_out)
+        process_end_of_day(run_time)
+        result["focus_stats"] = focus_stats()
+        write_json_atomic(OUT_FILE, result, separators=(",", ":"))
+    except Exception as e:  # noqa: BLE001  成績單/曲線是加分功能,不能影響報價
+        print(f"[警告] 成績單或量能曲線處理失敗: {e}")
     if ALERTS_ENABLED:
         check_and_send_alerts(run_time, watchlist_out)
 
@@ -1352,4 +1558,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
