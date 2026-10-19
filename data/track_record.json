@@ -398,5 +398,53 @@
     "overnight_return_pct": 0.0,
     "day_high_return_pct": 3.62,
     "close_return_pct": 2.29
+  },
+  {
+    "signal_date": "2026-10-16",
+    "checked_date": "2026-10-19",
+    "code": "2610",
+    "name": "華航",
+    "signal_status": "訊號成立",
+    "tech_score": 4.5,
+    "signal_close": 21.05,
+    "next_open": 20.95,
+    "next_high": 21.0,
+    "next_low": 20.55,
+    "next_close": 20.55,
+    "overnight_return_pct": -0.48,
+    "day_high_return_pct": -0.24,
+    "close_return_pct": -2.38
+  },
+  {
+    "signal_date": "2026-10-16",
+    "checked_date": "2026-10-19",
+    "code": "2313",
+    "name": "華通",
+    "signal_status": "放量觀察",
+    "tech_score": 3.8,
+    "signal_close": 248.0,
+    "next_open": 239.0,
+    "next_high": 252.0,
+    "next_low": 237.0,
+    "next_close": 248.0,
+    "overnight_return_pct": -3.63,
+    "day_high_return_pct": 1.61,
+    "close_return_pct": 0.0
+  },
+  {
+    "signal_date": "2026-10-16",
+    "checked_date": "2026-10-19",
+    "code": "5880",
+    "name": "合庫金",
+    "signal_status": "放量觀察",
+    "tech_score": 3.8,
+    "signal_close": 28.15,
+    "next_open": 28.0,
+    "next_high": 28.25,
+    "next_low": 27.8,
+    "next_close": 28.05,
+    "overnight_return_pct": -0.53,
+    "day_high_return_pct": 0.36,
+    "close_return_pct": -0.36
   }
 ]
