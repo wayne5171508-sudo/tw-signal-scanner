@@ -1,109 +1,33 @@
 #!/usr/bin/env python3
 """
-爆量雷達 - 盤中即時報價擷取
+爆量雷達 - 盤中資料擷取(GitHub Actions 開盤期間每 3~5 分鐘跑一次)
 
-直接呼叫 cnyes(鉅亨網)的公開報價 JSON API,抓大盤指數 + 自選股即時成交價,
-寫成 data/intraday_latest.json,交給 index.html(GitHub Pages)顯示。
+資料來源:鉅亨網(cnyes)公開 JSON API。直接用 Python 打 API,不透過會讀網頁摘要的工具。
+產出(都放在 data/,由 index.html 在 GitHub Pages 顯示):
+- intraday_latest.json   最新報價、CDP/波段高低、觸及回測、量能倍數、開盤爆量、焦點成績單
+- intraday_history.json  今天每個時間點的價格與累積成交量(畫走勢小圖、算量能曲線用,隔天重置)
+- daily_official.json    每檔近 260 根正式日K(逐檔追蹤,收盤後 13:32 起再整批重抓一次)
+- daily_bars.json        用報價滾動累積的近似日K(正式日K抓不到時的備援)
+- volume_curve.json      每檔每天「累積量占全天量」曲線,累積 5 天後取代內建估計曲線
+- focus_log.json         焦點成績單:量能達標的標的與收盤時的表現
 
-跟 scan.py 的分工:
-- scan.py:每天收盤後,抓 TWSE 官方資料算三大法人買賣超、技術訊號(全部是
-  「收盤後」才看得到的資料)。
-- intraday.py(這支):開盤期間每隔一段時間抓一次「現在的成交價」,
-  給你隨時打開網頁就能看目前大盤跟自選股的即時報價,不是收盤資料。
+主要計算:
+- CDP 壓力/支撐:CDP=(高+低+2*收)/4,近高 NH=2*CDP-低,近低 NL=2*CDP-高,用前一個交易日
+  的正式日K。前一日振幅太小(漲跌停鎖死;ETF 另訂較低門檻)視為不可靠,改用 5 日高低。
+- 波段高低(5/10/20日)、均線、量能密集區、疊加區(不同類的線落在同一區)。
+- 觸及回測:逐日只用當時看得到的資料,統計碰到線後收盤明確離開的比例;
+  另外算「隨機價位」對照組、碰線後隔天與第3天、放量與大盤強弱的分組。
+- 量能倍數 = 累積量 / (近20日日成交量中位數 x 此時間點一般已成交比例)。
+- 非交易日判斷:報價自己的最新成交時間不是今天,整輪略過、不覆蓋上一個交易日的資料。
 
-這支程式刻意不透過 Claude 的 WebFetch 去讀網頁,而是用 Python 直接打 API、
-解析真正的 JSON——WebFetch 是用小模型讀網頁摘要,資料量大或重複抓同一個
-網址時曾經抓到過期的快取資料,直接打 API 沒有這個問題。
-
-v2新增:順便維護 data/intraday_history.json,把每次抓到的價格疊加進去(只留當天的點、
-最多留60筆),讓網頁可以畫出「今天到目前為止」的走勢小圖,不只是單一時間點的數字。
-
-v3新增(觸價通知):
-- 自動比對每檔自選股現價相對「昨收」是否剛好跨過(由上轉下、由下轉上),以及有沒有碰到
-  漲停/跌停,一天一檔只通知一次,寫在 data/alerts_state.json 裡避免重複推播。
-- 讀 data/alerts.json 裡阿文自己設定的「某檔股票到某個價位通知我」,碰到一樣一天只推一次。
-- 有新觸發就寄一封信到阿文的Gmail(用GitHub Actions secret裡的App密碼登入,沒設定就跳過
-  寄信但不會讓整個排程失敗)。
-
-v4新增(CDP壓力/支撐,取代原本誤用的今日高低/漲跌停):
-- 原本網頁把「壓力位/支撐位」寫成漲停/跌停價,但台股正常股票每天都有漲跌停價,等於每天
-  都釘死在同一個位置,沒有參考意義,是設計錯誤。查過實際的技術分析定義後,改用股市常見的
-  CDP逆勢操作系統(定點轉向):用「前一個交易日」的最高/最低/收盤價算出一個樞紐價(CDP),
-  再算出近高值(NH,當壓力參考)、近低值(NL,當支撐參考)。這個算法在台股看盤軟體(例如
-  三竹股市)很常見,是真的有人在用的公式,不是我自己發明的。
-- 這支程式本來就每天開盤期間重複抓同一批股票的「今日高/今日低/成交價」,所以不用額外呼叫
-  證交所的歷史資料API,直接把每天最後一次抓到的高低收,存成 data/daily_hlc.json 當「明天
-  算CDP要用的昨天資料」,隔天換日期時自動把這份存檔內容轉正式變成「昨天」,重新開始累積
-  「今天」。好處是不必再去區分一檔股票是上市(TWSE)還是上櫃(TPEX)、不用多接一個官方API,
-  壞處是剛上線的第一個交易日還沒有「昨天」資料可以算,那天網頁會先顯示今日高/今日低當替代,
-  從第二個交易日開始才會自動換成CDP。
-- CDP公式:CDP=(昨高+昨低+2*昨收)/4;近高值NH=2*CDP-昨低;近低值NL=2*CDP-昨高;
-  最高值AH=CDP+(昨高-昨低);最低值AL=CDP-(昨高-昨低)。
-
-v5新增(把v4的「前一天」擴充成「最近N個交易日」的滾動歷史,一次解決三件事):
-- data/daily_hlc.json(只存前一天)換成 data/daily_bars.json(存最近10個交易日的高低收量),
-  程式會自動把舊檔案的資料搬過來,不會把v4那天已經抓到的資料丟掉。
-- 量能倍率(全部50檔自選股,不只scan.py那20檔候選股):今日成交量 / 最近5個交易日平均量,
-  資料不足3天時回傳null,讓網頁知道還在累積中,不會顯示一個假的倍率。
-- 壓力/支撐多日趨勢:用歷史裡每一天搭配「它的前一天」,回推出最近幾天「當時」的CDP近高/
-  近低值,串成一條小時間序列,讓網頁可以畫出「壓力是不是越墊越高、支撐是不是越墊越低」這種
-  短線偏多/偏空的味道,一樣是機械式算出來的,不是預測。
-
-v6新增(職業操盤手複檢抓出的兩個資料正確性問題,加抓取韌性):
-- 國定假日/颱風假等「週一到週五但沒開盤」的日子,排程還是會跑,但cnyes會回傳一整天沒變化
-  的「死數字」(成交量是0、最高=最低=昨收)。這種假資料如果照樣疊進歷史,會讓CDP滾動歷史
-  多一天「高低收都一樣」的假交易日,隔天算出來的壓力/支撐會跟著算錯;也會讓觸價通知的
-  「昨收跨越方向」記錄被洗成「平盤」,隔天真的開盤時誤判成一次假的「跨越」而發錯通知。
-  新增 _is_real_trading_day() 判斷「今天這批資料看起來像不像真的有在交易」,不像的話:
-  不把這天寫進 daily_bars 的歷史、也不更新觸價通知的跨越方向記錄,等於當作沒抓到一樣跳過,
-  不會汙染任何一份長期累積的資料。
-- fetch_quotes() 加簡單重試(最多3次、間隔遞增),單純網路瞬斷不會讓整次排程直接失敗、
-  漏掉一個資料點;真的連續失敗才會讓這次執行失敗(GitHub Actions會顯示紅叉),這是刻意的,
-  因為「完全抓不到資料」時寧可讓這次排程明顯失敗,也不要默默寫出一份空的/半套資料蓋掉舊檔。
-
-v7新增(個股K線圖要用的成交量):
-- data/intraday_history.json 每個時間點除了原本的成交價(wl),多存一份「當下累積成交量」
-  (wlv)。網頁端用「這一點的量 - 上一點的量」算出每個5分鐘區間自己的成交量,疊成K線圖下方
-  的量能長條圖。免費報價源沒有逐筆K棒資料,網頁是用每5分鐘一次的收盤價堆疊出近似K棒(開盤
-  價=上一次的價,收盤價=這一次的價,沒有真正的分鐘內最高最低),圖上有誠實標註這件事。
-
-v8新增(讓支撐壓力更可靠,三件事):
-- 正式日K:每天第一次執行時,向cnyes的日K歷史API抓50檔最近約40天的開高低收量,存成
-  data/daily_official.json(含status欄位,記錄成功/失敗幾檔)。「前一個交易日的高低收」優先用
-  這份完整日K,不再只靠排程最後一次抓到的記錄。抓不到或資料對不上昨收(差超過3%)就自動退回
-  舊的 daily_bars 記錄,頁面照常運作,不會壞。
-- 波段高低:用最近5日、10日(不含今天)的最高/最低價,存在每檔的 swing 欄位。前一天鎖漲停/
-  跌停或波動極小時,CDP的壓力支撐會縮成很窄一條失去參考價值,波段高低不受單日影響。
-- CDP可靠度:cdp.reliability = "low" 代表前一日振幅小於1.5%(多為漲跌停鎖死),網頁會改用
-  5日高低當主要壓力支撐,並標註原因。
-
-v9新增(獨立審查後的修正,共9項):
-- 非交易日判斷改看報價自己的時間戳:加權指數/櫃買/自選股的最新成交時間不是「今天」,就整輪略過,
-  不寫入歷史、不發觸價通知。(原本的「成交量是0」判斷對cnyes無效,它假日會回傳前一天的完整數字,
-  實際造成 10/03(六)、10/09(補假) 被當成交易日存進 daily_bars。)載入時會自動清掉這類重複日。
-- 正式日K驗證加嚴:收盤價必須跟今天報價的「昨收」幾乎一致(差0.3%或0.05元以內),日期不能超過7天前,
-  否則視為對不上,改用舊記錄。
-- 正式日K改成逐檔追蹤:今天沒抓成功的檔,同一天會再補抓,不會因為有一檔成功就整天不重試。
-- 檔案改成先寫暫存檔再覆蓋(原子寫入),中途中斷不會把歷史資料寫壞;不再因為 daily_bars 壞掉
-  就退回v4舊檔把10天歷史洗成1天;NaN一律轉成null,不會讓網頁整個讀不出來。
-- CDP可靠度改成講原因:limit_lock(昨日收在漲跌停且振幅小)、narrow_range(振幅小於1.5%)、
-  basis_mismatch(備用記錄的收盤跟昨收對不上),網頁會依原因顯示正確文字。
-- 新增 20日高低、5/10/20/60日均線、5日平均振幅(adr5,給網頁算「接近」的距離用)。
-- CDP走勢改用正式日K算,跟今天的CDP同一個資料來源,不再前後打架。
-
-用法:
-    python intraday.py
-    (會自動寫到 data/intraday_latest.json、data/intraday_history.json、
-     data/alerts_state.json、data/daily_bars.json)
+用法:python intraday.py
 """
 
 import json
 import os
 import random
-import smtplib
 import time
 from datetime import datetime
-from email.mime.text import MIMEText
 from zoneinfo import ZoneInfo
 
 import requests
@@ -116,9 +40,6 @@ OUT_FILE = os.path.join(DATA_DIR, "intraday_latest.json")
 HISTORY_FILE = os.path.join(DATA_DIR, "intraday_history.json")
 CURVE_FILE = os.path.join(DATA_DIR, "volume_curve.json")     # 每檔每天的「累積量占全天量比例」曲線(越累積越準)
 FOCUS_FILE = os.path.join(DATA_DIR, "focus_log.json")       # 焦點成績單:每天哪些標的達標、之後表現如何
-ALERTS_CONFIG_FILE = os.path.join(DATA_DIR, "alerts.json")
-ALERTS_STATE_FILE = os.path.join(DATA_DIR, "alerts_state.json")
-DAILY_HLC_FILE = os.path.join(DATA_DIR, "daily_hlc.json")  # v4的舊檔,只用來搬資料,之後不再寫入
 DAILY_BARS_FILE = os.path.join(DATA_DIR, "daily_bars.json")
 DAILY_OFFICIAL_FILE = os.path.join(DATA_DIR, "daily_official.json")
 CNYES_HISTORY_URL = "https://ws.api.cnyes.com/ws/api/v1/charting/history"
@@ -138,10 +59,6 @@ MAX_HISTORY_DAYS = 10
 VOLUME_LOOKBACK_DAYS = 5
 CDP_TREND_POINTS = 6  # 趨勢最多顯示幾個點(含今天)
 
-ALERT_EMAIL_TO = "wayne5171508@gmail.com"
-ALERT_EMAIL_FROM = "wayne5171508@gmail.com"
-GMAIL_APP_PASSWORD_ENV = "GMAIL_APP_PASSWORD"
-ALERTS_ENABLED = False   # 觸價提醒信:阿文決定關閉(盤中直接看網頁)。要重新開啟改成 True
 
 CNYES_QUOTE_URL = "https://ws.api.cnyes.com/ws/api/v1/quote/quotes/{codes}"
 
@@ -620,14 +537,6 @@ def _is_real_trading_day(bars):
     return False
 
 
-def _looks_like_trading_session(watchlist_out):
-    """判斷這次抓到的「這一次」報價看起來像不像真的在交易中(用來擋掉觸價通知誤判)。
-    50檔自選股裡只要有10檔以上這次有成交量,就當作真的在交易;假日/非交易時段抓到的
-    通常會是全部掛零或極少數有量,不會誤擋到正常開盤時間。"""
-    traded = sum(1 for q in watchlist_out if q.get("volume"))
-    return traded >= 10
-
-
 def _dedupe_days(days):
     """days新到舊。若某一天跟「比它更舊的那一天」在90%以上的股票上高低收完全相同,
     代表那天其實沒開盤(cnyes假日會回傳前一天的完整數字),把這個假日移除。"""
@@ -664,12 +573,7 @@ def update_daily_bars(run_time, watchlist_out):
         raise RuntimeError("data/daily_bars.json 存在但無法解析,中止以保護歷史資料")
 
     if stored is None:
-        # 第一次換成這個新格式:把v4那支舊檔 data/daily_hlc.json 的資料搬過來,
-        # 不要把已經抓到的資料平白丟掉。舊檔沒有也沒關係,就當全新開始。
-        old = load_json_safe(DAILY_HLC_FILE, {})
-        stored = {"date": old.get("date"), "today": old.get("today", {}) or {}, "days": []}
-        if old.get("prev"):
-            stored["days"] = [{"date": None, "bars": old["prev"]}]
+        stored = {"date": None, "today": {}, "days": []}
 
     stored["days"] = _dedupe_days(stored.get("days", []))
 
@@ -1386,107 +1290,6 @@ def load_json_safe(path, default):
         return default
 
 
-def send_alert_email(subject, body):
-    """寄一封純文字信到阿文的Gmail。沒設定GMAIL_APP_PASSWORD這個secret就只印警告、不中斷排程,
-    避免「忘了設定密碼」變成每次排程都失敗。"""
-    app_password = os.environ.get(GMAIL_APP_PASSWORD_ENV)
-    if not app_password:
-        print(f"[警告] 沒有設定 {GMAIL_APP_PASSWORD_ENV} 這個 GitHub secret,略過寄信。觸發內容:\n{body}")
-        return
-    msg = MIMEText(body, "plain", "utf-8")
-    msg["Subject"] = subject
-    msg["From"] = ALERT_EMAIL_FROM
-    msg["To"] = ALERT_EMAIL_TO
-    try:
-        with smtplib.SMTP("smtp.gmail.com", 587, timeout=20) as server:
-            server.starttls()
-            server.login(ALERT_EMAIL_FROM, app_password)
-            server.send_message(msg)
-        print(f"[通知] 已寄出提醒信:{subject}")
-    except Exception as e:  # 寄信失敗也不該讓整個排程中斷
-        print(f"[警告] 寄信失敗:{e}\n觸發內容:\n{body}")
-
-
-def check_and_send_alerts(run_time, watchlist_out):
-    """兩種觸價通知:
-    1. 自動:自選股現價「跨越昨收」(由空翻多/由多翻空)、或碰到漲停/跌停 —— 一天一檔一種只通知一次。
-    2. 自訂:讀 data/alerts.json 裡阿文自己填的目標價,碰到也是一天一次。
-    用 data/alerts_state.json 記錄「今天已經通知過什麼」,換日期自動重置。"""
-    today_str = run_time.strftime("%Y-%m-%d")
-
-    state = load_json_safe(ALERTS_STATE_FILE, {})
-    if state.get("date") != today_str:
-        state = {"date": today_str, "last_side": {}, "limit_fired": {}, "custom_fired": []}
-    state.setdefault("last_side", {})
-    state.setdefault("limit_fired", {})
-    state.setdefault("custom_fired", [])
-
-    if not _looks_like_trading_session(watchlist_out):
-        # 國定假日/颱風假排程照跑但沒開盤:這次報價多半是量能掛零的死數字,
-        # 跳過整個通知邏輯,不更新last_side(避免把「平盤」誤記成方向、隔天真的開盤時
-        # 誤判成一次假的「跨越昨收」),也不會誤判漲跌停。狀態檔還是寫回去,讓日期有換就換。
-        write_json_atomic(ALERTS_STATE_FILE, state)
-        return
-
-    fires = []  # 這次要通知的文字清單
-
-    for q in watchlist_out:
-        code, name, last = q["code"], q["name"], q.get("last")
-        prev = q.get("prev_close")
-        if last is None:
-            continue
-
-        # -- 漲停/跌停,一天一次 --
-        fired_limits = state["limit_fired"].setdefault(code, [])
-        if q.get("upper_limit") is not None and last >= q["upper_limit"] and "up" not in fired_limits:
-            fires.append(f"{code} {name} 觸及漲停 {q['upper_limit']}")
-            fired_limits.append("up")
-        if q.get("lower_limit") is not None and last <= q["lower_limit"] and "down" not in fired_limits:
-            fires.append(f"{code} {name} 觸及跌停 {q['lower_limit']}")
-            fired_limits.append("down")
-
-        # -- 跨越昨收(交界位),由上一次記錄的方向比對,真的「跨過去」才通知,不是只要站上面就一直通知 --
-        if prev is not None:
-            side = "above" if last > prev else ("below" if last < prev else "equal")
-            prev_side = state["last_side"].get(code)
-            if prev_side and prev_side != side and side != "equal":
-                direction = "由空翻多,站上昨收" if side == "above" else "由多翻空,跌破昨收"
-                fires.append(f"{code} {name} {direction}(昨收{prev}, 現價{last})")
-            state["last_side"][code] = side
-
-    # -- 自訂目標價(data/alerts.json 裡阿文自己設定的) --
-    alerts_config = load_json_safe(ALERTS_CONFIG_FILE, {"custom": []})
-    by_code = {q["code"]: q for q in watchlist_out}
-    for a in alerts_config.get("custom", []):
-        code = a.get("code")
-        target = a.get("target")
-        direction = a.get("direction")  # "above" or "below"
-        if code not in by_code or target is None or direction not in ("above", "below"):
-            continue
-        q = by_code[code]
-        last = q.get("last")
-        if last is None:
-            continue
-        alert_id = f"{code}:{direction}:{target}"
-        hit = (direction == "above" and last >= target) or (direction == "below" and last <= target)
-        if hit and alert_id not in state["custom_fired"]:
-            word = "漲到" if direction == "above" else "跌到"
-            note = f"({a['note']})" if a.get("note") else ""
-            fires.append(f"{code} {q['name']} {word} {target}{note},現價 {last}")
-            state["custom_fired"].append(alert_id)
-
-    if fires:
-        body = (
-            f"爆量雷達 觸價通知 — {run_time.strftime('%Y-%m-%d %H:%M')}\n\n"
-            + "\n".join(f"・{f}" for f in fires)
-            + "\n\nhttps://wayne5171508-sudo.github.io/tw-signal-scanner/\n"
-            + "(此為機械式價位比對,非買賣建議)"
-        )
-        send_alert_email(f"【爆量雷達】{len(fires)} 檔觸發觀察價位", body)
-
-    write_json_atomic(ALERTS_STATE_FILE, state)
-
-
 def main():
     run_time = taipei_now()
 
@@ -1494,12 +1297,10 @@ def main():
     stock_codes = [f"TWS:{code}:STOCK" for code in WATCHLIST_NAMES]
     all_rows = fetch_quotes(index_codes + stock_codes)
 
-    indices_out = []
-    for code, name in INDICES:
-        indices_out.append(row_to_quote(all_rows.get(code), code, name))
+    indices_out = [row_to_quote(all_rows.get(code), code, name) for code, name in INDICES]
 
     # 非交易日/尚未開盤判斷:用報價自己的最新成交時間(台股指數+自選股),不是今天就整輪略過。
-    # 不寫歷史、不發通知、不覆蓋 intraday_latest.json(假日打開網頁看到的就是上一個交易日的資料)。
+    # 不寫歷史、不覆蓋 intraday_latest.json(假日打開網頁看到的就是上一個交易日的資料)。
     ts_list = []
     for code in ("TWS:TSE01:INDEX", "TWS:OTC01:INDEX", *stock_codes):
         row = all_rows.get(code)
@@ -1513,11 +1314,7 @@ def main():
     else:
         print("[警告] 報價沒有時間戳,無法判斷是否為交易日,照常處理")
 
-    watchlist_out = []
-    for code, name in WATCHLIST_NAMES.items():
-        cnyes_code = f"TWS:{code}:STOCK"
-        q = row_to_quote(all_rows.get(cnyes_code), code, name)
-        watchlist_out.append(q)
+    watchlist_out = [row_to_quote(all_rows.get(f"TWS:{code}:STOCK"), code, name) for code, name in WATCHLIST_NAMES.items()]
 
     # CDP壓力/支撐(用前一個交易日的高低收算)+ 量能倍率 + 壓力支撐多日趨勢,
     # 三個都是從同一份滾動歷史(data/daily_bars.json)算出來的,取代原本誤用今日漲跌停當壓力支撐的寫法
@@ -1529,8 +1326,7 @@ def main():
         official = {}
     touch_summary = build_levels(watchlist_out, prev_bars, history_days, official, run_time.strftime("%Y-%m-%d"))
 
-    # 用任一筆有拿到時間戳的資料,換算成「資料實際代表的時間」,跟「程式執行的時間」分開揭露
-    # 取所有報價裡「最新」的時間戳(之前取第一筆有時間的,指數報價偶爾停在幾分鐘前,會讓頁面誤報延遲)
+    # 資料實際代表的時間(取所有報價裡最新的時間戳;指數報價偶爾會停在幾分鐘前),跟程式執行時間分開揭露
     data_ts = None
     for q in indices_out + watchlist_out:
         if q.get("ts") and (data_ts is None or q["ts"] > data_ts):
@@ -1560,24 +1356,20 @@ def main():
     }
 
     os.makedirs(DATA_DIR, exist_ok=True)
-    write_json_atomic(OUT_FILE, result, separators=(",", ":"))
-
-    update_history(run_time, indices_out, watchlist_out, opening_state)
     try:
+        update_history(run_time, indices_out, watchlist_out, opening_state)
         record_focus(run_time, watchlist_out)
         process_end_of_day(run_time)
         result["focus_stats"] = focus_stats()
-        write_json_atomic(OUT_FILE, result, separators=(",", ":"))
-    except Exception as e:  # noqa: BLE001  成績單/曲線是加分功能,不能影響報價
-        print(f"[警告] 成績單或量能曲線處理失敗: {e}")
-    if ALERTS_ENABLED:
-        check_and_send_alerts(run_time, watchlist_out)
+    except Exception as e:  # noqa: BLE001  成績單/量能曲線是加分功能,不能影響報價
+        print(f"[警告] 歷史/成績單/量能曲線處理失敗: {e}")
+    write_json_atomic(OUT_FILE, result, separators=(",", ":"))
 
-    print(json.dumps(_clean(result), ensure_ascii=False, indent=2))
+    n_quote = sum(1 for q in watchlist_out if q.get("last") is not None)
+    print(f"[完成] {run_time:%Y-%m-%d %H:%M} 報價 {n_quote}/{len(watchlist_out)} 檔,日K {result['official_bars_status']}")
 
 
 if __name__ == "__main__":
     main()
-
 
 
