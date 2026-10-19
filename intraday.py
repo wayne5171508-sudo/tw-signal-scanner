@@ -99,6 +99,7 @@ v9新增(獨立審查後的修正,共9項):
 
 import json
 import os
+import random
 import smtplib
 import time
 from datetime import datetime
@@ -122,6 +123,7 @@ DAILY_BARS_FILE = os.path.join(DATA_DIR, "daily_bars.json")
 DAILY_OFFICIAL_FILE = os.path.join(DATA_DIR, "daily_official.json")
 CNYES_HISTORY_URL = "https://ws.api.cnyes.com/ws/api/v1/charting/history"
 OFFICIAL_KEEP_DAYS = 260              # 每檔最多留幾根日K(約一年),回測樣本才夠多
+ETF_LOW_RELIABILITY_RANGE_PCT = 0.5   # ETF 單日振幅本來就小,CDP 可靠度門檻另外放寬
 LOW_RELIABILITY_RANGE_PCT = 1.5   # 前一日(高-低)/收 小於這個百分比,視為CDP參考性低
 OFFICIAL_MISMATCH_PCT = 0.3       # 正式日K收盤和今天報價的昨收差超過這個百分比(且超過0.05元),視為對不上,不採用
 OFFICIAL_MAX_AGE_DAYS = 7          # 正式日K最後一根距今超過幾天,視為過期
@@ -881,7 +883,7 @@ def refresh_official_bars(run_time):
         except ValueError:
             pass
 
-    merged = dict(stored.get("bars") or {})
+    merged = {c: v for c, v in (stored.get("bars") or {}).items() if c in WATCHLIST_NAMES}   # 不在自選股的舊代號順手清掉
     errors = []
     started = time.time()
     for code in needed:
@@ -1054,7 +1056,11 @@ def compute_volume_nodes(bars, ref_price):
     return (min(up) if up else None), (max(dn) if dn else None)
 
 
-def level_candidates(hist, ref_price):
+def low_range_pct(code):
+    return ETF_LOW_RELIABILITY_RANGE_PCT if str(code).startswith("00") else LOW_RELIABILITY_RANGE_PCT
+
+
+def level_candidates(hist, ref_price, low_pct=None):
     """用 hist(由舊到新、不含評估當天)列出所有候選線:[(價位, 名稱)]。
     CDP 近高/近低(前一天振幅太小就不算)、5/10/20日高低、5/10/20/60日均線、量能密集區。"""
     out = []
@@ -1062,7 +1068,7 @@ def level_candidates(hist, ref_price):
         return out
     last = hist[-1]
     if _num_ok(last.get("h"), last.get("l"), last.get("c")) and last["c"] > 0:
-        if (last["h"] - last["l"]) / last["c"] * 100 >= LOW_RELIABILITY_RANGE_PCT:
+        if (last["h"] - last["l"]) / last["c"] * 100 >= (LOW_RELIABILITY_RANGE_PCT if low_pct is None else low_pct):
             cd = compute_cdp(last)
             if cd:
                 out += [(cd["nh"], "CDP"), (cd["nl"], "CDP")]
@@ -1116,6 +1122,7 @@ def new_touch_stats():
     st = {k: {"res": _empty_ns(), "sup": _empty_ns()} for k in TOUCH_BASES}
     st["vol"] = {side: {"hi": {"n": 0, "rev": 0}, "lo": {"n": 0, "rev": 0}} for side in ("res", "sup")}
     st["reg"] = {r: {side: {"n": 0, "rev": 0} for side in ("res", "sup")} for r in ("weak", "normal", "strong")}
+    st["base"] = {"res": _empty_ns(), "sup": _empty_ns()}   # 對照組:隨機價位的碰線結果
     st["fol"] = {side: {"n1": 0, "ok1": 0, "n3": 0, "ok3": 0} for side in ("res", "sup")}
     st["days"] = 0
     return st
@@ -1132,7 +1139,7 @@ def add_stats(dst, src):
             dst[k] += v
 
 
-def compute_touch_stats(series, regime=None):
+def compute_touch_stats(series, regime=None, low_pct=None):
     """觸及回測:用正式日K(由舊到新、不含今天)逐日檢驗「前一天收盤時就能算出來的線」。
     每一天只用當時看得到的資料算 CDP 近高/近低、5/10/20日高低(不含當天),再看當天:
       壓力:最高價進到線的 tol 內算碰到;收盤沒站上算 held;收盤低於線 rev 以上算 rev。
@@ -1146,6 +1153,7 @@ def compute_touch_stats(series, regime=None):
     if len(bars) < 6:
         return None
     st = new_touch_stats()
+    rnd = random.Random(20261019)
     tol = rev = 0.0015
 
     def test(side, line, b, o):
@@ -1169,7 +1177,7 @@ def compute_touch_stats(series, regime=None):
         tol, rev = tol_p / 100, rev_p / 100
         lv = {}
         pr = (pb["h"] - pb["l"]) / pb["c"] * 100 if pb["c"] else 0
-        if pr >= LOW_RELIABILITY_RANGE_PCT:
+        if pr >= (LOW_RELIABILITY_RANGE_PCT if low_pct is None else low_pct):
             cd = compute_cdp(pb)
             if cd:
                 lv["cdp"] = (cd["nh"], cd["nl"])
@@ -1177,6 +1185,18 @@ def compute_touch_stats(series, regime=None):
             seg = bars[max(0, i - n):i]
             if len(seg) == n:
                 lv[f"sw{n}"] = (max(x["h"] for x in seg), min(x["l"] for x in seg))
+        # 對照組:離昨收 0.3~1.5 倍平均振幅的隨機價位(固定種子,每次算出來一樣),用同樣的規則統計
+        adr_ = avg_range_pct(bars[:i]) / 100
+        if adr_ > 0 and pb["c"] > 0:
+            for _ in range(2):
+                dist = rnd.uniform(0.3, 1.5) * adr_
+                for side, line in (("res", pb["c"] * (1 + dist)), ("sup", pb["c"] * (1 - dist))):
+                    r_ = test(side, line, b, o)
+                    if r_ and r_[0]:
+                        x_ = st["base"][side]
+                        x_["n"] += 1
+                        x_["held"] += 1 if r_[1] else 0
+                        x_["rev"] += 1 if r_[2] else 0
         for k, (R, S) in lv.items():
             for side, line in (("res", R), ("sup", S)):
                 if line > 0:
@@ -1194,7 +1214,7 @@ def compute_touch_stats(series, regime=None):
         if len(vols) >= 3 and _num_ok(b.get("v")) and b["v"] > 0:
             vol_hi = b["v"] >= VOL_HI_MULT * (sum(vols) / len(vols))
         rg = regime_label(regime.get(b.get("d"))) if regime else None
-        res_cl, sup_cl = split_clusters(level_candidates(hist, ref), ref, conf_p)
+        res_cl, sup_cl = split_clusters(level_candidates(hist, ref, low_pct), ref, conf_p)
         for side, cls in (("res", res_cl), ("sup", sup_cl)):
             for cl in cls:
                 r = test(side, cl["price"], b, o)
@@ -1304,7 +1324,7 @@ def build_levels(watchlist_out, prev_bars, history_days, official, today):
             if len(series) >= 2 and series[-1].get("c") and series[-2].get("c"):
                 prev_move = (series[-1]["c"] - series[-2]["c"]) / series[-2]["c"] * 100
             reason = None
-            if rng_pct is not None and rng_pct < LOW_RELIABILITY_RANGE_PCT:
+            if rng_pct is not None and rng_pct < low_range_pct(code):
                 reason = "limit_lock" if (prev_move is not None and abs(prev_move) >= LIMIT_MOVE_PCT) else "narrow_range"
             elif src == "sampled" and pc and not _close_matches(c, pc):
                 reason = "basis_mismatch"
@@ -1324,7 +1344,7 @@ def build_levels(watchlist_out, prev_bars, history_days, official, today):
         q["touch"] = None
         if use_official:
             try:
-                ts_ = compute_touch_stats(series, regime_map)
+                ts_ = compute_touch_stats(series, regime_map, low_range_pct(code))
             except Exception as e:  # noqa: BLE001  回測是加分資料,不能影響報價
                 print(f"[警告] {code} 觸及回測失敗: {e}")
                 ts_ = None
@@ -1339,7 +1359,7 @@ def build_levels(watchlist_out, prev_bars, history_days, official, today):
         try:
             ref = q.get("last") if _num_ok(q.get("last")) and q["last"] > 0 else None
             if ref and series:
-                res_cl, sup_cl = split_clusters(level_candidates(series, ref), ref, touch_params(avg_range_pct(series))[2])
+                res_cl, sup_cl = split_clusters(level_candidates(series, ref, low_range_pct(code)), ref, touch_params(avg_range_pct(series))[2])
                 res_cl = sorted(res_cl, key=lambda c: c["price"])[:2]
                 sup_cl = sorted(sup_cl, key=lambda c: -c["price"])[:2]
                 q["conf"] = {"res": res_cl, "sup": sup_cl}
@@ -1558,5 +1578,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
