@@ -227,7 +227,7 @@
   .orow .nm{flex:1;min-width:0;line-height:1.3}
   .orow .nm small{color:var(--muted);margin-left:4px}
   .orow .rt{flex:none;text-align:right;font-size:12px;line-height:1.35}
-  .orow .cool{opacity:.55}
+  .orow.cool{opacity:.55}
   .orow .orank{flex:none;width:18px;text-align:center;font-size:12px;font-weight:700;color:var(--muted)}
   .onote{margin-top:6px;color:var(--muted);font-size:11px;line-height:1.5}
   .regimebox{margin:8px 0;padding:8px 10px;border-radius:8px;font-size:12px;line-height:1.5}
@@ -248,6 +248,41 @@
   details.more[open] summary::after{content:"收合"}
   details.more h2{margin-top:6px}
   details.more .card{border:none;padding:0;margin-bottom:10px}
+
+  .stt{display:inline-block;font-size:11px;font-weight:700;border-radius:6px;padding:1px 7px;background:#f1f0ea;color:var(--sec)}
+  .stt.hold{background:#fff1d6;color:#8a5a00} .stt.str{background:rgba(209,64,63,.14);color:var(--up)} .stt.wk{background:rgba(24,143,99,.14);color:var(--down)}
+  .found{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.5} .found b{font-weight:700}
+  .flowbox{margin:10px 0;padding:12px;border-radius:14px;background:#111216;color:#e9e9ec;border:1px solid #23252b}
+  .flowbox .fhd{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+  .flowbox .fttl{font-size:15px;font-weight:700} .flowbox .fsub{font-size:11px;color:#8b8d96;margin-top:2px}
+  .flowbox .fclock{font-size:24px;font-weight:700;color:#d9f24a;font-variant-numeric:tabular-nums;letter-spacing:.5px}
+  .flowbox .ftiles{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin:10px 0 8px}
+  .flowbox .ft{background:#181a20;border:1px solid #23252b;border-radius:10px;padding:7px 8px;min-width:0}
+  .flowbox .ft small{display:block;font-size:10px;color:#8b8d96} .flowbox .ft b{display:block;font-size:14px;margin-top:2px;white-space:nowrap}
+  .flowbox .ft i{font-style:normal;font-size:12px;display:block;margin-top:1px}
+  .flowbox .ft .fup i{color:#ff6b6b} .flowbox .ft .fdn i{color:#34d399}
+  .flowbox .fup{color:#ff6b6b} .flowbox .fdn{color:#34d399}
+  .flowbox .fcap{display:flex;justify-content:space-between;font-size:10px;color:#8b8d96;padding:0 2px}
+  .flowbox .fplot{position:relative;margin-top:2px}
+  .flowbox .frow{position:absolute;left:0;right:0;height:26px;display:flex;align-items:center;gap:6px;cursor:pointer;transition:transform .55s cubic-bezier(.3,.7,.2,1)}
+  .flowbox .frow.sel{background:rgba(255,255,255,.06);border-radius:6px}
+  .flowbox .fnm{flex:none;width:74px;font-size:12px;color:#c9cad1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-left:2px}
+  .flowbox .ftrack{position:relative;flex:1;height:10px}
+  .flowbox .ftrack:before{content:"";position:absolute;left:50%;top:-4px;bottom:-4px;width:1px;background:#33363e}
+  .flowbox .ffill{position:absolute;top:0;bottom:0;border-radius:5px;width:0;transition:width .45s ease;overflow:hidden}
+  .flowbox .ffill.up{left:50%;background:linear-gradient(90deg,#b8323a,#ff5f64);box-shadow:0 0 8px rgba(255,95,100,.55)}
+  .flowbox .ffill.dn{right:50%;background:linear-gradient(270deg,#13805a,#34d399);box-shadow:0 0 8px rgba(52,211,153,.5)}
+  .flowbox .ffill:after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(90deg,rgba(255,255,255,0) 0 7px,rgba(255,255,255,.38) 7px 9px);background-size:18px 100%;animation:flowR .9s linear infinite}
+  .flowbox .ffill.dn:after{animation-name:flowL}
+  @keyframes flowR{to{background-position:18px 0}} @keyframes flowL{to{background-position:-18px 0}}
+  .flowbox .fval{flex:none;width:58px;text-align:right;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums}
+  .flowbox .fctl{display:flex;align-items:center;gap:10px;margin-top:10px}
+  .flowbox .fbtn{flex:none;width:34px;height:34px;border-radius:50%;border:none;background:#d9f24a;color:#111;font-size:14px;font-weight:700;cursor:pointer}
+  .flowbox input[type=range]{flex:1;accent-color:#d9f24a;height:28px}
+  .flowbox .fstk{margin-top:8px;padding:8px 10px;background:#181a20;border-radius:10px;font-size:12px;line-height:1.7}
+  .flowbox .fstk .r{display:flex;justify-content:space-between}
+  .flowbox .fnote{margin-top:8px;font-size:10px;color:#8b8d96;line-height:1.5}
+  @media (prefers-reduced-motion:reduce){.flowbox .ffill:after{animation:none}.flowbox .frow,.flowbox .ffill{transition:none}}
 </style>
 </head>
 <body>
@@ -258,6 +293,7 @@
 
 <div id="focusBox" style="display:none"></div>
 <div id="openingBox" style="display:none"></div>
+<div id="flowBox" style="display:none"></div>
 
 <div class="idxgrid" id="indicesGrid"></div>
 
@@ -952,6 +988,7 @@ async function loadAll(opts){
   safe('fresh', () => renderFresh(intraday));
   safe('focus', () => renderFocus(intraday));
   safe('opening', () => renderOpening(intraday));
+  safe('flow', () => renderFlow(intraday, history));
   safe('touchnote', () => renderTouchNote(intraday));
   safe('srcnote', () => { const sn = document.getElementById('srcNote'); if(sn) sn.textContent = (intraday && intraday.official_bars_status) ? ' 日K資料狀態:' + intraday.official_bars_status + '。' : ''; });
   safe('indices', () => renderIndices(intraday));
@@ -1018,7 +1055,11 @@ function renderFresh(data){
   const mins = Math.max(0, Math.round((Date.now() - Date.parse(data.data_as_of)) / 60000));
   const t = new Date(data.data_as_of).toLocaleTimeString('zh-TW', {timeZone:'Asia/Taipei', hour:'2-digit', minute:'2-digit', hour12:false});
   let ago = mins < 60 ? `${mins}分鐘前` : (mins < 1440 ? `${Math.floor(mins/60)}小時前` : `${Math.floor(mins/1440)}天前`);
-  if(mins > 20){
+  const tp = new Date(Date.now() + 8*3600000), tpm = tp.getUTCHours()*60 + tp.getUTCMinutes(), wd = tp.getUTCDay();
+  if(wd>=1 && wd<=5 && tpm < 9*60+5){
+    el.className = 'freshbar';
+    el.innerHTML = `尚未開盤,目前顯示上個交易日收盤資料(${t}),9:00 後自動轉為即時`;
+  } else if(mins > 20){
     el.className = 'freshbar warn';
     el.innerHTML = `報價時間 <b>${t}</b>(${ago}),收盤後屬正常;盤中若一直這樣代表資料來源延遲`;
   } else {
@@ -1149,6 +1190,28 @@ function pool_fol(side){
 }
 const pct2 = r => (r && r.n > 0) ? `${Math.round(r.rev / r.n * 100)}%(${r.n})` : '-';
 
+// 發現後狀態:依「現價相對今日高低」判斷(進場方看是否被拉回,出場方看是否反彈)
+function afterInfo(q, side, ff){
+  const last = num(q.last), hi = num(q.high), lo = num(q.low);
+  let tag = '';
+  if(last !== null && hi && lo){
+    if(side === 'in'){
+      const dd = (last / hi - 1) * 100;
+      tag = dd <= -2 ? `<span class="stt hold">已拉回 高點${dd.toFixed(1)}%</span>` : (dd >= -0.5 ? '<span class="stt str">續強 在高點附近</span>' : '<span class="stt">高檔震盪</span>');
+    } else if(side === 'out'){
+      const rb = (last / lo - 1) * 100;
+      tag = rb >= 2 ? `<span class="stt hold">已反彈 低點+${rb.toFixed(1)}%</span>` : (rb <= 0.5 ? '<span class="stt wk">續弱 在低點附近</span>' : '<span class="stt">低檔震盪</span>');
+    }
+  }
+  let txt = '';
+  if(ff && num(ff.price) && last !== null){
+    const r = (last / ff.price - 1) * 100;
+    const cls = r > 0 ? 'up' : (r < 0 ? 'down' : 'flat');
+    txt = `${ff.t} 發現時 ${fmtNum(ff.price)}(${ff.pct == null ? '-' : fmtPct(ff.pct)}),發現後 <b class="${cls}">${r > 0 ? '+' : ''}${r.toFixed(1)}%</b>`;
+  }
+  return {tag, txt};
+}
+
 function flameCount(p){ return [1.5, 2.5, 4, 6, 8].filter(t => p >= t).length; }
 
 function focusVerdict(side, st){
@@ -1222,7 +1285,9 @@ function renderFocus(intraday){
   const t = intraday && intraday.checked_at ? fmtTime(intraday.checked_at) : '';
   const live = oa && oa.active;
   const icon = {in:'▲', out:'▼', flat:'◆'};
+  const FF = (intraday && intraday.focus_first) || {};
   const card = c => {
+    const ai = afterInfo(c.q, c.side, FF[c.q.code]);
     const n = flameCount(c.p);
     const flames = '🔥'.repeat(n) + '<span class="fl0">' + '●'.repeat(5 - n) + '</span>';
     let bar = '';
@@ -1236,7 +1301,8 @@ function renderFocus(intraday){
       <div class="fic ${c.side}">${icon[c.side]}</div>
       <div class="fbody">
         <div class="ftop"><div class="fname">${c.q.name}<small>${c.q.code}</small></div><div class="fprice"><b>${fmtNum(c.q.last)}</b><span class="${c.side}">${c.pct === null ? '-' : fmtPct(c.pct)}</span></div></div>
-        <div class="fmid"><span class="fverdict ${c.side}">${focusVerdict(c.side, c.st)}</span><span class="flames" title="量能 ${c.p.toFixed(1)} 倍">${flames}</span><span class="fx">${c.p.toFixed(1)}倍</span></div>
+        <div class="fmid"><span class="fverdict ${c.side}">${focusVerdict(c.side, c.st)}</span><span class="flames" title="量能 ${c.p.toFixed(1)} 倍">${flames}</span><span class="fx">${c.p.toFixed(1)}倍</span>${ai.tag}</div>
+        ${ai.txt ? `<div class="found">${ai.txt}</div>` : ''}
         ${bar}
       </div>
     </div>`;
@@ -1263,9 +1329,132 @@ function focusStatsHtml(fs){
     const bkt = ['2.5-4', '4-6', '6+'].map(k => bk[k] && bk[k].n > 0 ? `${k}倍 ${pc(bk[k].win, bk[k].n)}(${bk[k].n}筆)` : '').filter(Boolean).join('、');
     body = side('進場(量大上漲)', fs.in) + side('出場(量大下跌)', fs.out)
       + (bkt ? `<div>依量能倍數的方向正確率:${bkt}</div>` : '')
+      + ((nm => Object.keys(fs.by_regime || {}).map(k => { const r = fs.by_regime[k], i = r.in || {n:0}; return i.n > 0 ? `<div>大盤${nm[k]}日(${r.days}天):進場 ${i.n} 筆,收盤上漲 ${pc(i.win, i.n)},平均 ${i.avg_ret > 0 ? '+' : ''}${i.avg_ret}%</div>` : ''; }).join(''))({strong:'偏強', normal:'平穩', weak:'偏弱'}))
       + `<div style="margin-top:4px">資料:${fs.days} 個交易日、${fs.n} 筆(方向不明 ${fs.flat ? fs.flat.n : 0} 筆未計入方向)。記錄價=名單第一次出現當下的價格,收盤價以收盤前最後一筆計。樣本少時請勿過度解讀。</div>`;
   }
   return `<details style="margin-top:8px"><summary style="cursor:pointer;color:var(--muted);font-size:12px">焦點成績單(過去的表現)</summary><div class="onote" style="margin-top:6px">${body}</div></details>`;
+}
+
+// ================= 資金流向(自選股估算) =================
+// 作法:每兩個相鄰時間點之間的「新增成交金額」,依這段期間價格漲跌歸成主動買(漲)或主動賣(跌),
+// 平盤沿用該檔上一次的方向。這是用5分鐘快照推出來的估算,不是逐筆內外盤。
+let FLOW = null, FLOW_IDX = 0, FLOW_SEL = null, FLOW_TIMER = null, FLOW_FOLLOW = true, FLOW_SIG = '';
+const FLOW_ROW_H = 28;
+
+function flowCompute(intraday, history){
+  const groups = intraday && intraday.groups;
+  const pts = history && history.points ? history.points.filter(p => p.wl && p.wlv) : [];
+  if(!groups || pts.length < 2) return null;
+  const qm = {}; ((intraday.watchlist_quotes) || []).forEach(q => { qm[q.code] = q; });
+  const st = {};
+  const gnames = [...new Set(Object.values(groups))];
+  const cum = {}, cumIn = {}, cumOut = {}, stk = {};
+  gnames.forEach(g => { cum[g] = 0; cumIn[g] = 0; cumOut[g] = 0; });
+  const frames = [];
+  for(const p of pts){
+    for(const code in p.wlv){
+      const g = groups[code]; if(!g) continue;
+      const v = num(p.wlv[code]), px = num(p.wl[code]);
+      if(v === null || px === null) continue;
+      const s = st[code] || (st[code] = {v: 0, px: num(qm[code] && qm[code].prev_close) ?? px, sg: 0});
+      let dv = v - s.v; if(dv < 0) dv = 0;
+      const d = px - s.px;
+      const sg = d > 0 ? 1 : (d < 0 ? -1 : s.sg);
+      const amt = dv * 1000 * px / 1e8;
+      if(sg !== 0 && amt > 0){
+        const f = sg * amt;
+        cum[g] += f; if(f > 0) cumIn[g] += f; else cumOut[g] -= f;
+        stk[code] = (stk[code] || 0) + f;
+      }
+      s.v = v; s.px = px; if(d !== 0) s.sg = sg;
+    }
+    const gs = {}; gnames.forEach(g => { gs[g] = cum[g]; });
+    frames.push({t: p.t, g: gs, stk: Object.assign({}, stk), tin: gnames.reduce((a, g) => a + cumIn[g], 0), tout: gnames.reduce((a, g) => a + cumOut[g], 0)});
+  }
+  let max = 0.01;
+  frames.forEach(f => gnames.forEach(g => { max = Math.max(max, Math.abs(f.g[g])); }));
+  return {frames, gnames, max, names: Object.fromEntries(Object.keys(groups).map(c => [c, (qm[c] && qm[c].name) || c]))};
+}
+
+function flowFmt(v){ const a = Math.abs(v); return (v > 0 ? '+' : (v < 0 ? '-' : '')) + (a >= 100 ? a.toFixed(0) : a.toFixed(1)) + '億'; }
+
+function renderFlow(intraday, history){
+  const el = document.getElementById('flowBox');
+  if(!el) return;
+  const fl = flowCompute(intraday, history);
+  if(!fl){ el.style.display = 'none'; return; }
+  const sig = fl.gnames.join('|');
+  const wasLast = !FLOW || FLOW_IDX >= FLOW.frames.length - 1;
+  FLOW = fl;
+  if(wasLast || FLOW_FOLLOW) FLOW_IDX = fl.frames.length - 1;
+  FLOW_IDX = Math.min(FLOW_IDX, fl.frames.length - 1);
+  if(!el.querySelector('.fplot') || FLOW_SIG !== sig){
+    FLOW_SIG = sig;
+    el.className = 'flowbox';
+    el.innerHTML = `<div class="fhd"><div><div class="fttl">即時資金流(自選股估算)</div><div class="fsub">各族群「主動買 − 主動賣」累積金額,紅=流入 綠=流出</div></div><div class="fclock" id="flClock">--:--</div></div>
+      <div class="ftiles"><div class="ft"><small>自選股合計</small><b id="flTot">-</b></div><div class="ft"><small>最多流入</small><b id="flTop">-</b></div><div class="ft"><small>最多流出</small><b id="flBot">-</b></div></div>
+      <div class="fcap"><span>流出</span><span>流入</span></div>
+      <div class="fplot" id="flPlot" style="height:${fl.gnames.length * FLOW_ROW_H}px">${fl.gnames.map(g => `<div class="frow" data-g="${g}" onclick="flowPick('${g}')"><span class="fnm">${g}</span><span class="ftrack"><i class="ffill"></i></span><span class="fval">-</span></div>`).join('')}</div>
+      <div class="fctl"><button class="fbtn" id="flBtn" onclick="flowToggle()">▶</button><input type="range" id="flRange" min="0" max="${fl.frames.length - 1}" value="${FLOW_IDX}" oninput="flowScrub(this.value)"></div>
+      <div class="fcap" style="margin-top:2px"><span>09:00</span><span>13:30</span></div>
+      <div class="fstk" id="flStk" style="display:none"></div>
+      <div class="fnote">這是用約每5分鐘一次的報價推算:每段新增成交金額,價格上漲歸為買、下跌歸為賣、平盤沿用上一次方向。只含自選股、不含ETF,不是全市場也不是逐筆內外盤,只看「資金偏向哪一邊」,不要當精確金額。點族群可看裡面的個股。</div>`;
+  }
+  el.style.display = '';
+  const rng = document.getElementById('flRange');
+  if(rng){ rng.max = fl.frames.length - 1; rng.value = FLOW_IDX; }
+  flowDraw();
+}
+
+function flowDraw(){
+  if(!FLOW) return;
+  const f = FLOW.frames[FLOW_IDX];
+  const clock = document.getElementById('flClock');
+  if(!clock || !f) return;
+  clock.textContent = new Date(f.t).toLocaleTimeString('zh-TW', {timeZone:'Asia/Taipei', hour:'2-digit', minute:'2-digit', hour12:false});
+  const order = [...FLOW.gnames].sort((a, b) => f.g[b] - f.g[a]);
+  const net = f.tin - f.tout;
+  const tot = document.getElementById('flTot');
+  tot.textContent = flowFmt(net); tot.className = net >= 0 ? 'fup' : 'fdn';
+  const top = order[0], bot = order[order.length - 1];
+  const t1 = document.getElementById('flTop'), t2 = document.getElementById('flBot');
+  t1.innerHTML = f.g[top] > 0 ? `${top}<i>${flowFmt(f.g[top])}</i>` : '-'; t1.className = 'fup';
+  t2.innerHTML = f.g[bot] < 0 ? `${bot}<i>${flowFmt(f.g[bot])}</i>` : '-'; t2.className = 'fdn';
+  document.querySelectorAll('#flPlot .frow').forEach(row => {
+    const g = row.dataset.g, v = f.g[g];
+    row.style.transform = `translateY(${order.indexOf(g) * FLOW_ROW_H}px)`;
+    row.classList.toggle('sel', g === FLOW_SEL);
+    const fill = row.querySelector('.ffill');
+    fill.className = 'ffill ' + (v >= 0 ? 'up' : 'dn');
+    fill.style.width = Math.min(50, Math.abs(v) / FLOW.max * 50) + '%';
+    const val = row.querySelector('.fval');
+    val.textContent = flowFmt(v); val.className = 'fval ' + (v > 0 ? 'fup' : (v < 0 ? 'fdn' : ''));
+  });
+  const sp = document.getElementById('flStk');
+  if(FLOW_SEL && sp){
+    const list = Object.keys(f.stk).filter(c => INTRADAY.groups[c] === FLOW_SEL).map(c => [c, f.stk[c]]).sort((a, b) => b[1] - a[1]);
+    sp.style.display = '';
+    sp.innerHTML = `<div style="color:#8b8d96;margin-bottom:2px">${FLOW_SEL} 個股(估算累積)</div>` + (list.length ? list.map(([c, v]) => `<div class="r" onclick="searchAndOpen('${c}')" style="cursor:pointer"><span>${FLOW.names[c]} <small style="color:#8b8d96">${c}</small></span><b class="${v >= 0 ? 'fup' : 'fdn'}">${flowFmt(v)}</b></div>`).join('') : '<div>這個族群還沒有成交資料</div>');
+  } else if(sp){ sp.style.display = 'none'; }
+}
+
+function flowPick(g){ FLOW_SEL = FLOW_SEL === g ? null : g; flowDraw(); }
+function flowScrub(v){
+  flowStop(); FLOW_IDX = Number(v); FLOW_FOLLOW = FLOW_IDX >= FLOW.frames.length - 1; flowDraw();
+}
+function flowStop(){ if(FLOW_TIMER){ clearInterval(FLOW_TIMER); FLOW_TIMER = null; } const b = document.getElementById('flBtn'); if(b) b.textContent = '▶'; }
+function flowToggle(){
+  if(FLOW_TIMER){ flowStop(); return; }
+  if(!FLOW) return;
+  FLOW_FOLLOW = false;
+  if(FLOW_IDX >= FLOW.frames.length - 1) FLOW_IDX = 0;
+  document.getElementById('flBtn').textContent = '❚❚';
+  FLOW_TIMER = setInterval(() => {
+    FLOW_IDX++;
+    const rng = document.getElementById('flRange'); if(rng) rng.value = FLOW_IDX;
+    flowDraw();
+    if(FLOW_IDX >= FLOW.frames.length - 1){ flowStop(); FLOW_FOLLOW = true; }
+  }, 450);
 }
 
 function renderOpening(intraday){
@@ -1275,7 +1464,10 @@ function renderOpening(intraday){
   const items = (oa && Array.isArray(oa.items)) ? oa.items : [];
   if(!oa || (!oa.active && !items.length)){ el.style.display = 'none'; return; }
   const tagTxt = {in:'進場', out:'出場', flat:'震盪'};
+  const QM = {}; ((intraday && intraday.watchlist_quotes) || []).forEach(q => { QM[q.code] = q; });
+  const FF = (intraday && intraday.focus_first) || {};
   const row = (x, i) => {
+    const ai = QM[x.code] ? afterInfo(QM[x.code], x.side, FF[x.code]) : {tag:'', txt:''};
     const pc = (x.pct == null) ? '-' : fmtPct(x.pct);
     const cool = (oa.active && !x.hot_now) ? ' cool' : '';
     const peakTxt = x.peak_pace > x.pace ? `<br>最高 ${x.peak_pace}倍(${x.peak_t})` : '';
@@ -1283,8 +1475,8 @@ function renderOpening(intraday){
       <span class="orank">${i + 1}</span>
       <span class="tag ${x.side}">${tagTxt[x.side] || ''}</span>
       <span class="nm">${x.strong ? '🔥' : ''}${x.name}<small>${x.code}</small></span>
-      <span class="rt"><b>${fmtNum(x.last)}</b> ${pc}<br>量能 ${x.pace}倍${peakTxt}</span>
-    </div>`;
+      <span class="rt"><b>${fmtNum(QM[x.code] && num(QM[x.code].last) !== null ? QM[x.code].last : x.last)}</b> ${QM[x.code] && num(QM[x.code].pct) !== null ? fmtPct(QM[x.code].pct) : pc}<br>量能 ${x.pace}倍${peakTxt}</span>
+    </div>` + ((ai.tag || ai.txt) ? `<div class="found" style="padding:0 0 6px 26px">${ai.tag} ${ai.txt}</div>` : '');
   };
   const top = items.slice(0, 10), rest = items.slice(10);
   const title = oa.active ? '開盤爆量排行(即時)' : '今日開盤爆量排行';
@@ -1431,5 +1623,3 @@ setInterval(() => loadAll({silent: true}), 60000);
 </script>
 </body>
 </html>
-
-
