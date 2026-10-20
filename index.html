@@ -249,6 +249,10 @@
   details.more h2{margin-top:6px}
   details.more .card{border:none;padding:0;margin-bottom:10px}
 
+  .tabbar{position:sticky;top:0;z-index:20;display:flex;gap:6px;margin:8px -16px 10px;padding:8px 16px;background:var(--bg);border-bottom:1px solid var(--border)}
+  .tabbar button{flex:1;padding:9px 0;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--sec);font-size:14px;font-weight:600;font-family:inherit;cursor:pointer}
+  .tabbar button.on{background:var(--text);color:#fff;border-color:var(--text)}
+  body[data-tab="today"] [data-pane]:not([data-pane="today"]),body[data-tab="flow"] [data-pane]:not([data-pane="flow"]),body[data-tab="stocks"] [data-pane]:not([data-pane="stocks"]),body[data-tab="more"] [data-pane]:not([data-pane="more"]){display:none}
   .stt{display:inline-block;font-size:11px;font-weight:700;border-radius:6px;padding:1px 7px;background:#f1f0ea;color:var(--sec)}
   .stt.hold{background:#fff1d6;color:#8a5a00} .stt.str{background:rgba(209,64,63,.14);color:var(--up)} .stt.wk{background:rgba(24,143,99,.14);color:var(--down)}
   .found{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.5} .found b{font-weight:700}
@@ -291,12 +295,24 @@
 <div class="meta" id="pageMeta">載入中...</div>
 <div class="freshbar" id="freshBar"></div>
 
+<div class="tabbar" id="tabBar">
+  <button data-t="today" onclick="setTab('today')">今日重點</button>
+  <button data-t="flow" onclick="setTab('flow')">資金流向</button>
+  <button data-t="stocks" onclick="setTab('stocks')">個股</button>
+  <button data-t="more" onclick="setTab('more')">更多</button>
+</div>
+
+<div data-pane="today">
 <div id="focusBox" style="display:none"></div>
 <div id="openingBox" style="display:none"></div>
-<div id="flowBox" style="display:none"></div>
-
 <div class="idxgrid" id="indicesGrid"></div>
+</div>
 
+<div data-pane="flow">
+<div id="flowBox" style="display:none"></div>
+</div>
+
+<div data-pane="stocks">
 <div class="searchwrap">
   <input id="searchInput" type="text" placeholder="搜尋股票代碼或名稱,例如 2455 或 全新" autocomplete="off">
   <div class="suggest" id="suggestBox" style="display:none"></div>
@@ -312,8 +328,11 @@
 <div class="note" id="touchNote" style="margin-top:0;display:none"></div>
 <div class="note" style="margin-top:0">橫條:左端=支撐(綠),右端=壓力(紅),圓點=現價位置。「依據」預設自動:用CDP樞紐點(前一交易日高低收);若昨日振幅太小(例如漲停鎖死)導致CDP失真,自動改用近5日最高最低。也可手動切換成CDP、5日、10日、20日。「接近」的距離會依各股票自己的波動調整。卡片下方小字同時列出CDP、5日、10日高低供對照。都是機械式參考線,不是股價預測,不構成買賣建議。點任一檔看K線與細節。<span id="srcNote"></span></div>
 
-<details class="more">
-  <summary>更多:熱力圖、量能排行、完整報價表</summary>
+</div>
+
+<div data-pane="more">
+<details class="more" open>
+  <summary>熱力圖、量能排行、完整報價表</summary>
   <h2>自選股漲跌幅熱力圖</h2>
   <div class="card">
     <div class="heatgrid" id="heatGrid">載入中...</div>
@@ -341,6 +360,7 @@
     <div id="chipWatchList"></div>
   </div>
 </details>
+</div>
 
 <div class="note" style="margin-top:20px">
   資料來源:大盤與自選股報價每約5分鐘由 GitHub Actions 直接向交易所/報價商 API 抓取一次,非逐秒即時;
@@ -828,6 +848,7 @@ function openDetail(code, isIndex, opts){
   const q = pool.find(x => x.code === code);
   if(!q) return;
   CURRENT_DETAIL = {code, isIndex};
+  if(!opts.silent && document.body.dataset.tab !== 'stocks') setTab('stocks');
 
   const series = seriesFor(code, isIndex);
   const color = q.change > 0 ? 'var(--up)' : (q.change < 0 ? 'var(--down)' : 'var(--muted)');
@@ -921,8 +942,24 @@ function renderChip(data){
 
 function searchAndOpen(code){
   if(INTRADAY && INTRADAY.watchlist_quotes && INTRADAY.watchlist_quotes.find(q => q.code === code)){
+    setTab('stocks');
     openDetail(code, false);
   }
+}
+
+// ---- 分頁 ----
+const TABS = ['today', 'flow', 'stocks', 'more'];
+function setTab(t){
+  if(!TABS.includes(t)) t = 'today';
+  document.body.dataset.tab = t;
+  document.querySelectorAll('#tabBar button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
+  try { localStorage.setItem('radarTab', t); } catch(e) { /* 讀不到就用預設分頁 */ }
+  window.scrollTo(0, 0);
+}
+function initTab(){
+  let t = 'today';
+  try { t = localStorage.getItem('radarTab') || 'today'; } catch(e) { /* ignore */ }
+  setTab(t);
 }
 
 // ---- 搜尋框 ----
@@ -1013,7 +1050,7 @@ async function loadAll(opts){
 // 分頁切到背景時瀏覽器本來就會自動降低timer頻率,不特別處理也不會浪費太多資源。
 
 // ================= 手機版:支撐壓力一覽 =================
-let LV_FILTER = 'all';
+let LV_FILTER = 'key';
 let SEARCH_TEXT = '';
 
 function lvInfo(q){
@@ -1068,6 +1105,13 @@ function renderFresh(data){
   }
 }
 
+// 「重點」= 量能異常(>=2.5倍)、今天被標記過,或量能偏大(>=1.5倍)且正在壓力/支撐附近
+function isKey(q, lv){
+  const p = num(q.pace) || 0;
+  const ff = INTRADAY && INTRADAY.focus_first;
+  return p >= 2.5 || !!(ff && ff[q.code]) || (p >= 1.5 && !!lv && lv.state !== 'mid');
+}
+
 function renderLevels(data){
   const listEl = document.getElementById('levelList');
   const fEl = document.getElementById('levelFilters');
@@ -1075,18 +1119,20 @@ function renderLevels(data){
   const f = SEARCH_TEXT.trim().toLowerCase();
   let rows = data.watchlist_quotes.map(q => ({q, lv: lvInfo(q)}));
   if(f) rows = rows.filter(r => String(r.q.code).toLowerCase().includes(f) || (r.q.name && r.q.name.toLowerCase().includes(f)));
-  const cnt = {all: rows.length, res:0, sup:0, out:0};
+  const cnt = {all: rows.length, key:0, res:0, sup:0, out:0};
   rows.forEach(r => {
+    if(isKey(r.q, r.lv)) cnt.key++;
     if(!r.lv) return;
     if(r.lv.state === 'nearRes') cnt.res++;
     else if(r.lv.state === 'nearSup') cnt.sup++;
     else if(r.lv.state === 'breakout' || r.lv.state === 'breakdown') cnt.out++;
   });
-  const defs = [['all','全部'],['res','接近壓力'],['sup','接近支撐'],['out','突破/跌破']];
+  const defs = [['key','重點'],['res','接近壓力'],['sup','接近支撐'],['out','突破/跌破'],['all','全部']];
   renderBasisChips();
   fEl.innerHTML = defs.map(([k,l]) => `<span class="fchip ${LV_FILTER===k?'on':''}" onclick="setLvFilter('${k}')">${l} ${cnt[k]}</span>`).join('');
   rows = rows.filter(r => {
-    if(LV_FILTER === 'all') return true;
+    if(LV_FILTER === 'all' || f) return true;   // 有搜尋字時顯示所有符合的,不受分類限制
+    if(LV_FILTER === 'key') return isKey(r.q, r.lv);
     if(!r.lv) return false;
     if(LV_FILTER === 'res') return r.lv.state === 'nearRes';
     if(LV_FILTER === 'sup') return r.lv.state === 'nearSup';
@@ -1618,6 +1664,7 @@ function setBasis(k){
 function setLvFilter(k){ LV_FILTER = k; renderLevels(INTRADAY); }
 
 setupSearch();
+initTab();
 loadAll();
 setInterval(() => loadAll({silent: true}), 60000);
 </script>
