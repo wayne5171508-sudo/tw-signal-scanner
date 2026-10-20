@@ -54,7 +54,7 @@ REFRESH_BUDGET_SECONDS = 90        # 每一輪抓日K最多花幾秒,超過就�
 HISTORY_TIMEOUT = 8
 HISTORY_RETRY_GAP_FAIL = 600       # 今天還有沒抓到的股票時,隔幾秒再重試
 LIMIT_MOVE_PCT = 9.3               # 前一日漲跌幅超過這個百分比,視為漲停/跌停
-MAX_POINTS_PER_DAY = 60
+MAX_POINTS_PER_DAY = 80
 MAX_HISTORY_DAYS = 10
 VOLUME_LOOKBACK_DAYS = 5
 CDP_TREND_POINTS = 6  # 趨勢最多顯示幾個點(含今天)
@@ -95,6 +95,27 @@ WATCHLIST_NAMES = {
     "00981A": "主動統一台股增長", "00685L": "群益臺灣加權正2", "00631L": "元大台灣50正2",
     "8033": "雷虎", "6505": "台塑化", "2368": "金像電", "6209": "今國光",
 }
+
+# 資金流向用的族群分類(只影響「資金流向」區塊的分組,不影響其他功能;ETF不計入,避免槓桿ETF的大量成交蓋過個股)
+WATCH_GROUPS = {
+    "記憶體": ["2408", "2344", "2337"],
+    "晶圓與材料": ["2303", "5347", "6488", "6182", "3016", "3707", "3105"],
+    "IC設計": ["2379", "4919", "3588"],
+    "封測": ["3264", "6257", "2449", "6239", "8150", "6147", "3374", "2351"],
+    "設備探針": ["6217", "8021", "6937", "3490"],
+    "PCB載板": ["3037", "4958", "2313", "8039", "8358", "1815", "2368", "1802"],
+    "被動元件": ["2327", "3624", "2492", "6173", "3042", "5425", "2481", "3090", "8042"],
+    "光通訊": ["4979", "4991"],
+    "AI伺服器": ["3231", "3706", "2365", "3605"],
+    "機器人": ["2049", "4576", "2359"],
+    "面板光電": ["2409", "6456", "3051"],
+    "金融": ["2883", "2881", "2882", "2887"],
+    "航運航空": ["2609", "2606", "2630"],
+    "塑化傳產": ["1303", "6505", "1727", "4303", "1316"],
+    "國防無人機": ["8033", "6209"],
+    "其他": ["3027", "6140", "8111", "6278", "2455", "7781"],
+}
+GROUP_OF = {c: g for g, cs in WATCH_GROUPS.items() for c in cs}
 
 
 def _clean(obj):
@@ -274,8 +295,9 @@ def _day_start(run_time):
     return run_time.replace(hour=9, minute=0, second=0, microsecond=0)
 
 
-def record_focus(run_time, watchlist_out):
-    """盤中每一輪:量能倍數>=FOCUS_LOG_PACE 的標的,當天第一次出現就記下時間、價格、方向。"""
+def record_focus(run_time, watchlist_out, regime=None):
+    """盤中每一輪:量能倍數>=FOCUS_LOG_PACE 的標的,當天第一次出現就記下時間、價格、方向。
+    regime=當下大盤判定(weak/normal/strong),每輪覆蓋,收盤那輪的值就是當天的最終判定,成績單依此分組。"""
     today = run_time.strftime("%Y-%m-%d")
     m = (run_time - _day_start(run_time)).total_seconds() / 60
     if not (2 < m <= 271):
@@ -286,6 +308,9 @@ def record_focus(run_time, watchlist_out):
     if day.get("evaluated"):
         return
     changed = False
+    if regime and day.get("regime") != regime:
+        day["regime"] = regime
+        changed = True
     for q in watchlist_out:
         pace, last = q.get("pace"), q.get("last")
         if not (_num_ok(pace) and _num_ok(last)) or pace < FOCUS_LOG_PACE or q["code"] in day["picks"]:
@@ -366,9 +391,10 @@ def focus_stats():
     ev_days = [d for d, v in (log.get("days") or {}).items() if v.get("evaluated")]
     rows = []
     for d in ev_days:
+        rg = log["days"][d].get("regime")
         for code, pk in log["days"][d]["picks"].items():
             if "ret" in pk:
-                rows.append(pk)
+                rows.append(dict(pk, regime=rg))
 
     def agg(rs, side):
         if not rs:
@@ -397,7 +423,22 @@ def focus_stats():
         win = sum(1 for r in sub if (r["ret"] > 0 if r["side"] == "in" else r["ret"] < 0))
         buckets[nm] = {"n": len(sub), "win": win}
     out["buckets"] = buckets
+    # 依當天大盤強弱分組(弱勢日追高容易被拉回,混在一起平均會失真)
+    by = {}
+    for rg in ("strong", "normal", "weak"):
+        sub = [r for r in rows if r.get("regime") == rg]
+        if sub:
+            by[rg] = {"days": len({r["t"][:10] for r in sub}), "in": agg([r for r in sub if r["side"] == "in"], "in"),
+                      "out": agg([r for r in sub if r["side"] == "out"], "out")}
+    out["by_regime"] = by
     return out
+
+
+def focus_first(run_time):
+    """今天每檔「第一次達標」的時間與價格,網頁用來顯示『發現後漲跌』。"""
+    log = load_json_safe(FOCUS_FILE, {}) or {}
+    day = (log.get("days") or {}).get(run_time.strftime("%Y-%m-%d")) or {}
+    return {c: {"t": pk["t"][11:16], "price": pk["price"], "pct": pk.get("pct")} for c, pk in (day.get("picks") or {}).items()}
 
 
 def _avg_daily_volume(official_bars, code, today):
@@ -1346,6 +1387,8 @@ def main():
         "checked_at": run_time.isoformat(),
         "opening_alerts": opening_out,
         "focus_stats": None,
+        "focus_first": None,
+        "groups": GROUP_OF,
         "data_as_of": data_as_of,
         "check_frequency_note": "開盤期間每約5分鐘由GitHub Actions排程抓一次,非逐秒即時報價",
         "official_bars_status": (official or {}).get("status"),
@@ -1358,9 +1401,10 @@ def main():
     os.makedirs(DATA_DIR, exist_ok=True)
     try:
         update_history(run_time, indices_out, watchlist_out, opening_state)
-        record_focus(run_time, watchlist_out)
+        record_focus(run_time, watchlist_out, ((touch_summary or {}).get("regime_today") or {}).get("label"))
         process_end_of_day(run_time)
         result["focus_stats"] = focus_stats()
+        result["focus_first"] = focus_first(run_time)
     except Exception as e:  # noqa: BLE001  成績單/量能曲線是加分功能,不能影響報價
         print(f"[警告] 歷史/成績單/量能曲線處理失敗: {e}")
     write_json_atomic(OUT_FILE, result, separators=(",", ":"))
@@ -1371,5 +1415,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
