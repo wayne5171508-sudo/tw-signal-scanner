@@ -26,6 +26,7 @@
 import json
 import os
 import random
+import re
 import time
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -39,6 +40,9 @@ DATA_DIR = "data"
 OUT_FILE = os.path.join(DATA_DIR, "intraday_latest.json")
 HISTORY_FILE = os.path.join(DATA_DIR, "intraday_history.json")
 CURVE_FILE = os.path.join(DATA_DIR, "volume_curve.json")     # 每檔每天的「累積量占全天量比例」曲線(越累積越準)
+UNIVERSE_FILE = os.path.join(DATA_DIR, "universe.json")       # 全市場代號與前一交易日成交量(每天更新一次)
+MARKET_FILE = os.path.join(DATA_DIR, "market_scan.json")      # 全市場爆量榜(試跑)
+FIELDS_FILE = os.path.join(DATA_DIR, "debug_fields.json")     # 報價原始欄位樣本(查有沒有內外盤)
 SIGNAL_FILE = os.path.join(DATA_DIR, "signal_log.json")     # 訊號實驗室:各策略在固定時間點的候選名單與收盤結果
 FOCUS_FILE = os.path.join(DATA_DIR, "focus_log.json")       # 焦點成績單:每天哪些標的達標、之後表現如何
 DAILY_BARS_FILE = os.path.join(DATA_DIR, "daily_bars.json")
@@ -524,6 +528,120 @@ def signal_stats():
                         "by": {k: {"n": v["n"], "edge": round((v["ret"] - v["base"]) / v["n"], 2)} for k, v in a["by"].items() if v["n"]}})
         out["strats"][name] = row
     return out
+
+
+# ---- 全市場爆量榜(試跑)----
+# 股票清單與前一交易日成交量來自證交所/櫃買中心公開資料,報價沿用同一個報價API,
+# 倍數=今日累積量/(前一交易日全天量×正常已成交比例),比自選股用的20日中位數粗糙,只拿來「找出沒在自選的爆量股」。
+# 試跑期只在 09:30 後第一輪掃一次,整段限時,批次之間有間隔,連續失敗就停,失敗只記錄診斷、不影響主流程。
+MARKET_SNAPS = (30,)         # 試跑期只在 09:30 後掃一次,確認不會被限流再增加
+MARKET_TIME_BUDGET = 45
+MARKET_GAP = 0.4            # 每批之間間隔秒數,避免短時間大量請求
+MARKET_MAX_FAIL = 2         # 連續失敗幾批就停(可能被限流,不要硬撐影響主流程)
+MARKET_MIN_PREV = 500       # 前一交易日量低於500張的不掃
+MARKET_MIN_VOL = 1000       # 今日累積量低於1000張不列入
+TWSE_ALL_URL = "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL"
+TPEX_ALL_URL = "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes"
+
+
+def _to_float(x):
+    try:
+        return float(str(x).replace(",", ""))
+    except (TypeError, ValueError):
+        return None
+
+
+def load_universe(run_time, errors):
+    """回傳 {代號: 前一交易日成交量(張)}。每天只抓一次,存 universe.json。"""
+    today = run_time.strftime("%Y-%m-%d")
+    cached = load_json_safe(UNIVERSE_FILE, {}) or {}
+    if cached.get("date") == today and cached.get("stocks"):
+        return cached["stocks"]
+    stocks = {}
+    for url, ck, vk, div in ((TWSE_ALL_URL, "Code", "TradeVolume", 1000), (TPEX_ALL_URL, "SecuritiesCompanyCode", "TradingShares", 1000)):
+        try:
+            resp = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
+            resp.raise_for_status()
+            rows = resp.json()
+            n0 = len(stocks)
+            for r in rows if isinstance(rows, list) else []:
+                code = str(r.get(ck) or "").strip()
+                vol = _to_float(r.get(vk))
+                if re.fullmatch(r"[1-9]\d{3}", code) and vol:
+                    stocks[code] = round(vol / div)
+            if len(stocks) == n0:
+                errors.append(f"{url.split('/')[2]} 回傳 {len(rows) if isinstance(rows, list) else type(rows).__name__} 筆但沒有可用資料,欄位: {sorted(rows[0].keys()) if isinstance(rows, list) and rows else '-'}")
+        except (requests.RequestException, ValueError) as e:
+            errors.append(f"{url.split('/')[2]} 失敗: {str(e)[:120]}")
+    if stocks:
+        write_json_atomic(UNIVERSE_FILE, {"date": today, "stocks": stocks}, separators=(",", ":"))
+    return stocks
+
+
+def scan_market(run_time, watch_codes):
+    m = (run_time - _day_start(run_time)).total_seconds() / 60
+    sn = next((x for x in MARKET_SNAPS if x <= m < x + 12), None)
+    if sn is None:
+        return
+    today = run_time.strftime("%Y-%m-%d")
+    log = load_json_safe(MARKET_FILE, {}) or {}
+    if log.get("date") != today:
+        log = {"date": today, "scans": {}}
+    if str(sn) in log["scans"]:
+        return
+    t0 = time.time()
+    errors = []
+    uni = load_universe(run_time, errors)
+    diag = {"universe": len(uni), "errors": errors}
+    items = []
+    if uni:
+        codes = [c for c, v in uni.items() if v >= MARKET_MIN_PREV]
+        _per, pooled = load_curves()
+        n_rows = n_batch_fail = streak = 0
+        for i in range(0, len(codes), 50):
+            if time.time() - t0 > MARKET_TIME_BUDGET:
+                errors.append(f"超過 {MARKET_TIME_BUDGET} 秒預算,只掃了前 {i} 檔")
+                break
+            batch = [f"TWS:{c}:STOCK" for c in codes[i:i + 50]]
+            try:
+                resp = requests.get(CNYES_QUOTE_URL.format(codes=",".join(batch)), headers=HEADERS, timeout=TIMEOUT)
+                resp.raise_for_status()
+                rows = resp.json().get("data", [])
+            except (requests.RequestException, ValueError) as e:
+                n_batch_fail += 1
+                streak += 1
+                if len(errors) < 5:
+                    errors.append(f"報價批次失敗: {str(e)[:100]}")
+                if streak >= MARKET_MAX_FAIL:
+                    errors.append("連續失敗,中止掃描")
+                    break
+                time.sleep(MARKET_GAP)
+                continue
+            streak = 0
+            time.sleep(MARKET_GAP)
+            for row in rows:
+                code = row.get("0")
+                vol, last, prev = row.get("200013"), row.get("6"), uni.get(code)
+                if not (_num_ok(vol, last) and prev) or vol < MARKET_MIN_VOL:
+                    continue
+                n_rows += 1
+                pace = vol / (prev * frac_for(code, m, {}, pooled))
+                items.append({"code": code, "name": row.get("200009") or code, "last": last, "pct": row.get("56"),
+                              "vol": vol, "prev": prev, "pace": round(pace, 2), "in_watch": code in watch_codes})
+        diag.update({"codes": len(codes), "rows": n_rows, "batch_fail": n_batch_fail})
+    items.sort(key=lambda x: -x["pace"])
+    diag["seconds"] = round(time.time() - t0, 1)
+    log["scans"][str(sn)] = {"as_of": run_time.strftime("%H:%M"), "items": items[:40], "diag": diag}
+    write_json_atomic(MARKET_FILE, log, separators=(",", ":"))
+
+
+def dump_fields(all_rows, run_time):
+    """每天存一次幾檔報價的原始欄位,用來查有沒有內盤/外盤等可用欄位。"""
+    today = run_time.strftime("%Y-%m-%d")
+    if (load_json_safe(FIELDS_FILE, {}) or {}).get("date") == today:
+        return
+    keys = ("TWS:TSE01:INDEX", "TWS:2455:STOCK", "TWS:2379:STOCK", "TWS:0050:STOCK")
+    write_json_atomic(FIELDS_FILE, {"date": today, "rows": {k: all_rows[k] for k in keys if k in all_rows}})
 
 
 def focus_first(run_time):
@@ -1503,6 +1621,11 @@ def main():
     except Exception as e:  # noqa: BLE001  成績單/量能曲線是加分功能,不能影響報價
         print(f"[警告] 歷史/成績單/量能曲線處理失敗: {e}")
     write_json_atomic(OUT_FILE, result, separators=(",", ":"))
+    try:
+        dump_fields(all_rows, run_time)
+        scan_market(run_time, set(WATCHLIST_NAMES))
+    except Exception as e:  # noqa: BLE001  試跑功能,任何錯誤都不能影響主流程
+        print(f"[警告] 全市場掃描/欄位樣本失敗: {e}")
 
     n_quote = sum(1 for q in watchlist_out if q.get("last") is not None)
     print(f"[完成] {run_time:%Y-%m-%d %H:%M} 報價 {n_quote}/{len(watchlist_out)} 檔,日K {result['official_bars_status']}")
