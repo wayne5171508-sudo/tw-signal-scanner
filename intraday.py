@@ -39,6 +39,7 @@ DATA_DIR = "data"
 OUT_FILE = os.path.join(DATA_DIR, "intraday_latest.json")
 HISTORY_FILE = os.path.join(DATA_DIR, "intraday_history.json")
 CURVE_FILE = os.path.join(DATA_DIR, "volume_curve.json")     # 每檔每天的「累積量占全天量比例」曲線(越累積越準)
+SIGNAL_FILE = os.path.join(DATA_DIR, "signal_log.json")     # 訊號實驗室:各策略在固定時間點的候選名單與收盤結果
 FOCUS_FILE = os.path.join(DATA_DIR, "focus_log.json")       # 焦點成績單:每天哪些標的達標、之後表現如何
 DAILY_BARS_FILE = os.path.join(DATA_DIR, "daily_bars.json")
 DAILY_OFFICIAL_FILE = os.path.join(DATA_DIR, "daily_official.json")
@@ -431,6 +432,97 @@ def focus_stats():
             by[rg] = {"days": len({r["t"][:10] for r in sub}), "in": agg([r for r in sub if r["side"] == "in"], "in"),
                       "out": agg([r for r in sub if r["side"] == "out"], "out")}
     out["by_regime"] = by
+    return out
+
+
+# ---- 訊號實驗室 ----
+# 每天在 09:30/10:30/12:00/13:00 各拍一張全部自選股的快照,收盤後用「該時點買進(或放空)持有到收盤」
+# 的報酬評估每個策略,並和「同一時點全部自選股的平均」比較。edge=策略平均報酬-全體平均。
+# 不預設任何策略有效,累積夠多樣本之後才看得出哪些有優勢。
+SIGNAL_SNAPS = (30, 90, 180, 240)      # 開盤後第幾分鐘拍快照
+SIGNAL_KEEP_DAYS = 90
+SIGNAL_STRATS = {                       # 名稱: (方向, 條件(pct, pace, dd_hi, up_lo))
+    "追強": ("long", lambda pct, pace, dd, up: pct >= 2 and pace >= 3 and dd >= -0.5),
+    "拉回買": ("long", lambda pct, pace, dd, up: pct >= 2 and pace >= 3 and dd <= -2),
+    "弱勢爆量": ("short", lambda pct, pace, dd, up: pct <= -2 and pace >= 3),
+    "低檔反彈": ("long", lambda pct, pace, dd, up: pct <= -2 and pace >= 3 and up >= 2),
+}
+
+
+def record_signals(run_time, watchlist_out, regime=None):
+    """每個快照時點第一輪:存每檔[現價, 漲跌%, 量能倍數, 今日高, 今日低]。13:31 之後第一輪存收盤價。"""
+    m = (run_time - _day_start(run_time)).total_seconds() / 60
+    if m < SIGNAL_SNAPS[0]:
+        return
+    today = run_time.strftime("%Y-%m-%d")
+    log = load_json_safe(SIGNAL_FILE, {}) or {}
+    days = log.setdefault("days", {})
+    day = days.setdefault(today, {"snaps": {}, "close": None, "regime": None})
+    changed = False
+    if regime and day.get("regime") != regime and not day.get("close"):
+        day["regime"] = regime
+        changed = True
+    for sn in SIGNAL_SNAPS:
+        if m >= sn and str(sn) not in day["snaps"] and m < sn + 12:
+            rows = {}
+            for q in watchlist_out:
+                last, hi, lo = q.get("last"), q.get("high"), q.get("low")
+                if _num_ok(last, hi, lo) and q["code"] in GROUP_OF:
+                    rows[q["code"]] = [last, q.get("pct"), q.get("pace"), hi, lo]
+            day["snaps"][str(sn)] = rows
+            changed = True
+    if m >= 271 and not day.get("close"):
+        day["close"] = {q["code"]: q["last"] for q in watchlist_out if _num_ok(q.get("last"))}
+        changed = True
+    if changed:
+        for d in sorted(days)[:-SIGNAL_KEEP_DAYS]:
+            days.pop(d, None)
+        write_json_atomic(SIGNAL_FILE, log, separators=(",", ":"))
+
+
+def signal_stats():
+    """各策略的累積成績:筆數、勝率、平均報酬、全體對照、edge;另列大盤偏弱日/其他日的拆分。"""
+    log = load_json_safe(SIGNAL_FILE, {}) or {}
+    acc = {k: {"n": 0, "win": 0, "ret": 0.0, "base": 0.0, "by": {}} for k in SIGNAL_STRATS}
+    ndays = 0
+    for d, day in (log.get("days") or {}).items():
+        close = day.get("close")
+        if not close:
+            continue
+        ndays += 1
+        rg = day.get("regime") or "unknown"
+        for sn, rows in (day.get("snaps") or {}).items():
+            rets = {c: (close[c] / r[0] - 1) * 100 for c, r in rows.items() if c in close and r[0]}
+            if not rets:
+                continue
+            base = sum(rets.values()) / len(rets)
+            for name, (side, cond) in SIGNAL_STRATS.items():
+                sg = 1 if side == "long" else -1
+                for c, r in rows.items():
+                    if c not in rets or not (_num_ok(r[1], r[2]) and r[3] and r[4]):
+                        continue
+                    dd = (r[0] / r[3] - 1) * 100
+                    up = (r[0] / r[4] - 1) * 100
+                    if cond(r[1], r[2], dd, up):
+                        a = acc[name]
+                        x = sg * rets[c]
+                        a["n"] += 1
+                        a["win"] += 1 if x > 0 else 0
+                        a["ret"] += x
+                        a["base"] += sg * base
+                        b = a["by"].setdefault(rg, {"n": 0, "ret": 0.0, "base": 0.0})
+                        b["n"] += 1
+                        b["ret"] += x
+                        b["base"] += sg * base
+    out = {"days": ndays, "cost_pct": 0.4, "strats": {}}
+    for name, a in acc.items():
+        n = a["n"]
+        row = {"side": SIGNAL_STRATS[name][0], "n": n}
+        if n:
+            row.update({"win": a["win"], "avg": round(a["ret"] / n, 2), "base": round(a["base"] / n, 2),
+                        "edge": round((a["ret"] - a["base"]) / n, 2),
+                        "by": {k: {"n": v["n"], "edge": round((v["ret"] - v["base"]) / v["n"], 2)} for k, v in a["by"].items() if v["n"]}})
+        out["strats"][name] = row
     return out
 
 
@@ -1388,6 +1480,7 @@ def main():
         "opening_alerts": opening_out,
         "focus_stats": None,
         "focus_first": None,
+        "signal_stats": None,
         "groups": GROUP_OF,
         "data_as_of": data_as_of,
         "check_frequency_note": "開盤期間每約5分鐘由GitHub Actions排程抓一次,非逐秒即時報價",
@@ -1405,6 +1498,8 @@ def main():
         process_end_of_day(run_time)
         result["focus_stats"] = focus_stats()
         result["focus_first"] = focus_first(run_time)
+        record_signals(run_time, watchlist_out, ((touch_summary or {}).get("regime_today") or {}).get("label"))
+        result["signal_stats"] = signal_stats()
     except Exception as e:  # noqa: BLE001  成績單/量能曲線是加分功能,不能影響報價
         print(f"[警告] 歷史/成績單/量能曲線處理失敗: {e}")
     write_json_atomic(OUT_FILE, result, separators=(",", ":"))
