@@ -313,6 +313,7 @@
 <div data-pane="today">
 <div id="focusBox" style="display:none"></div>
 <div id="openingBox" style="display:none"></div>
+<div id="marketBox" style="display:none"></div>
 <div class="idxgrid" id="indicesGrid"></div>
 </div>
 
@@ -379,7 +380,7 @@
 </div>
 
 <script>
-let INTRADAY = null, HISTORY = null, CHIP = null, CURRENT_DETAIL = null;
+let INTRADAY = null, HISTORY = null, CHIP = null, CURRENT_DETAIL = null, MARKET = null;
 
 const num = n => { if(n === null || n === undefined || n === '') return null; const v = Number(n); return Number.isFinite(v) ? v : null; };
 const PCT_CLASS = p => { const v = num(p); return v > 0 ? 'up' : (v < 0 ? 'down' : 'flat'); };
@@ -1028,12 +1029,18 @@ async function loadAll(opts){
     if(r.ok) history = await r.json();
   }catch(e){ /* 走勢圖資料非必要,失敗就不畫 */ }
 
+  try{
+    const r = await fetch('data/market_scan.json', {cache:'no-store'});
+    if(r.ok) MARKET = await r.json();
+  }catch(e){ /* 全市場榜是試跑功能,讀不到就不顯示 */ }
+
   CHIP = chip; INTRADAY = intraday; HISTORY = history;
 
   const safe = (name, fn) => { try { fn(); } catch(e) { console.error('render ' + name, e); } };
   safe('fresh', () => renderFresh(intraday));
   safe('focus', () => renderFocus(intraday));
   safe('opening', () => renderOpening(intraday));
+  safe('market', () => renderMarket(MARKET));
   safe('flow', () => renderFlow(intraday, history));
   safe('signals', () => renderSignals(intraday));
   safe('touchnote', () => renderTouchNote(intraday));
@@ -1390,6 +1397,30 @@ function focusStatsHtml(fs){
       + `<div style="margin-top:4px">資料:${fs.days} 個交易日、${fs.n} 筆(方向不明 ${fs.flat ? fs.flat.n : 0} 筆未計入方向)。記錄價=名單第一次出現當下的價格,收盤價以收盤前最後一筆計。樣本少時請勿過度解讀。</div>`;
   }
   return `<details style="margin-top:8px"><summary style="cursor:pointer;color:var(--muted);font-size:12px">焦點成績單(過去的表現)</summary><div class="onote" style="margin-top:6px">${body}</div></details>`;
+}
+
+// ================= 全市場爆量榜(試跑) =================
+function renderMarket(mk){
+  const el = document.getElementById('marketBox');
+  if(!el) return;
+  const today = new Date(Date.now() + 8*3600000).toISOString().slice(0, 10);
+  const keys = mk && mk.date === today ? Object.keys(mk.scans || {}).filter(k => (mk.scans[k].items || []).length).sort((a, b) => b - a) : [];
+  if(!keys.length){ el.style.display = 'none'; return; }
+  const sc = mk.scans[keys[0]];
+  const row = (x, i) => {
+    const side = x.pct == null || Math.abs(x.pct) < 0.5 ? 'flat' : (x.pct > 0 ? 'in' : 'out');
+    return `<div class="orow" ${x.in_watch ? `onclick="searchAndOpen('${x.code}')"` : ''}>
+      <span class="orank">${i + 1}</span>
+      <span class="tag ${side}">${x.in_watch ? '自選' : '新發現'}</span>
+      <span class="nm">${x.name}<small>${x.code}</small></span>
+      <span class="rt"><b>${fmtNum(x.last)}</b> ${fmtPct(x.pct)}<br>量能約 ${x.pace}倍</span>
+    </div>`;
+  };
+  el.className = 'openbox';
+  el.innerHTML = `<div class="ohd"><b>全市場爆量榜(試跑)</b><small>${sc.as_of} 掃描,共 ${sc.diag && sc.diag.rows || '-'} 檔</small></div>`
+    + sc.items.slice(0, 10).map(row).join('')
+    + `<div class="onote">掃描全部上市櫃股票,倍數用「前一交易日全天量」粗估,比自選股的算法粗糙,只拿來找出沒在自選清單裡的爆量股。每天 09:30、10:30、12:00 各掃一次。試跑中,數字僅供參考。</div>`;
+  el.style.display = '';
 }
 
 // ================= 訊號實驗室 =================
