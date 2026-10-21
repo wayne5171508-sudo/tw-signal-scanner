@@ -253,6 +253,14 @@
   .tabbar button{flex:1;padding:9px 0;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--sec);font-size:14px;font-weight:600;font-family:inherit;cursor:pointer}
   .tabbar button.on{background:var(--text);color:#fff;border-color:var(--text)}
   body[data-tab="today"] [data-pane]:not([data-pane="today"]),body[data-tab="flow"] [data-pane]:not([data-pane="flow"]),body[data-tab="stocks"] [data-pane]:not([data-pane="stocks"]),body[data-tab="more"] [data-pane]:not([data-pane="more"]){display:none}
+  .sigbox{margin:8px 0 12px;padding:12px;border-radius:12px;background:var(--card);border:1px solid var(--border)}
+  .sigbox .sh{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:6px}
+  .sigbox .sh b{font-size:14px} .sigbox .sh small{font-size:11px;color:var(--muted)}
+  .sigrow{padding:8px 0;border-top:1px solid var(--border);font-size:13px}
+  .sigrow .l1{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .sigrow .l2{font-size:12px;color:var(--muted);margin-top:2px;line-height:1.5}
+  .sigv{font-size:11px;font-weight:700;border-radius:6px;padding:1px 7px;background:#f1f0ea;color:var(--sec)}
+  .sigv.good{background:rgba(209,64,63,.14);color:var(--up)} .sigv.bad{background:rgba(24,143,99,.14);color:var(--down)}
   .stt{display:inline-block;font-size:11px;font-weight:700;border-radius:6px;padding:1px 7px;background:#f1f0ea;color:var(--sec)}
   .stt.hold{background:#fff1d6;color:#8a5a00} .stt.str{background:rgba(209,64,63,.14);color:var(--up)} .stt.wk{background:rgba(24,143,99,.14);color:var(--down)}
   .found{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.5} .found b{font-weight:700}
@@ -331,6 +339,7 @@
 </div>
 
 <div data-pane="more">
+<div id="signalBox" style="display:none"></div>
 <details class="more" open>
   <summary>熱力圖、量能排行、完整報價表</summary>
   <h2>自選股漲跌幅熱力圖</h2>
@@ -1026,6 +1035,7 @@ async function loadAll(opts){
   safe('focus', () => renderFocus(intraday));
   safe('opening', () => renderOpening(intraday));
   safe('flow', () => renderFlow(intraday, history));
+  safe('signals', () => renderSignals(intraday));
   safe('touchnote', () => renderTouchNote(intraday));
   safe('srcnote', () => { const sn = document.getElementById('srcNote'); if(sn) sn.textContent = (intraday && intraday.official_bars_status) ? ' 日K資料狀態:' + intraday.official_bars_status + '。' : ''; });
   safe('indices', () => renderIndices(intraday));
@@ -1349,6 +1359,7 @@ function renderFocus(intraday){
         <div class="ftop"><div class="fname">${c.q.name}<small>${c.q.code}</small></div><div class="fprice"><b>${fmtNum(c.q.last)}</b><span class="${c.side}">${c.pct === null ? '-' : fmtPct(c.pct)}</span></div></div>
         <div class="fmid"><span class="fverdict ${c.side}">${focusVerdict(c.side, c.st)}</span><span class="flames" title="量能 ${c.p.toFixed(1)} 倍">${flames}</span><span class="fx">${c.p.toFixed(1)}倍</span>${ai.tag}</div>
         ${ai.txt ? `<div class="found">${ai.txt}</div>` : ''}
+        ${(t => t ? `<div class="found">${t}</div>` : '')(sigTags(c.q))}
         ${bar}
       </div>
     </div>`;
@@ -1379,6 +1390,53 @@ function focusStatsHtml(fs){
       + `<div style="margin-top:4px">資料:${fs.days} 個交易日、${fs.n} 筆(方向不明 ${fs.flat ? fs.flat.n : 0} 筆未計入方向)。記錄價=名單第一次出現當下的價格,收盤價以收盤前最後一筆計。樣本少時請勿過度解讀。</div>`;
   }
   return `<details style="margin-top:8px"><summary style="cursor:pointer;color:var(--muted);font-size:12px">焦點成績單(過去的表現)</summary><div class="onote" style="margin-top:6px">${body}</div></details>`;
+}
+
+// ================= 訊號實驗室 =================
+// 條件要和 intraday.py 的 SIGNAL_STRATS 保持一致。
+const SIG_DEFS = {
+  '追強':     {side:'long',  desc:'漲2%以上、量能3倍以上、還在今日高點附近', f:(pct, pace, dd, up) => pct >= 2 && pace >= 3 && dd >= -0.5},
+  '拉回買':   {side:'long',  desc:'漲2%以上、量能3倍以上、從高點拉回2%以上', f:(pct, pace, dd, up) => pct >= 2 && pace >= 3 && dd <= -2},
+  '弱勢爆量': {side:'short', desc:'跌2%以上、量能3倍以上(放空方向)',         f:(pct, pace, dd, up) => pct <= -2 && pace >= 3},
+  '低檔反彈': {side:'long',  desc:'跌2%以上、量能3倍以上、從低點彈2%以上',   f:(pct, pace, dd, up) => pct <= -2 && pace >= 3 && up >= 2},
+};
+const SIG_MIN_N = 30;
+
+function sigVerdict(r){
+  if(!r || !r.n) return {t:'尚無資料', c:''};
+  if(r.n < SIG_MIN_N) return {t:`驗證中 ${r.n}/${SIG_MIN_N}筆`, c:''};
+  if(r.edge >= 0.4) return {t:'有優勢跡象', c:'good'};
+  if(r.edge <= 0) return {t:'沒有優勢', c:'bad'};
+  return {t:'優勢不明顯', c:''};
+}
+
+function sigTags(q){
+  const ss = INTRADAY && INTRADAY.signal_stats && INTRADAY.signal_stats.strats;
+  const pct = num(q.pct), pace = num(q.pace), last = num(q.last), hi = num(q.high), lo = num(q.low);
+  if(pct === null || pace === null || last === null || !hi || !lo) return '';
+  const dd = (last / hi - 1) * 100, up = (last / lo - 1) * 100;
+  return Object.keys(SIG_DEFS).filter(k => SIG_DEFS[k].f(pct, pace, dd, up)).map(k => {
+    const v = sigVerdict(ss && ss[k]);
+    const dir = SIG_DEFS[k].side === 'long' ? '偏多' : '偏空';
+    return `<span class="stt ${v.c === 'good' ? 'str' : (v.c === 'bad' ? 'wk' : 'hold')}" title="${SIG_DEFS[k].desc}">${k}(${dir}) ${v.t}</span>`;
+  }).join(' ');
+}
+
+function renderSignals(intraday){
+  const el = document.getElementById('signalBox');
+  if(!el) return;
+  const ss = intraday && intraday.signal_stats;
+  if(!ss){ el.style.display = 'none'; return; }
+  const sg = x => (x > 0 ? '+' : '') + x.toFixed(2) + '%';
+  const rows = Object.keys(SIG_DEFS).map(k => {
+    const r = ss.strats && ss.strats[k], v = sigVerdict(r);
+    const l2 = (r && r.n) ? `${r.n} 筆,收盤賺錢 ${Math.round(r.win / r.n * 100)}%,平均 ${sg(r.avg)},同時點全體 ${sg(r.base)},差距 <b>${sg(r.edge)}</b>` : '還沒有符合的樣本';
+    return `<div class="sigrow"><div class="l1"><span><b>${k}</b> <small style="color:var(--muted)">${SIG_DEFS[k].side === 'long' ? '做多' : '放空'}</small></span><span class="sigv ${v.c}">${v.t}</span></div><div class="l2">${SIG_DEFS[k].desc}<br>${l2}</div></div>`;
+  }).join('');
+  el.className = 'sigbox';
+  el.innerHTML = `<div class="sh"><b>訊號實驗室</b><small>${ss.days} 個交易日</small></div>
+    <div class="onote" style="margin:0 0 4px">每天 09:30、10:30、12:00、13:00 記下符合條件的股票,假設當下進場抱到收盤,和同時點全部自選股的平均比較。「差距」要穩定大於 ${ss.cost_pct}%(來回成本)、樣本累積到 ${SIG_MIN_N} 筆以上,才算有優勢跡象。驗證前只是觀察,不是買賣建議。</div>` + rows;
+  el.style.display = '';
 }
 
 // ================= 資金流向(自選股估算) =================
@@ -1514,6 +1572,7 @@ function renderOpening(intraday){
   const FF = (intraday && intraday.focus_first) || {};
   const row = (x, i) => {
     const ai = QM[x.code] ? afterInfo(QM[x.code], x.side, FF[x.code]) : {tag:'', txt:''};
+    const sgt = QM[x.code] ? sigTags(QM[x.code]) : '';
     const pc = (x.pct == null) ? '-' : fmtPct(x.pct);
     const cool = (oa.active && !x.hot_now) ? ' cool' : '';
     const peakTxt = x.peak_pace > x.pace ? `<br>最高 ${x.peak_pace}倍(${x.peak_t})` : '';
@@ -1522,7 +1581,7 @@ function renderOpening(intraday){
       <span class="tag ${x.side}">${tagTxt[x.side] || ''}</span>
       <span class="nm">${x.strong ? '🔥' : ''}${x.name}<small>${x.code}</small></span>
       <span class="rt"><b>${fmtNum(QM[x.code] && num(QM[x.code].last) !== null ? QM[x.code].last : x.last)}</b> ${QM[x.code] && num(QM[x.code].pct) !== null ? fmtPct(QM[x.code].pct) : pc}<br>量能 ${x.pace}倍${peakTxt}</span>
-    </div>` + ((ai.tag || ai.txt) ? `<div class="found" style="padding:0 0 6px 26px">${ai.tag} ${ai.txt}</div>` : '');
+    </div>` + ((ai.tag || ai.txt || sgt) ? `<div class="found" style="padding:0 0 6px 26px">${ai.tag} ${ai.txt} ${sgt}</div>` : '');
   };
   const top = items.slice(0, 10), rest = items.slice(10);
   const title = oa.active ? '開盤爆量排行(即時)' : '今日開盤爆量排行';
