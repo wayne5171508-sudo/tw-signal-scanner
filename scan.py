@@ -31,6 +31,7 @@ import json
 import os
 import re
 import sys
+import time
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -99,6 +100,32 @@ def fetch_stock_day(stock_no, month_first_day_str):
         return []
     fields = data.get("fields", [])
     return [dict(zip(fields, row)) for row in data.get("data", [])]
+
+
+def roc_to_iso(s):
+    """STOCK_DAY 的日期是民國年 '115/10/22',轉成 '2026-10-22'。轉不了回傳 None。"""
+    m = re.match(r"^\s*(\d{2,3})/(\d{1,2})/(\d{1,2})", str(s or ""))
+    if not m:
+        return None
+    return f"{int(m.group(1)) + 1911:04d}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"
+
+
+def fetch_recent_days(stock_no, today, min_rows=6):
+    """
+    v11.4:取到「資料日(含)以前」的日成交資料,必要時把上個月也接進來。
+    原本只抓當月,每個月前幾個交易日都會因為「本月資料只有N筆」把全部候選股排除
+    (10/2~10/7 那一週就整週沒有任何訊號)。也順便過濾掉資料日之後的列,
+    避免排程延遲跨日時,把「隔天」的資料誤當成當天。
+    """
+    iso = today.strftime("%Y-%m-%d")
+    rows = [d for d in fetch_stock_day(stock_no, today.strftime("%Y%m") + "01") if (roc_to_iso(d.get("日期")) or "") <= iso]
+    if len(rows) < min_rows:
+        prev_month = (today.replace(day=1) - timedelta(days=1)).strftime("%Y%m") + "01"
+        time.sleep(0.4)
+        older = [d for d in fetch_stock_day(stock_no, prev_month) if roc_to_iso(d.get("日期"))]
+        rows = older + rows
+    rows.sort(key=lambda d: roc_to_iso(d.get("日期")) or "")
+    return rows
 
 
 def fetch_margin(date_str):
@@ -306,21 +333,23 @@ def load_previous_flagged_stocks(today_iso):
     取出它的focus_stocks + surge_watch(排除"候選未達標"),當作要回頭驗證的名單。
     找不到就回傳(None, [])。
     """
-    files = glob.glob(os.path.join(DATA_DIR, "20*-*-*.json"))
-    candidates = []
-    for f in files:
-        base = os.path.basename(f).replace(".json", "")
-        if re.match(r"^\d{4}-\d{2}-\d{2}$", base) and base < today_iso:
-            candidates.append(base)
-    if not candidates:
+    # v11.4:用檔案「內容」的資料日期判斷,不用檔名。排程常延遲到隔天凌晨才跑,
+    # 舊版存檔檔名是執行日,會出現 2026-10-10.json 裝的是 10/08 的資料這種錯位。
+    best = None
+    for f in glob.glob(os.path.join(DATA_DIR, "20*-*-*.json")):
+        try:
+            with open(f, encoding="utf-8") as fh:
+                d = json.load(fh)
+        except Exception:  # noqa: BLE001
+            continue
+        dd = d.get("date")
+        if d.get("market_status") != "OK" or not dd or dd >= today_iso:
+            continue
+        if best is None or dd > best[0]:
+            best = (dd, d)
+    if best is None:
         return None, []
-    prev_date = sorted(candidates)[-1]
-    try:
-        with open(os.path.join(DATA_DIR, f"{prev_date}.json"), encoding="utf-8") as fh:
-            prev_data = json.load(fh)
-    except Exception as e:  # noqa: BLE001
-        print(f"[warn] 讀取前一份存檔失敗,跳過戰績追蹤: {e}", file=sys.stderr)
-        return None, []
+    prev_date, prev_data = best
 
     flagged = []
     for e in prev_data.get("focus_stocks", []) + prev_data.get("surge_watch", []):
@@ -355,15 +384,20 @@ def compute_track_record(today_iso, month_first):
             print(f"[warn] 戰績追蹤{code}的STOCK_DAY抓取失敗: {e}", file=sys.stderr)
             continue
 
-        today_row = None
-        for d in days:
-            if d.get("日期", "").strip().endswith(today_iso[5:].replace("-", "/")):
-                today_row = d
-                break
-        if today_row is None and days:
-            today_row = days[-1]  # 保底用最新一筆,通常就是今天
-        if today_row is None:
+        if item["signal_date"][:7] != today_iso[:7]:
+            try:
+                days = fetch_stock_day(code, item["signal_date"][:7].replace("-", "") + "01") + days
+            except Exception:  # noqa: BLE001
+                pass
+        # v11.4:只認日期完全相同的那一列,而且必須是訊號日的「下一個交易日」。
+        # 舊版找不到就拿最後一筆頂替;中間漏跑一天時,還會把兩天的報酬當成隔日報酬記進去。
+        dates = [roc_to_iso(d.get("日期")) for d in days]
+        if item["signal_date"] not in dates or today_iso not in dates:
             continue
+        if dates.index(today_iso) != dates.index(item["signal_date"]) + 1:
+            print(f"[info] {code} 訊號日{item['signal_date']}和今天{today_iso}中間隔了交易日,不算隔日報酬", file=sys.stderr)
+            continue
+        today_row = days[dates.index(today_iso)]
 
         open_p = clean_number(today_row.get("開盤價"))
         high_p = clean_number(today_row.get("最高價"))
@@ -402,6 +436,9 @@ def compute_track_record(today_iso, month_first):
             print(f"[warn] 讀取track_record.json失敗,視為空歷史: {e}", file=sys.stderr)
             history = []
 
+    # v11.4:同一個訊號只驗證一次(排程重跑、或延遲造成同一天跑兩次,都不會重複計入)
+    seen = {(h.get("signal_date"), h.get("code")) for h in history}
+    new_records = [r for r in new_records if (r["signal_date"], r["code"]) not in seen]
     history.extend(new_records)
 
     os.makedirs(DATA_DIR, exist_ok=True)
@@ -465,7 +502,7 @@ def main():
     result = {
         "date": iso_date,
         "generated_at": run_time.isoformat(),
-        "pipeline_version": "v11.3-realcode",
+        "pipeline_version": "v11.4-realcode",
         "scope_decisions": [
             "這份JSON由GitHub Actions上的Python直接呼叫TWSE官方API算出,不經過Claude的WebFetch,"
             "所以不會有大表格漏行的問題。新聞面查核跟最終文字撰寫仍由Claude排程完成。",
@@ -477,6 +514,9 @@ def main():
             "(GitHub平台本身的已知限制,免費方案在低用量repo上不保證準時),"
             "延遲到跨過午夜才執行時,舊邏輯會把日期算成還沒收盤的隔天,"
             "害明明已經有的收盤資料被誤判成「資料還沒準備好」。",
+            "v11.4修正:月初自動接上個月日成交(原本每月前幾天全部候選股被排除);"
+            "存檔改用資料日期命名、戰績追蹤改看資料日期並去重複(原本延遲跨日會錯位、同一訊號被驗證兩次);"
+            "法人買超前8一定進候選名單;連續買超改看3個交易日。",
         ],
     }
 
@@ -514,7 +554,10 @@ def main():
     for path in ("volume-shocker", "top-gainer"):
         wantgoo_codes |= fetch_wantgoo_codes(path)
 
-    candidate_codes = list({p["code"] for p in top8} | wantgoo_codes)[:20]
+    # v11.4:法人買超前8一定排前面,剩下名額才給wantgoo(原本用set再截前20,順序隨機,可能把法人買超股擠掉)
+    candidate_codes = [p["code"] for p in top8]
+    candidate_codes += sorted(c for c in wantgoo_codes if c not in candidate_codes)
+    candidate_codes = candidate_codes[:20]
     result["candidate_pool_size"] = len(candidate_codes)
 
     name_lookup = {p["code"]: p["name"] for p in parsed}
@@ -530,13 +573,16 @@ def main():
 
     for code in candidate_codes:
         try:
-            days = fetch_stock_day(code, month_first)
+            days = fetch_recent_days(code, today)
         except Exception as e:  # noqa: BLE001
             excluded.append({"code": code, "reason": f"STOCK_DAY抓取失敗: {e}"})
             continue
 
         if len(days) < 6:
-            excluded.append({"code": code, "reason": f"本月資料只有{len(days)}筆,不足以算5日均量"})
+            excluded.append({"code": code, "reason": f"近兩個月資料只有{len(days)}筆,不足以算5日均量"})
+            continue
+        if roc_to_iso(days[-1].get("日期")) != iso_date:
+            excluded.append({"code": code, "reason": f"最新一筆日成交是{roc_to_iso(days[-1].get('日期'))},不是資料日{iso_date}(可能停牌或資料還沒更新)"})
             continue
 
         volumes = [clean_number(d.get("成交股數")) for d in days]
@@ -675,11 +721,15 @@ def main():
     # 連續買超天數(查最近3天T86,比對同一批候選股)
     try:
         buy_history = {code: [] for code in interesting_codes}
-        for i in range(0, 3):
+        ok_days = 0
+        for i in range(0, 8):   # v11.4:往回找3個「交易日」(原本只看3個日曆天,週一只會看到1天)
+            if ok_days >= 3:
+                break
             d = (today - timedelta(days=i)).strftime("%Y%m%d")
             s, rows = fetch_t86(d)
             if s != "OK":
                 continue
+            ok_days += 1
             day_net = {}
             for row in rows:
                 code = str(row.get("證券代號", "")).strip().strip('="')
