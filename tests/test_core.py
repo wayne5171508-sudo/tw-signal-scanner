@@ -171,3 +171,33 @@ def test_health_detects_duplicate_and_non_adjacent_track(tmp_path, monkeypatch):
     t = {i["key"]: i for i in r["items"]}["track"]
     assert not t["ok"]
     assert "重複" in t["detail"] and "不是隔日" in t["detail"] and "網頁顯示 5 筆" in t["detail"]
+
+
+# ---------- scan.market_rank ----------
+
+def test_market_rank_from_official_tables(monkeypatch):
+    base = {"2330": (20000, 1000.0), "1101": (2000, 30.0), "9999": (500, 50.0), "2603": (3000, 5.0)}
+    def fake(date_str):
+        if date_str == "20261024":            # 週六沒開盤
+            return None
+        today = date_str == "20261023"
+        out = {}
+        for c, (lots, px) in base.items():
+            vol = lots * 1000 * (5 if (today and c == "1101") else 1)
+            close = px * (1.08 if (today and c == "2330") else 1)
+            out[c] = {"name": c, "vol": vol, "close": close}
+        return out
+    monkeypatch.setattr(scan, "fetch_all_quotes", fake)
+    monkeypatch.setattr(scan.time, "sleep", lambda s: None)
+    r = scan.market_rank(dt.datetime(2026, 10, 23, 23, 0, tzinfo=TPE))
+    assert r["volume_top"][0] == {"code": "1101", "name": "1101", "mult": 5.0}
+    assert r["gainer_top"][0]["code"] == "2330" and r["gainer_top"][0]["pct"] == 8.0
+    codes = {x["code"] for x in r["volume_top"] + r["gainer_top"]}
+    assert "9999" not in codes and "2603" not in codes     # 量太小、股價太低的排除
+    assert len(r["days_used"]) == 6
+
+
+def test_market_rank_none_when_today_missing(monkeypatch):
+    monkeypatch.setattr(scan, "fetch_all_quotes", lambda d: None)
+    monkeypatch.setattr(scan.time, "sleep", lambda s: None)
+    assert scan.market_rank(dt.datetime(2026, 10, 24, 23, 0, tzinfo=TPE)) is None

@@ -189,6 +189,97 @@ def fetch_mi_index(date_str):
         return None
 
 
+# ---------- 全市場排行(候選名單來源二,v11.5 取代 wantgoo)----------
+
+def _find_col(fields, *keys):
+    for i, f in enumerate(fields):
+        if all(k in str(f) for k in keys):
+            return i
+    return None
+
+
+def fetch_all_quotes(date_str):
+    """
+    證交所 MI_INDEX(type=ALLBUT0999)的「每日收盤行情」:全部上市股票當天的成交股數、收盤價、名稱。
+    回傳 {code: {"name","vol"(股),"close"}};沒開盤或抓不到回傳 None。
+    官方資料、可以查歷史日期,所以盤後回補也能用(wantgoo 只有即時排行)。
+    """
+    url = f"https://www.twse.com.tw/rwd/zh/afterTrading/MI_INDEX?date={date_str}&type=ALLBUT0999&response=json"
+    r = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
+    r.raise_for_status()
+    data = r.json()
+    if data.get("stat") != "OK":
+        return None
+    tables = data.get("tables") or [{"fields": data.get("fields9") or data.get("fields", []),
+                                     "data": data.get("data9") or data.get("data", [])}]
+    for t in tables:
+        fields = t.get("fields") or []
+        ci, vi, pi, ni = (_find_col(fields, "證券代號"), _find_col(fields, "成交股數"),
+                          _find_col(fields, "收盤價"), _find_col(fields, "證券名稱"))
+        if None in (ci, vi, pi):
+            continue
+        out = {}
+        for row in t.get("data") or []:
+            code = str(row[ci]).strip().strip('="')
+            if not is_plain_stock_code(code):
+                continue
+            vol, close = clean_number(row[vi]), clean_number(row[pi])
+            if vol is None or close is None:
+                continue
+            out[code] = {"name": str(row[ni]).strip() if ni is not None else "", "vol": vol, "close": close}
+        if out:
+            return out
+    return None
+
+
+def market_rank(today, n_each=6, min_lots=1000, min_price=10.0, max_lookback=12):
+    """
+    用證交所官方全市場資料自己排「量能倍數」與「漲幅」排行:
+    今天成交量 ÷ 前5個交易日平均量,以及今天收盤 ÷ 前一交易日收盤。
+    只看成交量 ≥ min_lots 張、股價 ≥ min_price 的股票,避免冷門股或雞蛋水餃股量一點點就衝上榜。
+    回傳 dict:volume_top / gainer_top 各 n_each 檔(code, name, value),抓不到回傳 None。
+    """
+    days = []
+    d = today
+    for _ in range(max_lookback):
+        if len(days) >= 6:
+            break
+        try:
+            q = fetch_all_quotes(d.strftime("%Y%m%d"))
+        except Exception as e:  # noqa: BLE001
+            print(f"[warn] 全市場行情 {d:%Y%m%d} 抓取失敗: {e}", file=sys.stderr)
+            q = None
+        if q:
+            days.append((d.strftime("%Y-%m-%d"), q))
+        elif not days:
+            return None   # 資料日當天就抓不到,不硬排
+        d -= timedelta(days=1)
+        time.sleep(2.5)
+    if len(days) < 4:
+        return None
+    (today_iso, cur), prevs = days[0], [q for _, q in days[1:]]
+    vol_rank, gain_rank = [], []
+    for code, x in cur.items():
+        if x["vol"] < min_lots * 1000 or x["close"] < min_price:
+            continue
+        past = [p[code]["vol"] for p in prevs if code in p]
+        if len(past) >= 3 and sum(past) > 0:
+            vol_rank.append((x["vol"] / (sum(past) / len(past)), code))
+        if code in prevs[0] and prevs[0][code]["close"] > 0:
+            gain_rank.append((x["close"] / prevs[0][code]["close"] - 1, code))
+    vol_rank.sort(reverse=True)
+    gain_rank.sort(reverse=True)
+    pick = lambda rk, k: [{"code": c, "name": cur[c]["name"], k: round(v * (100 if k == "pct" else 1), 2)} for v, c in rk[:n_each]]
+    return {
+        "date": today_iso,
+        "days_used": [dd for dd, _ in days],
+        "volume_top": pick(vol_rank, "mult"),
+        "gainer_top": pick(gain_rank, "pct"),
+        "filters": f"成交量≥{min_lots}張、股價≥{min_price:g}元;量能倍數=今日量÷前{len(prevs)}日均量",
+        "source": "證交所 MI_INDEX 每日收盤行情(官方)",
+    }
+
+
 # ---------- wantgoo 排行頁(候選名單來源二,best-effort)----------
 
 def fetch_wantgoo_codes(path):
@@ -511,7 +602,7 @@ def main():
     result = {
         "date": iso_date,
         "generated_at": run_time.isoformat(),
-        "pipeline_version": "v11.4-realcode",
+        "pipeline_version": "v11.5-realcode",
         "scope_decisions": [
             "這份JSON由GitHub Actions上的Python直接呼叫TWSE官方API算出,不經過Claude的WebFetch,"
             "所以不會有大表格漏行的問題。新聞面查核跟最終文字撰寫仍由Claude排程完成。",
@@ -526,6 +617,8 @@ def main():
             "v11.4修正:月初自動接上個月日成交(原本每月前幾天全部候選股被排除);"
             "存檔改用資料日期命名、戰績追蹤改看資料日期並去重複(原本延遲跨日會錯位、同一訊號被驗證兩次);"
             "法人買超前8一定進候選名單;連續買超改看3個交易日。",
+            "v11.5:候選名單來源二改用證交所官方全市場收盤行情自己排「量能倍數」與「漲幅」前6名"
+            "(wantgoo 從10/12起都抓不到);官方資料可查歷史,盤後回補也適用。",
         ],
     }
 
@@ -566,21 +659,33 @@ def main():
     max_net_buy_code = top8[0]["code"] if top8 else None
 
     # 候選名單來源二(wantgoo 量能異常 + 漲幅排行, best-effort)
-    wantgoo_codes = set()
+    # v11.5:wantgoo 從 10/12 起都抓不到(候選只剩法人前8),改用證交所官方全市場資料自己排行
+    rank = None
+    try:
+        rank = market_rank(today)
+    except Exception as e:  # noqa: BLE001
+        print(f"[warn] 全市場排行失敗,略過: {e}", file=sys.stderr)
+    result["market_rank"] = rank or {"note": "全市場排行這次抓不到,候選名單只有法人買超"}
+    rank_codes = []
+    if rank:
+        for a, b in zip(rank["volume_top"], rank["gainer_top"]):
+            rank_codes += [a["code"], b["code"]]
+    wantgoo_codes = set(rank_codes)
     if backfill_date:
-        # wantgoo 只有「現在」的排行,回補時抓它會混進今天的股票,改用原始存檔的候選代號
-        wantgoo_codes = {c for c in os.environ.get("SCAN_EXTRA_CODES", "").split(",") if is_plain_stock_code(c)}
-    else:
-        for path in ("volume-shocker", "top-gainer"):
-            wantgoo_codes |= fetch_wantgoo_codes(path)
+        wantgoo_codes |= {c for c in os.environ.get("SCAN_EXTRA_CODES", "").split(",") if is_plain_stock_code(c)}
 
     # v11.4:法人買超前8一定排前面,剩下名額才給wantgoo(原本用set再截前20,順序隨機,可能把法人買超股擠掉)
     candidate_codes = [p["code"] for p in top8]
-    candidate_codes += sorted(c for c in wantgoo_codes if c not in candidate_codes)
+    for c in rank_codes + sorted(wantgoo_codes - set(rank_codes)):   # 排行依名次交錯放入,不按代號排序
+        if c not in candidate_codes:
+            candidate_codes.append(c)
     candidate_codes = candidate_codes[:20]
     result["candidate_pool_size"] = len(candidate_codes)
 
     name_lookup = {p["code"]: p["name"] for p in parsed}
+    for lst in ("volume_top", "gainer_top"):
+        for x in (rank or {}).get(lst, []):
+            name_lookup.setdefault(x["code"], x["name"])
     net_buy_lookup = {p["code"]: p["net_buy_lots"] for p in parsed}
 
     # 族群效應:候選名單的產業別
