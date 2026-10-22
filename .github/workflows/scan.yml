@@ -36,6 +36,7 @@ jobs:
           case "$d" in 20??-??-??) ;; *) d=$(date -u -d '+8 hours' +%F) ;; esac
           cp latest.json "data/${d}.json"
           cp latest.json data/latest.json
+          python health.py || true
           git config user.name "tw-signal-scanner-bot"
           git config user.email "actions@users.noreply.github.com"
           git add data/

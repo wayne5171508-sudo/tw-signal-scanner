@@ -315,6 +315,13 @@
   .flowbox .fstk .r{display:flex;justify-content:space-between}
   .flowbox .fnote{margin-top:8px;font-size:10px;color:#8b8d96;line-height:1.5}
   @media (prefers-reduced-motion:reduce){.flowbox .ffill:after{animation:none}.flowbox .frow,.flowbox .ffill{transition:none}}
+  .health{font-size:12px;margin:4px 0 6px}
+  .health summary{cursor:pointer;list-style:none;display:inline-flex;align-items:center;gap:6px;color:var(--muted)}
+  .health summary::-webkit-details-marker{display:none}
+  .health .dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+  .health .dot.ok{background:#22a06b} .health .dot.bad{background:#e5a00d}
+  .health ul{margin:6px 0 0;padding:8px 10px;list-style:none;background:var(--card);border:1px solid var(--border);border-radius:8px;line-height:1.7}
+  .health li.bad{color:#b26a00;font-weight:600}
 </style>
 </head>
 <body>
@@ -322,6 +329,7 @@
 <h1>爆量雷達 <span class="refresh" onclick="loadAll()">重新整理</span></h1>
 <div class="meta" id="pageMeta">載入中...</div>
 <div class="freshbar" id="freshBar"></div>
+<div class="health" id="healthBox" style="display:none"></div>
 
 <div class="tabbar" id="tabBar">
   <button data-t="today" onclick="setTab('today')">今日重點</button>
@@ -1034,6 +1042,20 @@ function pickSuggest(code){
   openDetail(code, false);
 }
 
+// ================= 健康檢查(data/health.json,由程式直接檢查資料檔產生) =================
+let HEALTH = null;
+function renderHealth(h){
+  const box = document.getElementById('healthBox');
+  if(!h || !Array.isArray(h.items)){ box.style.display = 'none'; return; }
+  const bad = h.items.filter(i => !i.ok);
+  const esc = t => String(t == null ? '' : t).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  const when = String(h.checked_at || '').slice(5, 16).replace('T', ' ');
+  box.innerHTML = `<details${bad.length ? ' open' : ''}><summary><span class="dot ${bad.length ? 'bad' : 'ok'}"></span>` +
+    (bad.length ? `資料檢查:${bad.length} 項有問題` : '資料檢查:全部正常') + ` · ${esc(when)}</summary><ul>` +
+    h.items.map(i => `<li class="${i.ok ? '' : 'bad'}">${i.ok ? '✓' : '✗'} ${esc(i.name)}:${esc(i.detail)}</li>`).join('') + '</ul></details>';
+  box.style.display = '';
+}
+
 async function loadAll(opts){
   opts = opts || {};
   // silent:true 用在60秒自動刷新——不要每次都把畫面閃一下「載入中」;抓取失敗時也保留
@@ -1065,11 +1087,13 @@ async function loadAll(opts){
     try{ const r = await fetch('data/review.json', {cache:'no-store'}); if(r.ok) REVIEW = await r.json(); }catch(e){ /* 還沒有復盤資料 */ }
     try{ const r = await fetch('data/lab.json', {cache:'no-store'}); if(r.ok) LAB = await r.json(); }catch(e){ /* 還沒有驗證資料 */ }
   }
+  try{ const r = await fetch('data/health.json', {cache:'no-store'}); if(r.ok) HEALTH = await r.json(); }catch(e){ /* 沒有健康檢查就不顯示 */ }
 
   CHIP = chip; INTRADAY = intraday; HISTORY = history;
 
   const safe = (name, fn) => { try { fn(); } catch(e) { console.error('render ' + name, e); } };
   safe('fresh', () => renderFresh(intraday));
+  safe('health', () => renderHealth(HEALTH));
   safe('focus', () => renderFocus(intraday));
   safe('opening', () => renderOpening(intraday));
   safe('market', () => renderMarket(MARKET));

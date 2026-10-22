@@ -44,6 +44,10 @@ try:
     import lab
 except ImportError:
     lab = None
+try:
+    import health
+except ImportError:
+    health = None
 
 TAIPEI = ZoneInfo("Asia/Taipei")
 HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; personal-trading-dashboard/1.0)"}
@@ -1940,6 +1944,12 @@ def main():
     except Exception as e:  # noqa: BLE001  試跑功能,任何錯誤都不能影響主流程
         print(f"[警告] 全市場掃描/欄位樣本失敗: {e}")
     end_of_day_extras(run_time, indices_out, watchlist_out, (touch_summary or {}).get("regime_today"))
+
+    if health is not None:
+        try:
+            health.run(run_time)
+        except Exception as e:  # noqa: BLE001
+            print(f"[警告] 健康檢查失敗: {e}")
 
     n_quote = sum(1 for q in watchlist_out if q.get("last") is not None)
     print(f"[完成] {run_time:%Y-%m-%d %H:%M} 報價 {n_quote}/{len(watchlist_out)} 檔,日K {result['official_bars_status']}")

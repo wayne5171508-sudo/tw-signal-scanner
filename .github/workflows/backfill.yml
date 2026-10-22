@@ -49,6 +49,7 @@ jobs:
 
       - name: 存回 repo
         run: |
+          python health.py || true
           git config user.name "tw-signal-scanner-bot"
           git config user.email "actions@users.noreply.github.com"
           git add data/
