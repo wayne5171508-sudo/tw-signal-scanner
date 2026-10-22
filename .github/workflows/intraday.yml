@@ -50,7 +50,7 @@ jobs:
           while [ "$(date +%s)" -le "$end_epoch" ]; do
             loop_start=$(date +%s)
             git pull --rebase --autostash origin main >/dev/null 2>&1 || { git rebase --abort 2>/dev/null; echo "pull失敗,沿用目前版本"; }
-            timeout 150 python intraday.py || echo "這一輪抓取失敗或逾時,5分鐘後再試"
+            timeout 200 python intraday.py || echo "這一輪抓取失敗或逾時,5分鐘後再試"
             git add -A data/
             if ! git diff --quiet --cached; then
               git commit -m "盤中報價更新 $(TZ=Asia/Taipei date +'%Y-%m-%d %H:%M')"

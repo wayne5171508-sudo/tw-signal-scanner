@@ -34,6 +34,17 @@ from zoneinfo import ZoneInfo
 
 import requests
 
+# 收盤復盤、盤中走勢存檔、策略驗證放在另外兩個檔案;萬一 repo 裡還沒有這兩個檔,
+# 這裡只會跳過那些功能,即時報價照常更新,不會整支程式掛掉。
+try:
+    import review
+except ImportError:
+    review = None
+try:
+    import lab
+except ImportError:
+    lab = None
+
 TAIPEI = ZoneInfo("Asia/Taipei")
 HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; personal-trading-dashboard/1.0)"}
 TIMEOUT = 20
@@ -207,7 +218,38 @@ def row_to_quote(row, fallback_code, fallback_name):
         "lower_limit": row.get("76"),
         "limit_flag": row.get("200025"),
         "ts": row.get("200007"),
+        "amount_raw": row.get("200067"),   # 累積成交金額(單位由 normalize_amounts 自動判斷)
     }
+
+
+AMOUNT_UNITS = (1, 1e3, 1e4, 1e6, 1e8)   # 報價API的成交金額可能是元、千元、萬元、百萬、億,先試出是哪一種
+
+
+def normalize_amounts(quotes):
+    """把報價API的成交金額欄位(200067)換成「億元」存進 q["amt"]。
+    單位不寫死:用全部股票「金額 ÷ (張數×1000×現價)」的中位數,挑最接近1的單位;
+    單檔換算後跟「量×價」差太多(低於0.6倍或超過1.6倍)就不採用,改回 None,
+    資金流向會自動退回原本的「量×價」估算。回傳採用的單位(找不到合理單位回傳 None)。"""
+    ratios = []
+    for q in quotes:
+        raw, vol, last = q.get("amount_raw"), q.get("volume"), q.get("last")
+        if _num_ok(raw, vol, last) and raw > 0 and vol > 0 and last > 0:
+            ratios.append(raw / (vol * 1000 * last))
+    unit = None
+    if len(ratios) >= 5:
+        med = _median(ratios)
+        best = min(AMOUNT_UNITS, key=lambda u: abs(math.log(med * u)))
+        if 0.6 <= med * best <= 1.6:
+            unit = best
+    for q in quotes:
+        raw, vol, last = q.get("amount_raw"), q.get("volume"), q.get("last")
+        q["amt"] = None
+        if unit and _num_ok(raw, vol, last) and raw > 0 and vol > 0 and last > 0:
+            r = raw * unit / (vol * 1000 * last)
+            if 0.6 <= r <= 1.6:
+                q["amt"] = round(raw * unit / 1e8, 4)
+        q.pop("amount_raw", None)
+    return unit
 
 
 # ---- 開盤爆量偵測(09:00~09:30)----
@@ -944,6 +986,13 @@ def update_history(run_time, indices_out, watchlist_out, opening_state=None):
                 existing = json.load(f)
             if existing.get("date") == today_str:
                 history = existing
+            elif review is not None:
+                # 換日了:舊的一天要被清掉之前,先確認它有存進 data/intraday_archive/(收盤後通常已經存過)
+                try:
+                    if not os.path.exists(os.path.join(review.ARCHIVE_DIR, f"{existing.get('date')}.json")):
+                        review.archive_day(existing)
+                except Exception as e:  # noqa: BLE001  存檔是加分功能
+                    print(f"[警告] 盤中走勢存檔失敗: {e}")
         except (json.JSONDecodeError, OSError):
             pass
 
@@ -953,6 +1002,9 @@ def update_history(run_time, indices_out, watchlist_out, opening_state=None):
         "wl": {q["code"]: q["last"] for q in watchlist_out if q.get("last") is not None},
         "wlv": {q["code"]: q["volume"] for q in watchlist_out if q.get("volume") is not None},
     }
+    wla = {q["code"]: q["amt"] for q in watchlist_out if _num_ok(q.get("amt"))}
+    if wla:
+        point["wla"] = wla   # 累積成交金額(億),資金流向優先用這個,比「量×價」準
     history["points"].append(point)
     history["points"] = history["points"][-MAX_POINTS_PER_DAY:]
     if opening_state is not None:
@@ -1729,6 +1781,30 @@ def load_json_safe(path, default):
         return default
 
 
+def end_of_day_extras(run_time, indices_out, watchlist_out, regime_today):
+    """13:31 之後每一輪:存今天的盤中走勢、重算收盤復盤、跑策略驗證。各自獨立,任何一個失敗都不影響其他。
+    收盤後通常會跑兩輪(約13:31、13:36),第二輪資料最齊,結果會覆蓋第一輪。"""
+    m = (run_time - _day_start(run_time)).total_seconds() / 60
+    if m < 271:
+        return
+    hist = load_json_safe(HISTORY_FILE, {}) or {}
+    if review is not None:
+        try:
+            if hist.get("date") == run_time.strftime("%Y-%m-%d"):
+                review.archive_day(hist)
+        except Exception as e:  # noqa: BLE001
+            print(f"[警告] 盤中走勢存檔失敗: {e}")
+        try:
+            review.build_review(run_time, watchlist_out, indices_out, regime_today, GROUP_OF, SIGNAL_STRATS, hist)
+        except Exception as e:  # noqa: BLE001
+            print(f"[警告] 收盤復盤失敗: {e}")
+    if lab is not None:
+        try:
+            lab.run_all(SIGNAL_STRATS, GROUP_OF)
+        except Exception as e:  # noqa: BLE001
+            print(f"[警告] 策略驗證失敗: {e}")
+
+
 def main():
     run_time = taipei_now()
 
@@ -1754,6 +1830,15 @@ def main():
         print("[警告] 報價沒有時間戳,無法判斷是否為交易日,照常處理")
 
     watchlist_out = [row_to_quote(all_rows.get(f"TWS:{code}:STOCK"), code, name) for code, name in WATCHLIST_NAMES.items()]
+    for q in indices_out:
+        q.pop("amount_raw", None)
+    try:
+        amount_unit = normalize_amounts(watchlist_out)
+    except Exception as e:  # noqa: BLE001  成交金額只用在資金流向,失敗就退回量×價
+        print(f"[警告] 成交金額換算失敗: {e}")
+        amount_unit = None
+        for q in watchlist_out:
+            q.pop("amount_raw", None)
 
     # CDP壓力/支撐(用前一個交易日的高低收算)+ 量能倍率 + 壓力支撐多日趨勢,
     # 三個都是從同一份滾動歷史(data/daily_bars.json)算出來的,取代原本誤用今日漲跌停當壓力支撐的寫法
@@ -1810,6 +1895,12 @@ def main():
         result["market_signal_stats"] = market_signal_stats()
     except Exception as e:  # noqa: BLE001  成績單/量能曲線是加分功能,不能影響報價
         print(f"[警告] 歷史/成績單/量能曲線處理失敗: {e}")
+    result["amount_unit"] = amount_unit
+    try:
+        if lab is not None:
+            result["lab_summary"] = lab.load_summary()
+    except Exception as e:  # noqa: BLE001
+        print(f"[警告] 讀取策略驗證結果失敗: {e}")
     write_json_atomic(OUT_FILE, result, separators=(",", ":"))
     try:
         dump_fields(all_rows, run_time)
@@ -1817,6 +1908,7 @@ def main():
         close_market(run_time)
     except Exception as e:  # noqa: BLE001  試跑功能,任何錯誤都不能影響主流程
         print(f"[警告] 全市場掃描/欄位樣本失敗: {e}")
+    end_of_day_extras(run_time, indices_out, watchlist_out, (touch_summary or {}).get("regime_today"))
 
     n_quote = sum(1 for q in watchlist_out if q.get("last") is not None)
     print(f"[完成] {run_time:%Y-%m-%d %H:%M} 報價 {n_quote}/{len(watchlist_out)} 檔,日K {result['official_bars_status']}")

@@ -238,6 +238,25 @@
   .lvextra .dim2{color:var(--muted)}
   .tchrow{border-top:none;margin-top:3px;padding-top:0}
   .tchnote{font-size:10px;color:var(--muted);margin-top:3px}
+  .rvbox{margin:8px 0 12px;padding:12px;border-radius:12px;background:var(--card);border:1px solid var(--border);font-size:13px}
+  .rvbox .rvhd{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+  .rvbox .rvhd b{font-size:15px} .rvbox .rvhd small{font-size:11px;color:var(--muted)}
+  .rvbox ul{margin:8px 0 4px;padding-left:18px;line-height:1.6}
+  .rvbox details{border-top:1px solid var(--border);padding:6px 0}
+  .rvbox details summary{cursor:pointer;font-weight:600;font-size:13px;color:var(--sec)}
+  .rvbox .rvrow{display:flex;justify-content:space-between;gap:8px;padding:3px 0;font-variant-numeric:tabular-nums}
+  .rvbox .rvrow span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .rvbox .rvsub{font-size:12px;color:var(--muted);margin:6px 0 2px}
+  .rvchips{display:flex;flex-wrap:wrap;gap:5px;margin:3px 0}
+  .rvchip{font-size:12px;padding:2px 8px;border-radius:999px;background:#f1f0ea;cursor:pointer;white-space:nowrap}
+  .rvchip.up{background:var(--up-fill)} .rvchip.down{background:var(--down-fill)}
+  .rvdates{display:flex;flex-wrap:wrap;gap:5px;margin:6px 0}
+  .rvdates button{font-size:12px;padding:3px 9px;border-radius:999px;border:1px solid var(--border);background:var(--card);color:var(--text)}
+  .rvdates button.on{background:var(--text);color:var(--card)}
+  .labtbl{width:100%;font-size:12px;margin-top:4px}
+  .labtbl td,.labtbl th{padding:4px 3px;white-space:normal;vertical-align:top} .labtbl td:not(:first-child),.labtbl th:not(:first-child){width:15%;text-align:center}
+  .labtag{font-size:11px;padding:1px 6px;border-radius:6px;background:#f1f0ea;color:var(--muted)}
+  .labtag.good{background:var(--up-fill);color:var(--up)} .labtag.bad{background:#f1f0ea;color:var(--muted)}
   .lvextra .dim{color:var(--muted);text-decoration:line-through;text-decoration-color:rgba(0,0,0,0.25)}
   .lvsrc{color:var(--muted)}
   .fchips .blabel{font-size:12px;color:var(--muted);align-self:center;margin-right:2px}
@@ -312,10 +331,12 @@
 </div>
 
 <div data-pane="today">
+<div id="reviewTop" style="display:none"></div>
 <div id="focusBox" style="display:none"></div>
 <div id="openingBox" style="display:none"></div>
 <div id="marketBox" style="display:none"></div>
 <div class="idxgrid" id="indicesGrid"></div>
+<div id="reviewBottom" style="display:none"></div>
 </div>
 
 <div data-pane="flow">
@@ -342,6 +363,12 @@
 
 <div data-pane="more">
 <div id="signalBox" style="display:none"></div>
+<div id="labBox" style="display:none"></div>
+<details class="more" id="reviewPastWrap" style="display:none">
+  <summary>復盤紀錄(最近30個交易日)</summary>
+  <div class="rvdates" id="reviewDates"></div>
+  <div id="reviewPast"></div>
+</details>
 <details class="more" open>
   <summary>熱力圖、量能排行、完整報價表</summary>
   <h2>自選股漲跌幅熱力圖</h2>
@@ -382,6 +409,7 @@
 
 <script>
 let INTRADAY = null, HISTORY = null, CHIP = null, CURRENT_DETAIL = null, MARKET = null;
+let REVIEW = null, LAB = null, SLOW_AT = 0, REVIEW_PICK = null;
 
 const num = n => { if(n === null || n === undefined || n === '') return null; const v = Number(n); return Number.isFinite(v) ? v : null; };
 const PCT_CLASS = p => { const v = num(p); return v > 0 ? 'up' : (v < 0 ? 'down' : 'flat'); };
@@ -1030,6 +1058,13 @@ async function loadAll(opts){
     if(r.ok) MARKET = await r.json();
   }catch(e){ /* 全市場榜是試跑功能,讀不到就不顯示 */ }
 
+  // 復盤與策略驗證一天只在收盤後更新,不用每分鐘重抓:第一次載入、手動重新整理、或距離上次超過10分鐘才抓
+  if(!opts.silent || Date.now() - SLOW_AT > 600000){
+    SLOW_AT = Date.now();
+    try{ const r = await fetch('data/review.json', {cache:'no-store'}); if(r.ok) REVIEW = await r.json(); }catch(e){ /* 還沒有復盤資料 */ }
+    try{ const r = await fetch('data/lab.json', {cache:'no-store'}); if(r.ok) LAB = await r.json(); }catch(e){ /* 還沒有驗證資料 */ }
+  }
+
   CHIP = chip; INTRADAY = intraday; HISTORY = history;
 
   const safe = (name, fn) => { try { fn(); } catch(e) { console.error('render ' + name, e); } };
@@ -1039,6 +1074,8 @@ async function loadAll(opts){
   safe('market', () => renderMarket(MARKET));
   safe('flow', () => renderFlow(intraday, history));
   safe('signals', () => renderSignals(intraday));
+  safe('review', () => renderReview(REVIEW));
+  safe('lab', () => renderLab(LAB));
   safe('touchnote', () => renderTouchNote(intraday));
   safe('srcnote', () => { const sn = document.getElementById('srcNote'); if(sn) sn.textContent = (intraday && intraday.official_bars_status) ? ' 日K資料狀態:' + intraday.official_bars_status + '。' : ''; });
   safe('indices', () => renderIndices(intraday));
@@ -1477,6 +1514,130 @@ function renderSignals(intraday){
   el.style.display = '';
 }
 
+// ================= 收盤復盤(data/review.json,13:31 後自動整理) =================
+function rvChip(x, extra){
+  const c = num(x.pct) > 0 ? 'up' : (num(x.pct) < 0 ? 'down' : '');
+  return `<span class="rvchip ${c}" onclick="searchAndOpen('${x.code}')">${x.name || x.code} ${fmtPct(x.pct)}${extra ? ' ' + extra : ''}</span>`;
+}
+function rvChips(list, extraFn){
+  return (list && list.length) ? `<div class="rvchips">${list.map(x => rvChip(x, extraFn ? extraFn(x) : '')).join('')}</div>` : '<div class="rvsub">無</div>';
+}
+function rvSigned(v, unit){ const x = num(v); return x === null ? '-' : (x > 0 ? '+' : '') + x.toFixed(2) + (unit || '%'); }
+
+function reviewHtml(rv, title, openAll){
+  if(!rv) return '';
+  const md = rv.date ? rv.date.slice(5).replace('-', '/') : '';
+  const op = openAll ? ' open' : '';
+  const sum = (rv.summary || []).map(t => `<li>${t}</li>`).join('');
+  const gs = (rv.groups || []).map(g => `<div class="rvrow"><span>${g.g}<small style="color:var(--muted)"> ${g.n}檔</small></span><span><span class="${PCT_CLASS(g.avg)}">${fmtPct(g.avg)}</span>${g.flow != null ? ` <small style="color:var(--muted)">資金 ${flowFmt(g.flow)}</small>` : ''}</span></div>`).join('');
+  const lv = rv.levels || {};
+  const fc = rv.focus || {};
+  const fl = (fc.list || []).map(x => `<div class="rvrow" onclick="searchAndOpen('${x.code}')"><span>${x.name}<small style="color:var(--muted)"> ${x.t} ${fmtNum(x.price)} 量${x.pace}倍</small></span><span class="${PCT_CLASS(x.ret)}">${x.ret == null ? '-' : rvSigned(x.ret)}${x.mkt != null ? ` <small style="color:var(--muted)">平均${rvSigned(x.mkt)}</small>` : ''}</span></div>`).join('');
+  const sg = rv.signals ? Object.keys(rv.signals).map(k => { const s = rv.signals[k]; return `<div class="rvrow"><span>${k}<small style="color:var(--muted)"> ${s.side === 'long' ? '做多' : '放空'} ${s.n}筆</small></span><span class="${PCT_CLASS(s.avg)}">${rvSigned(s.avg)} <small style="color:var(--muted)">扣成本${rvSigned(s.net)}</small></span></div>`; }).join('') : '';
+  const mk = rv.market && rv.market.items && rv.market.items.length ? rv.market.items.map(x => `<div class="rvrow"><span>${x.name}<small style="color:var(--muted)"> ${x.code} ${{30:'09:30',90:'10:30',180:'12:00'}[x.snap] || ''} 量${x.pace}倍</small></span><span class="${PCT_CLASS(x.ret)}">${x.ret == null ? '收盤價未取得' : '之後到收盤 ' + rvSigned(x.ret)}</span></div>`).join('') : '';
+  const wn = rv.watch_next || {};
+  return `<div class="rvbox">
+    <div class="rvhd"><b>${title} ${md}</b><small>${rv.as_of || ''} 整理</small></div>
+    <ul>${sum}</ul>
+    <details${op}><summary>族群強弱</summary>${gs}<div class="rvsub">資金=主動買減主動賣的估計(${rv.flow_source || '量×價估算'}),單位億。</div></details>
+    <details${op}><summary>漲跌幅前五、量能最大</summary>
+      <div class="rvsub">漲最多</div>${rvChips(rv.movers && rv.movers.up)}
+      <div class="rvsub">跌最多</div>${rvChips(rv.movers && rv.movers.down)}
+      <div class="rvsub">量能倍數最大</div>${rvChips(rv.big_volume, x => x.pace != null ? x.pace + '倍' : '')}
+      ${(rv.limit_up || []).length ? `<div class="rvsub">漲停</div>${rvChips(rv.limit_up)}` : ''}
+      ${(rv.limit_down || []).length ? `<div class="rvsub">跌停</div>${rvChips(rv.limit_down)}` : ''}
+    </details>
+    <details${op}><summary>支撐壓力結果</summary>
+      <div class="rvsub">收盤站上壓力(自動依據)</div>${rvChips(lv.breakout, x => '線' + fmtNum(x.line))}
+      <div class="rvsub">收盤跌破支撐</div>${rvChips(lv.breakdown, x => '線' + fmtNum(x.line))}
+      <div class="rvsub">盤中突破前20日最高</div>${rvChips(lv.new_high20)}
+      <div class="rvsub">盤中跌破前20日最低</div>${rvChips(lv.new_low20)}
+    </details>
+    ${fc.n ? `<details${op}><summary>今日焦點名單收盤成績(${fc.n}檔)</summary>${fl}<div class="rvsub">記錄價=當天第一次上榜的價格;「平均」=同一段時間全部自選股平均漲跌。</div></details>` : ''}
+    ${sg ? `<details${op}><summary>訊號實驗室今天的結果</summary>${sg}<div class="rvsub">只有一天的結果,好壞都可能是運氣,要看「更多」裡的累積統計。</div></details>` : ''}
+    ${mk ? `<details${op}><summary>全市場新發現(不在自選)</summary>${mk}</details>` : ''}
+    <details${op}><summary>明日觀察(機械條件)</summary>
+      <div class="rvsub">強勢:漲3%以上、收在今日高點1%內、量能1.5倍以上,而且收盤站上壓力</div>${rvChips(wn.strong)}
+      <div class="rvsub">弱勢:跌3%以上、收在今日低點1%內、量能1.5倍以上,而且收盤跌破支撐</div>${rvChips(wn.weak)}
+    </details>
+    <div class="onote">全部是當天已經發生的數字整理,用來回顧,不是預測、也不是買賣建議。</div>
+  </div>`;
+}
+
+function renderReview(store){
+  const top = document.getElementById('reviewTop'), bot = document.getElementById('reviewBottom');
+  const wrap = document.getElementById('reviewPastWrap');
+  if(!top || !bot) return;
+  const days = (store && store.days) || {};
+  const dates = Object.keys(days).sort().reverse();
+  if(!dates.length){ top.style.display = bot.style.display = 'none'; if(wrap) wrap.style.display = 'none'; return; }
+  const rv = days[store.latest] || days[dates[0]];
+  const tp = new Date(Date.now() + 8*3600000), tpm = tp.getUTCHours()*60 + tp.getUTCMinutes(), wd = tp.getUTCDay();
+  const todayStr = tp.toISOString().slice(0, 10);
+  const session = wd >= 1 && wd <= 5 && tpm >= 9*60 && tpm < 13*60 + 31;
+  if(!session){
+    top.innerHTML = reviewHtml(rv, rv.date === todayStr ? '今日復盤' : '上個交易日復盤', false);
+    top.style.display = ''; bot.style.display = 'none';
+  } else {
+    // 盤中把版面留給即時資料,昨天的復盤收在最下面
+    bot.innerHTML = `<details style="margin-top:10px"><summary style="cursor:pointer;color:var(--muted);font-size:12px">上個交易日復盤(${rv.date.slice(5).replace('-', '/')})</summary>${reviewHtml(rv, '復盤', false)}</details>`;
+    bot.style.display = ''; top.style.display = 'none';
+  }
+  if(wrap){
+    if(!REVIEW_PICK || !days[REVIEW_PICK]) REVIEW_PICK = dates[0];
+    document.getElementById('reviewDates').innerHTML = dates.map(d => `<button class="${d === REVIEW_PICK ? 'on' : ''}" onclick="pickReview('${d}')">${d.slice(5).replace('-', '/')}</button>`).join('');
+    document.getElementById('reviewPast').innerHTML = reviewHtml(days[REVIEW_PICK], '復盤', false);
+    wrap.style.display = '';
+  }
+}
+function pickReview(d){ REVIEW_PICK = d; renderReview(REVIEW); }
+
+// ================= 策略驗證室(data/lab.json) =================
+function labVerdict(st){
+  if(!st || !st.n) return {t:'尚無樣本', c:''};
+  if(st.n < 30 || (st.days || 0) < 5) return {t:'累積中', c:''};
+  if(st.edge > 0.4 && (st.t || 0) >= 2) return {t:'有優勢跡象', c:'good'};
+  if(st.edge <= 0) return {t:'沒有優勢', c:'bad'};
+  return {t:'優勢不明顯', c:''};
+}
+function renderLab(lab){
+  const el = document.getElementById('labBox');
+  if(!el) return;
+  if(!lab || !lab.rsi){ el.style.display = 'none'; return; }
+  const r = lab.rsi, ex = lab.exit_desc || {};
+  const sg = v => v == null ? '-' : (v > 0 ? '+' : '') + v.toFixed(2);
+  const rows = Object.keys(r.strats || {}).map(k => {
+    const s = r.strats[k];
+    const cells = ['close', 'c', 'ce'].map(e => {
+      const a = (s.exits[e] || {}).all || {};
+      return a.n ? `<td>${a.n}<br><small>${sg(a.edge)}</small></td>` : '<td>-</td>';
+    }).join('');
+    const best = ['close', 'c', 'ce'].map(e => (s.exits[e] || {}).all || {}).filter(a => a.n).sort((a, b) => b.edge - a.edge)[0];
+    const v = labVerdict(best);
+    return `<tr><td style="text-align:left"><b>${s.name}</b><br><small style="color:var(--muted)">${s.desc}</small></td>${cells}<td><span class="labtag ${v.c}">${v.t}</span></td></tr>`;
+  }).join('');
+  const sw = lab.sweep || {};
+  const swHtml = ['watch', 'market'].map(k => {
+    const x = sw[k] || {}, nm = k === 'watch' ? '自選股' : '全市場';
+    if(!x.ready) return `<div class="rvsub">${nm}:樣本 ${x.days || 0}/${x.need || 6} 個交易日,夠了才開始掃描。</div>`;
+    const fams = Object.keys(x.families || {}).map(f => {
+      const fx = x.families[f];
+      const top = (fx.top || []).slice(0, 3).map(t => `<div class="rvrow"><span>漲跌${f === '弱勢爆量' || f === '低檔反彈' ? '≤-' : '≥'}${t.P}% 量≥${t.V}倍${t.X ? ' 第三條件' + t.X + '%' : ''}${t.default ? '(目前設定)' : ''}</span><span>訓練${sg(t.train.edge)}(${t.train.n}) → 驗證${t.test.n ? sg(t.test.edge) : '-'}(${t.test.n || 0}) <span class="labtag ${t.holds ? 'good' : ''}">${t.holds ? '站得住' : '未確認'}</span></span></div>`).join('');
+      return `<div class="rvsub"><b>${f}</b>(試了 ${fx.tested} 組,站得住 ${fx.n_hold || 0} 組)</div>${top}`;
+    }).join('');
+    return `<div class="rvsub"><b>${nm}</b>:${x.train_days} 天訓練、${x.test_days} 天驗證(${x.split} 起)</div>${fams}`;
+  }).join('');
+  el.className = 'sigbox';
+  el.innerHTML = `<div class="sh"><b>策略驗證室</b><small>${lab.updated || ''} 更新</small></div>
+    <div class="onote" style="margin:0 0 4px">RSI 規則用每天存下來的盤中走勢(約5分鐘一點)回測,已累積 ${r.days || 0} 個交易日${r.first ? `(${r.first.slice(5)}~${r.last.slice(5)})` : ''}。每格=筆數/比同時段全體平均多幾%(已含進出場時間對齊,還沒扣 ${lab.cost_pct}% 成本)。至少 30 筆、5 天以上才下判斷,而且差距要大於成本、以天為單位至少是標準誤的 2 倍才算「有優勢跡象」。</div>
+    <div class="tablewrap"><table class="labtbl"><thead><tr><th style="text-align:left">RSI 規則</th><th>收盤出</th><th>C</th><th>C+E</th><th>判斷</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="onote">出場方式:收盤出=${ex.close || '抱到收盤'};C=RSI7曾到80以上,之後跌破RSI14才出場;C+E=同C,但RSI14連續3根卡在80以上時改成跌破12根均線才出場。放空方向一律收盤出。</div>
+    <details style="margin-top:8px"><summary style="cursor:pointer;color:var(--muted);font-size:12px">參數掃描與樣本外驗證</summary>
+      <div class="onote">把四種策略的門檻全部組合試一遍,用前 60% 的交易日挑最好的參數,再看後 40% 沒用過的日子是不是還有效。「站得住」=驗證段至少 20 筆,訓練段和驗證段的差距都大於成本,而且以「天」為單位都至少是標準誤的 2 倍(用亂數資料測過,沒有這條會把運氣當優勢)。試的組合越多,越容易有一組剛好好看,所以只看「站得住」的。</div>${swHtml}</details>
+    <div class="onote">歷史統計,不是預測、也不是買賣建議。</div>`;
+  el.style.display = '';
+}
+
 // ================= 資金流向(自選股估算) =================
 // 作法:每兩個相鄰時間點之間的「新增成交金額」,依這段期間價格漲跌歸成主動買(漲)或主動賣(跌),
 // 平盤沿用該檔上一次的方向。這是用5分鐘快照推出來的估算,不是逐筆內外盤。
@@ -1498,11 +1659,14 @@ function flowCompute(intraday, history){
       const g = groups[code]; if(!g) continue;
       const v = num(p.wlv[code]), px = num(p.wl[code]);
       if(v === null || px === null) continue;
-      const s = st[code] || (st[code] = {v: 0, px: num(qm[code] && qm[code].prev_close) ?? px, sg: 0});
+      const s = st[code] || (st[code] = {v: 0, px: num(qm[code] && qm[code].prev_close) ?? px, sg: 0, a: 0});
       let dv = v - s.v; if(dv < 0) dv = 0;
       const d = px - s.px;
       const sg = d > 0 ? 1 : (d < 0 ? -1 : s.sg);
-      const amt = dv * 1000 * px / 1e8;
+      // 有報價API的實際累積成交金額(wla,單位億)就用它,沒有才用「新增量×價格」估
+      const a = p.wla ? num(p.wla[code]) : null;
+      const amt = (a !== null && s.a !== null && a >= s.a) ? (a - s.a) : dv * 1000 * px / 1e8;
+      s.a = a;
       if(sg !== 0 && amt > 0){
         const f = sg * amt;
         cum[g] += f; if(f > 0) cumIn[g] += f; else cumOut[g] -= f;
@@ -1540,7 +1704,7 @@ function renderFlow(intraday, history){
       <div class="fctl"><button class="fbtn" id="flBtn" onclick="flowToggle()">▶</button><input type="range" id="flRange" min="0" max="${fl.frames.length - 1}" value="${FLOW_IDX}" oninput="flowScrub(this.value)"></div>
       <div class="fcap" style="margin-top:2px"><span>09:00</span><span>13:30</span></div>
       <div class="fstk" id="flStk" style="display:none"></div>
-      <div class="fnote">這是用約每5分鐘一次的報價推算:每段新增成交金額,價格上漲歸為買、下跌歸為賣、平盤沿用上一次方向。只含自選股、不含ETF,不是全市場也不是逐筆內外盤,只看「資金偏向哪一邊」,不要當精確金額。點族群可看裡面的個股。</div>`;
+      <div class="fnote">這是用約每5分鐘一次的報價推算:每段新增成交金額(有實際成交金額就用,沒有才用量×價估),價格上漲歸為買、下跌歸為賣、平盤沿用上一次方向。只含自選股、不含ETF,不是全市場也不是逐筆內外盤,只看「資金偏向哪一邊」,不要當精確金額。點族群可看裡面的個股。</div>`;
   }
   el.style.display = '';
   const rng = document.getElementById('flRange');
