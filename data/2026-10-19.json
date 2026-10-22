@@ -1,0 +1,190 @@
+{
+  "date": "2026-10-19",
+  "generated_at": "2026-10-22T22:30:00.653992+08:00",
+  "pipeline_version": "v11.4-realcode",
+  "scope_decisions": [
+    "這份JSON由GitHub Actions上的Python直接呼叫TWSE官方API算出,不經過Claude的WebFetch,所以不會有大表格漏行的問題。新聞面查核跟最終文字撰寫仍由Claude排程完成。",
+    "v11.2補回族群效應/損益平衡/振幅/開盤缺口(改寫成Python時一度漏掉),新增大盤環境判斷、漲停可執行性標記、戰績追蹤(track_record),都是為了讓這套規則式評分未來有真實數據可以檢驗,不是純粹加功能。",
+    "v11.3修正:改成往回找「最近一個有資料的交易日」(resolve_latest_trading_day),不再只看執行當下的日曆日期。原因是GitHub Actions排程常常延遲數小時才真的執行(GitHub平台本身的已知限制,免費方案在低用量repo上不保證準時),延遲到跨過午夜才執行時,舊邏輯會把日期算成還沒收盤的隔天,害明明已經有的收盤資料被誤判成「資料還沒準備好」。",
+    "v11.4修正:月初自動接上個月日成交(原本每月前幾天全部候選股被排除);存檔改用資料日期命名、戰績追蹤改看資料日期並去重複(原本延遲跨日會錯位、同一訊號被驗證兩次);法人買超前8一定進候選名單;連續買超改看3個交易日。"
+  ],
+  "backfill": {
+    "requested_date": "2026-10-19",
+    "note": "事後回補:法人買超前8與日成交都是官方歷史資料;wantgoo 量能/漲幅排行只有即時版,所以候選名單改用原始存檔留下的代號(有的話),沒有原始存檔的日子只看法人買超前8。"
+  },
+  "market_status": "OK",
+  "market_regime": "空頭",
+  "taiex_change_pct": -0.61,
+  "institutional_buy_rank_top8": [
+    {
+      "code": "2409",
+      "name": "友達",
+      "net_buy_lots": 15392
+    },
+    {
+      "code": "2002",
+      "name": "中鋼",
+      "net_buy_lots": 9580
+    },
+    {
+      "code": "2884",
+      "name": "玉山金",
+      "net_buy_lots": 8652
+    },
+    {
+      "code": "2886",
+      "name": "兆豐金",
+      "net_buy_lots": 7412
+    },
+    {
+      "code": "9105",
+      "name": "泰金寶-DR",
+      "net_buy_lots": 7160
+    },
+    {
+      "code": "5880",
+      "name": "合庫金",
+      "net_buy_lots": 6979
+    },
+    {
+      "code": "1216",
+      "name": "統一",
+      "net_buy_lots": 6606
+    },
+    {
+      "code": "2412",
+      "name": "中華電",
+      "net_buy_lots": 5976
+    }
+  ],
+  "candidate_pool_size": 8,
+  "focus_stocks": [],
+  "surge_watch": [
+    {
+      "code": "2412",
+      "name": "中華電",
+      "open": 153.5,
+      "high": 155.5,
+      "low": 152.5,
+      "close": 154.5,
+      "change": 1.5,
+      "net_buy_lots": 5976,
+      "volume_multiple": 1.31,
+      "tech_score": 2.5,
+      "tech_breakdown": "買超+2、溫和上漲+0.5",
+      "tag": "偏多",
+      "price_volume_diverged": false,
+      "amplitude_pct": 1.96,
+      "amplitude_tag": "normal",
+      "gap_pct": 0.33,
+      "gap_tag": "normal",
+      "cost_breakeven_tag": "below_cost",
+      "limit_up_locked": false,
+      "sector": "通信網路業",
+      "signal_status": "候選未達標",
+      "sector_cluster": "無族群效應",
+      "consecutive_buy_days": 3
+    },
+    {
+      "code": "2409",
+      "name": "友達",
+      "open": 35.3,
+      "high": 36.7,
+      "low": 34.45,
+      "close": 36.7,
+      "change": 0.8,
+      "net_buy_lots": 15392,
+      "volume_multiple": 0.9,
+      "tech_score": 3.0,
+      "tech_breakdown": "買超+2、規模最大+0.5、溫和上漲+0.5",
+      "tag": "偏多",
+      "price_volume_diverged": false,
+      "amplitude_pct": 6.27,
+      "amplitude_tag": "high_range",
+      "gap_pct": -1.67,
+      "gap_tag": "normal",
+      "cost_breakeven_tag": "normal",
+      "limit_up_locked": false,
+      "sector": "光電業",
+      "signal_status": "候選未達標",
+      "sector_cluster": "無族群效應",
+      "consecutive_buy_days": 2
+    },
+    {
+      "code": "9105",
+      "name": "泰金寶-DR",
+      "open": 9.1,
+      "high": 9.3,
+      "low": 8.98,
+      "close": 9.13,
+      "change": 0.07,
+      "net_buy_lots": 7160,
+      "volume_multiple": 0.88,
+      "tech_score": 2.5,
+      "tech_breakdown": "買超+2、溫和上漲+0.5",
+      "tag": "偏多",
+      "price_volume_diverged": false,
+      "amplitude_pct": 3.53,
+      "amplitude_tag": "normal",
+      "gap_pct": 0.44,
+      "gap_tag": "normal",
+      "cost_breakeven_tag": "below_cost",
+      "limit_up_locked": false,
+      "sector": "無法查核",
+      "signal_status": "候選未達標",
+      "sector_cluster": "無法查核",
+      "consecutive_buy_days": 1
+    },
+    {
+      "code": "1216",
+      "name": "統一",
+      "open": 80.0,
+      "high": 80.0,
+      "low": 78.5,
+      "close": 79.6,
+      "change": 0.0,
+      "net_buy_lots": 6606,
+      "volume_multiple": 0.86,
+      "tech_score": 2.0,
+      "tech_breakdown": "買超+2",
+      "tag": "中性偏多(力道待確認)",
+      "price_volume_diverged": false,
+      "amplitude_pct": 1.88,
+      "amplitude_tag": "normal",
+      "gap_pct": 0.5,
+      "gap_tag": "normal",
+      "cost_breakeven_tag": "below_cost",
+      "limit_up_locked": false,
+      "sector": "食品工業",
+      "signal_status": "候選未達標",
+      "sector_cluster": "無族群效應",
+      "consecutive_buy_days": 3
+    },
+    {
+      "code": "2884",
+      "name": "玉山金",
+      "open": 49.5,
+      "high": 49.8,
+      "low": 49.0,
+      "close": 49.35,
+      "change": 0.2,
+      "net_buy_lots": 8652,
+      "volume_multiple": 0.85,
+      "tech_score": 2.5,
+      "tech_breakdown": "買超+2、溫和上漲+0.5",
+      "tag": "偏多",
+      "price_volume_diverged": false,
+      "amplitude_pct": 1.63,
+      "amplitude_tag": "normal",
+      "gap_pct": 0.71,
+      "gap_tag": "normal",
+      "cost_breakeven_tag": "below_cost",
+      "limit_up_locked": false,
+      "sector": "金融保險業",
+      "signal_status": "候選未達標",
+      "sector_cluster": "族群效應成立(金融保險業,同族群3檔上榜)",
+      "consecutive_buy_days": 3
+    }
+  ],
+  "excluded_incomplete_volume_data": []
+}
