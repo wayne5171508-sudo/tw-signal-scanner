@@ -534,7 +534,7 @@ def signal_stats():
 # 股票清單與前一交易日成交量來自證交所/櫃買中心公開資料,報價沿用同一個報價API,
 # 倍數=今日累積量/(前一交易日全天量×正常已成交比例),比自選股用的20日中位數粗糙,只拿來「找出沒在自選的爆量股」。
 # 試跑期只在 09:30 後第一輪掃一次,整段限時,批次之間有間隔,連續失敗就停,失敗只記錄診斷、不影響主流程。
-MARKET_SNAPS = (30, 90)     # 09:30 與 10:30 後各掃一次(試跑期,確認不會被限流再增加)
+MARKET_SNAPS = (30, 90, 180)   # 09:30、10:30、12:00 後各掃一次(試跑已確認不會被限流)
 MARKET_TIME_BUDGET = 45
 MARKET_MAX_TRIES = 3        # 同一個時點最多嘗試幾輪(取得清單或掃描失敗時下一輪再試)
 MARKET_GAP = 0.4            # 每批之間間隔秒數,避免短時間大量請求
@@ -640,7 +640,8 @@ def scan_market(run_time, watch_codes):
             streak = 0
             time.sleep(MARKET_GAP)
             for row in rows:
-                code = row.get("0")
+                raw = str(row.get("0") or "")
+                code = row.get("200010") or (raw.split(":")[1] if raw.count(":") >= 2 else raw)   # "0"欄位是 TWS:2330:STOCK,股票清單用 2330
                 vol, last, prev = row.get("200013"), row.get("6"), uni.get(code)
                 if not (_num_ok(vol, last) and prev) or vol < MARKET_MIN_VOL:
                     continue
