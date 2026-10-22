@@ -384,6 +384,16 @@ def process_end_of_day(run_time):
                 continue
             first = pk["price"]
             close = prices[-1][1]
+            # 對照組:同一段時間(被標記到收盤)全部自選股的平均漲跌,用來看這檔有沒有比大盤平均強
+            rs = []
+            for c2, p1 in (pts[-1][1].get("wl") or {}).items():
+                if c2 not in GROUP_OF:      # ETF不計入
+                    continue
+                p0 = next((p["wl"][c2] for mm, p in pts if mm >= t0 and _num_ok((p.get("wl") or {}).get(c2))), None)
+                if _num_ok(p0, p1) and p0 > 0:
+                    rs.append((p1 / p0 - 1) * 100)
+            if len(rs) >= 20:
+                pk["mkt"] = round(sum(rs) / len(rs), 2)
             up = max((v - first) / first * 100 for _m, v in prices)
             dn = min((v - first) / first * 100 for _m, v in prices)
             pk["ret"] = round((close - first) / first * 100, 2)
@@ -418,8 +428,11 @@ def focus_stats():
             fav = [-r["dn"] for r in rs]
             adv = [-r["up"] for r in rs]
             rets = [-r["ret"] for r in rs]
+        sg = 1 if side == "in" else -1
+        ex = [sg * (r["ret"] - r["mkt"]) for r in rs if "mkt" in r]
         return {"n": n, "win": win, "avg_ret": round(sum(rets) / n, 2), "avg_fav": round(sum(fav) / n, 2),
-                "avg_adv": round(sum(adv) / n, 2)}
+                "avg_adv": round(sum(adv) / n, 2),
+                "avg_excess": round(sum(ex) / len(ex), 2) if ex else None, "n_ex": len(ex)}
 
     out = {"days": len(ev_days), "n": len(rows)}
     for side in ("in", "out"):
@@ -817,6 +830,44 @@ def dump_fields(all_rows, run_time):
         return
     keys = ("TWS:TSE01:INDEX", "TWS:2455:STOCK", "TWS:2379:STOCK", "TWS:0050:STOCK")
     write_json_atomic(FIELDS_FILE, {"date": today, "rows": {k: all_rows[k] for k in keys if k in all_rows}})
+
+
+def flow_summary(watchlist_out):
+    """各族群『主動買-主動賣』累積估算(和網頁資金流向同一套算法),給09:30摘要通知用。"""
+    hist = load_json_safe(HISTORY_FILE, {}) or {}
+    pts = [p for p in (hist.get("points") or []) if p.get("wl") and p.get("wlv")]
+    prevc = {q["code"]: q.get("prev_close") for q in watchlist_out}
+    st, cum = {}, {g: 0.0 for g in WATCH_GROUPS}
+    for p in pts:
+        for code, v in p["wlv"].items():
+            g, px = GROUP_OF.get(code), p["wl"].get(code)
+            if not g or not _num_ok(v, px):
+                continue
+            s_ = st.setdefault(code, {"v": 0, "px": prevc.get(code) or px, "sg": 0})
+            dv = max(0, v - s_["v"])
+            d = px - s_["px"]
+            sg = 1 if d > 0 else (-1 if d < 0 else s_["sg"])
+            amt = dv * 1000 * px / 1e8
+            if sg and amt > 0:
+                cum[g] += sg * amt
+            s_["v"], s_["px"] = v, px
+            if d != 0:
+                s_["sg"] = sg
+    return {"t": pts[-1]["t"] if pts else None, "net": round(sum(cum.values()), 1), "groups": {g: round(v, 1) for g, v in cum.items()}}
+
+
+def signal_hits(watchlist_out):
+    """目前符合訊號實驗室策略條件的自選股(摘要通知用)。"""
+    hits = []
+    for q in watchlist_out:
+        last, hi, lo, pct, pace = q.get("last"), q.get("high"), q.get("low"), q.get("pct"), q.get("pace")
+        if not (_num_ok(last, hi, lo, pct, pace) and hi and lo):
+            continue
+        dd, up = (last / hi - 1) * 100, (last / lo - 1) * 100
+        for name, (side, cond) in SIGNAL_STRATS.items():
+            if cond(pct, pace, dd, up):
+                hits.append({"code": q["code"], "name": q.get("name"), "strat": name, "side": side})
+    return hits
 
 
 def focus_first(run_time):
@@ -1775,6 +1826,8 @@ def main():
         "focus_first": None,
         "signal_stats": None,
         "market_signal_stats": None,
+        "flow_summary": None,
+        "signal_hits": None,
         "groups": GROUP_OF,
         "data_as_of": data_as_of,
         "check_frequency_note": "開盤期間每約5分鐘由GitHub Actions排程抓一次,非逐秒即時報價",
@@ -1795,6 +1848,8 @@ def main():
         record_signals(run_time, watchlist_out, ((touch_summary or {}).get("regime_today") or {}).get("label"))
         result["signal_stats"] = signal_stats()
         result["market_signal_stats"] = market_signal_stats()
+        result["flow_summary"] = flow_summary(watchlist_out)
+        result["signal_hits"] = signal_hits(watchlist_out)
     except Exception as e:  # noqa: BLE001  成績單/量能曲線是加分功能,不能影響報價
         print(f"[警告] 歷史/成績單/量能曲線處理失敗: {e}")
     write_json_atomic(OUT_FILE, result, separators=(",", ":"))
