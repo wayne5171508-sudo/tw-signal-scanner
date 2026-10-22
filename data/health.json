@@ -1,0 +1,55 @@
+{
+  "checked_at": "2026-10-22T17:16:25+08:00",
+  "trade_date": "2026-10-22",
+  "ok": false,
+  "items": [
+    {
+      "key": "quotes",
+      "name": "盤中報價",
+      "ok": true,
+      "detail": "2026-10-22 最後一輪 13:33,有報價 78/79 檔"
+    },
+    {
+      "key": "bars",
+      "name": "日K資料",
+      "ok": true,
+      "detail": "ok 79/79(來源無日K:7781)"
+    },
+    {
+      "key": "market",
+      "name": "全市場爆量榜",
+      "ok": true,
+      "detail": "2026-10-22 3 次都有"
+    },
+    {
+      "key": "review",
+      "name": "收盤復盤",
+      "ok": true,
+      "detail": "最新一份是 2026-10-22"
+    },
+    {
+      "key": "archive",
+      "name": "盤中走勢存檔",
+      "ok": true,
+      "detail": "2026-10-22.json 有"
+    },
+    {
+      "key": "lab",
+      "name": "策略驗證室",
+      "ok": true,
+      "detail": "最後更新 2026-10-22 14:26"
+    },
+    {
+      "key": "scan",
+      "name": "盤後掃描存檔",
+      "ok": false,
+      "detail": "缺 09-30、10-01、10-13、10-19"
+    },
+    {
+      "key": "track",
+      "name": "隔日戰績",
+      "ok": true,
+      "detail": "23 筆,無重複、皆為隔日"
+    }
+  ]
+}

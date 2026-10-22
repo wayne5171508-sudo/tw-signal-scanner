@@ -334,5 +334,37 @@
     "overnight_return_pct": 1.48,
     "day_high_return_pct": 3.26,
     "close_return_pct": -0.3
+  },
+  {
+    "signal_date": "2026-10-21",
+    "checked_date": "2026-10-22",
+    "code": "2324",
+    "name": "仁寶",
+    "signal_status": "放量觀察",
+    "tech_score": 3.8,
+    "signal_close": 37.7,
+    "next_open": 38.0,
+    "next_high": 38.25,
+    "next_low": 37.1,
+    "next_close": 37.3,
+    "overnight_return_pct": 0.8,
+    "day_high_return_pct": 1.46,
+    "close_return_pct": -1.06
+  },
+  {
+    "signal_date": "2026-10-21",
+    "checked_date": "2026-10-22",
+    "code": "3231",
+    "name": "緯創",
+    "signal_status": "放量觀察",
+    "tech_score": 3.8,
+    "signal_close": 195.0,
+    "next_open": 198.5,
+    "next_high": 199.0,
+    "next_low": 189.5,
+    "next_close": 190.0,
+    "overnight_return_pct": 1.79,
+    "day_high_return_pct": 2.05,
+    "close_return_pct": -2.56
   }
 ]
