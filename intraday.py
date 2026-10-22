@@ -534,8 +534,9 @@ def signal_stats():
 # 股票清單與前一交易日成交量來自證交所/櫃買中心公開資料,報價沿用同一個報價API,
 # 倍數=今日累積量/(前一交易日全天量×正常已成交比例),比自選股用的20日中位數粗糙,只拿來「找出沒在自選的爆量股」。
 # 試跑期只在 09:30 後第一輪掃一次,整段限時,批次之間有間隔,連續失敗就停,失敗只記錄診斷、不影響主流程。
-MARKET_SNAPS = (30,)         # 試跑期只在 09:30 後掃一次,確認不會被限流再增加
+MARKET_SNAPS = (30, 90)     # 09:30 與 10:30 後各掃一次(試跑期,確認不會被限流再增加)
 MARKET_TIME_BUDGET = 45
+MARKET_MAX_TRIES = 3        # 同一個時點最多嘗試幾輪(取得清單或掃描失敗時下一輪再試)
 MARKET_GAP = 0.4            # 每批之間間隔秒數,避免短時間大量請求
 MARKET_MAX_FAIL = 2         # 連續失敗幾批就停(可能被限流,不要硬撐影響主流程)
 MARKET_MIN_PREV = 500       # 前一交易日量低於500張的不掃
@@ -551,31 +552,47 @@ def _to_float(x):
         return None
 
 
+UNIVERSE_SOURCES = (("twse", TWSE_ALL_URL, "Code", "TradeVolume"), ("tpex", TPEX_ALL_URL, "SecuritiesCompanyCode", "TradingShares"))
+UNIVERSE_TIMEOUT = 12
+UNIVERSE_HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36",
+                    "Accept": "application/json", "Accept-Encoding": "identity"}   # identity:避免櫃買回傳到一半被切斷
+
+
 def load_universe(run_time, errors):
-    """回傳 {代號: 前一交易日成交量(張)}。每天只抓一次,存 universe.json。"""
+    """回傳 {代號: 前一交易日成交量(張)}。上市、上櫃各自一天只成功抓一次(存 universe.json),
+    某一邊失敗下一輪只補抓失敗的那邊,不會拖累已成功的。"""
     today = run_time.strftime("%Y-%m-%d")
     cached = load_json_safe(UNIVERSE_FILE, {}) or {}
-    if cached.get("date") == today and cached.get("stocks"):
-        return cached["stocks"]
-    stocks = {}
-    for url, ck, vk, div in ((TWSE_ALL_URL, "Code", "TradeVolume", 1000), (TPEX_ALL_URL, "SecuritiesCompanyCode", "TradingShares", 1000)):
-        try:
-            resp = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
-            resp.raise_for_status()
-            rows = resp.json()
-            n0 = len(stocks)
-            for r in rows if isinstance(rows, list) else []:
-                code = str(r.get(ck) or "").strip()
-                vol = _to_float(r.get(vk))
-                if re.fullmatch(r"[1-9]\d{3}", code) and vol:
-                    stocks[code] = round(vol / div)
-            if len(stocks) == n0:
-                errors.append(f"{url.split('/')[2]} 回傳 {len(rows) if isinstance(rows, list) else type(rows).__name__} 筆但沒有可用資料,欄位: {sorted(rows[0].keys()) if isinstance(rows, list) and rows else '-'}")
-        except (requests.RequestException, ValueError) as e:
-            errors.append(f"{url.split('/')[2]} 失敗: {str(e)[:120]}")
-    if stocks:
-        write_json_atomic(UNIVERSE_FILE, {"date": today, "stocks": stocks}, separators=(",", ":"))
-    return stocks
+    if cached.get("date") != today:
+        cached = {"date": today, "ok": {}, "stocks": {}}
+    stocks, ok, changed = cached["stocks"], cached.setdefault("ok", {}), False
+    for key, url, ck, vk in UNIVERSE_SOURCES:
+        if ok.get(key):
+            continue
+        for attempt in range(2):
+            try:
+                resp = requests.get(url, headers=UNIVERSE_HEADERS, timeout=UNIVERSE_TIMEOUT)
+                resp.raise_for_status()
+                rows = resp.json()
+                n = 0
+                for r in rows if isinstance(rows, list) else []:
+                    code = str(r.get(ck) or "").strip()
+                    vol = _to_float(r.get(vk))
+                    if re.fullmatch(r"[1-9]\d{3}", code) and vol:
+                        stocks[code] = round(vol / 1000)
+                        n += 1
+                if n:
+                    ok[key] = n
+                    changed = True
+                else:
+                    errors.append(f"{key} 回傳 {len(rows) if isinstance(rows, list) else type(rows).__name__} 筆但沒有可用資料,欄位: {sorted(rows[0].keys()) if isinstance(rows, list) and rows else '-'}")
+                break
+            except (requests.RequestException, ValueError) as e:
+                if attempt == 1:
+                    errors.append(f"{key} 失敗: {str(e)[:120]}")
+    if changed:
+        write_json_atomic(UNIVERSE_FILE, cached, separators=(",", ":"))
+    return stocks, ok
 
 
 def scan_market(run_time, watch_codes):
@@ -586,13 +603,16 @@ def scan_market(run_time, watch_codes):
     today = run_time.strftime("%Y-%m-%d")
     log = load_json_safe(MARKET_FILE, {}) or {}
     if log.get("date") != today:
-        log = {"date": today, "scans": {}}
-    if str(sn) in log["scans"]:
+        log = {"date": today, "scans": {}, "tries": {}}
+    prev = log["scans"].get(str(sn))
+    if (prev and not (prev.get("diag") or {}).get("partial")) or log.setdefault("tries", {}).get(str(sn), 0) >= MARKET_MAX_TRIES:
         return
-    t0 = time.time()
+    log["tries"][str(sn)] = log["tries"].get(str(sn), 0) + 1
     errors = []
-    uni = load_universe(run_time, errors)
-    diag = {"universe": len(uni), "errors": errors}
+    t_u = time.time()
+    uni, uni_ok = load_universe(run_time, errors)
+    diag = {"universe": len(uni), "partial": len(uni_ok) < len(UNIVERSE_SOURCES), "errors": errors, "try": log["tries"][str(sn)], "universe_seconds": round(time.time() - t_u, 1)}
+    t0 = time.time()      # 掃描預算從取得股票清單之後才開始算
     items = []
     if uni:
         codes = [c for c, v in uni.items() if v >= MARKET_MIN_PREV]
@@ -631,7 +651,11 @@ def scan_market(run_time, watch_codes):
         diag.update({"codes": len(codes), "rows": n_rows, "batch_fail": n_batch_fail})
     items.sort(key=lambda x: -x["pace"])
     diag["seconds"] = round(time.time() - t0, 1)
-    log["scans"][str(sn)] = {"as_of": run_time.strftime("%H:%M"), "items": items[:40], "diag": diag}
+    if items or log["tries"][str(sn)] >= MARKET_MAX_TRIES:
+        # 上市或上櫃只取得一邊(partial)時照樣顯示,但下一輪還會再試,補齊另一邊
+        log["scans"][str(sn)] = {"as_of": run_time.strftime("%H:%M"), "items": items[:40], "diag": diag}
+    else:
+        log["last_diag"] = diag      # 沒掃到東西,先不算完成,下一輪再試
     write_json_atomic(MARKET_FILE, log, separators=(",", ":"))
 
 
