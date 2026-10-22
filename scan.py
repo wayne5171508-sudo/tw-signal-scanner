@@ -592,6 +592,8 @@ def main():
     excluded = []
 
     for code in candidate_codes:
+        if backfill_date:
+            time.sleep(2)   # 回補一次跑很多天,放慢一點避免被證交所暫時封鎖
         try:
             days = fetch_recent_days(code, today)
         except Exception as e:  # noqa: BLE001

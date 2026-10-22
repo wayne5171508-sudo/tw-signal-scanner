@@ -30,7 +30,7 @@ def month_rows(code, ym):
         except Exception as e:  # noqa: BLE001
             print(f"[warn] {code} {ym} 抓取失敗: {e}", file=sys.stderr)
             _cache[key] = None
-        time.sleep(0.5)
+        time.sleep(1.5)
     return _cache[key] or []
 
 
