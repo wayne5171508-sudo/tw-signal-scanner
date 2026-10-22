@@ -871,7 +871,38 @@ def dump_fields(all_rows, run_time):
     if (load_json_safe(FIELDS_FILE, {}) or {}).get("date") == today:
         return
     keys = ("TWS:TSE01:INDEX", "TWS:2455:STOCK", "TWS:2379:STOCK", "TWS:0050:STOCK")
-    write_json_atomic(FIELDS_FILE, {"date": today, "rows": {k: all_rows[k] for k in keys if k in all_rows}})
+    out = {"date": today, "rows": {k: all_rows[k] for k in keys if k in all_rows}, "probe_7781": probe_emerging("7781")}
+    write_json_atomic(FIELDS_FILE, out)
+
+
+EMERGING_PROBES = (   # 興櫃股(例:7781昕力資)在 TWS:xxxx:STOCK 抓不到,試幾種可能的代碼寫法與官方來源,一天試一次
+    ("cnyes", "TWG:{c}:STOCK"), ("cnyes", "TWO:{c}:STOCK"), ("cnyes", "TWE:{c}:STOCK"), ("cnyes", "TWS:{c}:EMERGING"),
+    ("tpex", "https://www.tpex.org.tw/openapi/v1/tpex_esb_latest_statistics"),
+    ("mis", "https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=otc_{c}.tw&json=1&delay=0"),
+)
+
+
+def probe_emerging(code):
+    """回傳每個來源有沒有拿到這檔的價格(含原始片段),之後挑一個能用的正式接上。任何錯誤都只記錄。"""
+    res = []
+    for kind, tpl in EMERGING_PROBES:
+        item = {"src": kind, "q": tpl.format(c=code)}
+        try:
+            if kind == "cnyes":
+                r = requests.get(CNYES_QUOTE_URL.format(codes=tpl.format(c=code)), headers=HEADERS, timeout=6)
+                rows = (r.json() or {}).get("data") or []
+                item.update({"http": r.status_code, "n": len(rows), "last": rows[0].get("6") if rows else None,
+                             "sample": json.dumps(rows[0], ensure_ascii=False)[:300] if rows else None})
+            else:
+                r = requests.get(tpl.format(c=code), headers=UNIVERSE_HEADERS, timeout=10)
+                txt = r.text
+                i = txt.find(code)
+                item.update({"http": r.status_code, "len": len(txt), "found": i >= 0,
+                             "sample": txt[max(0, i - 150):i + 350] if i >= 0 else txt[:200]})
+        except Exception as e:  # noqa: BLE001
+            item["err"] = f"{type(e).__name__}: {str(e)[:100]}"
+        res.append(item)
+    return res
 
 
 def focus_first(run_time):
