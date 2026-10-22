@@ -20,6 +20,7 @@ TAIPEI = ZoneInfo("Asia/Taipei")
 D = "data"
 OUT = os.path.join(D, "health.json")
 SCAN_SINCE = "2026-09-29"   # 盤後掃描存檔從這天開始
+NEW_SINCE = "2026-10-23"    # 成交金額單位、全市場快照是 10/22 收盤後才上線,從下一個交易日起才檢查
 
 
 def load(name, default=None):
@@ -86,6 +87,11 @@ def run(now=None):
         miss = [label[k] for k in expect if k not in got]
         add("market", "全市場爆量榜", not miss, f"{trade_date} 應有 {len(expect)} 次,缺 {'、'.join(miss)}" if miss else f"{trade_date} {len(got)} 次都有")
 
+    # 3b. 成交金額單位(欄位200067):判斷失敗時資金流向會退回「量×價」估算
+    if trade_date and trade_date >= NEW_SINCE:
+        au = latest.get("amount_unit")
+        add("amount", "成交金額單位", au is not None, f"單位 {au:g}" if au is not None else "判斷失敗,資金流向改用量×價估算(看 debug_fields.json)")
+
     # 4~6. 收盤後的產出
     if trade_date and after_close:
         rv = load("review.json", {}) or {}
@@ -93,6 +99,10 @@ def run(now=None):
         arch = os.path.exists(os.path.join(D, "intraday_archive", f"{trade_date}.json"))
         add("archive", "盤中走勢存檔", arch, f"{trade_date}.json " + ("有" if arch else "不存在"))
         lb = load("lab.json", {}) or {}
+        mk = load(os.path.join("mkt", f"{trade_date}.json"), {}) or {}
+        nsn, has_close = len(mk.get("snaps") or {}), bool(mk.get("close"))
+        if trade_date >= NEW_SINCE:
+            add("mkt", "全市場快照", nsn >= 3 and has_close, f"快照 {nsn}/3 次,收盤價" + ("有" if has_close else "沒有"))
         add("lab", "策略驗證室", str(lb.get("updated", ""))[:10] == trade_date, f"最後更新 {lb.get('updated')}")
 
     # 7. 盤後掃描:交易日曆上每一天都要有存檔(當天的要等隔天早上才算漏)

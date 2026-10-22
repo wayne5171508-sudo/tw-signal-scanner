@@ -201,3 +201,17 @@ def test_market_rank_none_when_today_missing(monkeypatch):
     monkeypatch.setattr(scan, "fetch_all_quotes", lambda d: None)
     monkeypatch.setattr(scan.time, "sleep", lambda s: None)
     assert scan.market_rank(dt.datetime(2026, 10, 24, 23, 0, tzinfo=TPE)) is None
+
+
+def test_health_amount_and_mkt_checks(tmp_path, monkeypatch):
+    d = str(tmp_path)
+    monkeypatch.setattr(health, "D", d)
+    monkeypatch.setattr(health, "OUT", os.path.join(d, "health.json"))
+    _write(d, "intraday_latest.json", {"data_as_of": "2026-10-27T13:33:00+08:00", "amount_unit": None})
+    _write(d, "mkt/2026-10-27.json", {"snaps": {"30": {}, "90": {}, "180": {}}, "close": {"2330": [1, 2]}})
+    items = {i["key"]: i for i in health.run(dt.datetime(2026, 10, 27, 20, 0, tzinfo=TPE))["items"]}
+    assert not items["amount"]["ok"]
+    assert items["mkt"]["ok"]
+    _write(d, "intraday_latest.json", {"data_as_of": "2026-10-22T13:33:00+08:00", "amount_unit": None})
+    items = {i["key"]: i for i in health.run(dt.datetime(2026, 10, 22, 20, 0, tzinfo=TPE))["items"]}
+    assert "amount" not in items and "mkt" not in items      # 上線前的日子不檢查
