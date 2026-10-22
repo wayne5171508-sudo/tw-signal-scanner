@@ -832,44 +832,6 @@ def dump_fields(all_rows, run_time):
     write_json_atomic(FIELDS_FILE, {"date": today, "rows": {k: all_rows[k] for k in keys if k in all_rows}})
 
 
-def flow_summary(watchlist_out):
-    """各族群『主動買-主動賣』累積估算(和網頁資金流向同一套算法),給09:30摘要通知用。"""
-    hist = load_json_safe(HISTORY_FILE, {}) or {}
-    pts = [p for p in (hist.get("points") or []) if p.get("wl") and p.get("wlv")]
-    prevc = {q["code"]: q.get("prev_close") for q in watchlist_out}
-    st, cum = {}, {g: 0.0 for g in WATCH_GROUPS}
-    for p in pts:
-        for code, v in p["wlv"].items():
-            g, px = GROUP_OF.get(code), p["wl"].get(code)
-            if not g or not _num_ok(v, px):
-                continue
-            s_ = st.setdefault(code, {"v": 0, "px": prevc.get(code) or px, "sg": 0})
-            dv = max(0, v - s_["v"])
-            d = px - s_["px"]
-            sg = 1 if d > 0 else (-1 if d < 0 else s_["sg"])
-            amt = dv * 1000 * px / 1e8
-            if sg and amt > 0:
-                cum[g] += sg * amt
-            s_["v"], s_["px"] = v, px
-            if d != 0:
-                s_["sg"] = sg
-    return {"t": pts[-1]["t"] if pts else None, "net": round(sum(cum.values()), 1), "groups": {g: round(v, 1) for g, v in cum.items()}}
-
-
-def signal_hits(watchlist_out):
-    """目前符合訊號實驗室策略條件的自選股(摘要通知用)。"""
-    hits = []
-    for q in watchlist_out:
-        last, hi, lo, pct, pace = q.get("last"), q.get("high"), q.get("low"), q.get("pct"), q.get("pace")
-        if not (_num_ok(last, hi, lo, pct, pace) and hi and lo):
-            continue
-        dd, up = (last / hi - 1) * 100, (last / lo - 1) * 100
-        for name, (side, cond) in SIGNAL_STRATS.items():
-            if cond(pct, pace, dd, up):
-                hits.append({"code": q["code"], "name": q.get("name"), "strat": name, "side": side})
-    return hits
-
-
 def focus_first(run_time):
     """今天每檔「第一次達標」的時間與價格,網頁用來顯示『發現後漲跌』。"""
     log = load_json_safe(FOCUS_FILE, {}) or {}
@@ -1826,8 +1788,6 @@ def main():
         "focus_first": None,
         "signal_stats": None,
         "market_signal_stats": None,
-        "flow_summary": None,
-        "signal_hits": None,
         "groups": GROUP_OF,
         "data_as_of": data_as_of,
         "check_frequency_note": "開盤期間每約5分鐘由GitHub Actions排程抓一次,非逐秒即時報價",
@@ -1848,8 +1808,6 @@ def main():
         record_signals(run_time, watchlist_out, ((touch_summary or {}).get("regime_today") or {}).get("label"))
         result["signal_stats"] = signal_stats()
         result["market_signal_stats"] = market_signal_stats()
-        result["flow_summary"] = flow_summary(watchlist_out)
-        result["signal_hits"] = signal_hits(watchlist_out)
     except Exception as e:  # noqa: BLE001  成績單/量能曲線是加分功能,不能影響報價
         print(f"[警告] 歷史/成績單/量能曲線處理失敗: {e}")
     write_json_atomic(OUT_FILE, result, separators=(",", ":"))
