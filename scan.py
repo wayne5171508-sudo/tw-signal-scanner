@@ -445,7 +445,11 @@ def compute_track_record(today_iso, month_first):
     with open(TRACK_RECORD_FILE, "w", encoding="utf-8") as fh:
         json.dump(history, fh, ensure_ascii=False, indent=2)
 
-    # 滾動統計(近60筆)
+    return new_records, track_stats(history)
+
+
+def track_stats(history):
+    """滾動統計(近60筆)。rebuild_track.py 也會用。"""
     recent = [h for h in history if h.get("close_return_pct") is not None][-60:]
     if recent:
         wins = [h for h in recent if h["close_return_pct"] > 0]
@@ -462,8 +466,7 @@ def compute_track_record(today_iso, month_first):
         }
     else:
         stats = {"sample_size": 0, "note": "目前還沒有足夠的歷史資料可以計算戰績統計,需要連續執行幾天後才會累積出來。"}
-
-    return new_records, stats
+    return stats
 
 
 # ---------- 主流程 ----------
@@ -494,7 +497,13 @@ def resolve_latest_trading_day(run_time, max_lookback_days=7):
 
 def main():
     run_time = taipei_now()
-    today, t86_rows, stat = resolve_latest_trading_day(run_time)
+    # 回補模式:SCAN_DATE=YYYY-MM-DD 指定要重算的交易日(backfill.yml 用)
+    backfill_date = os.environ.get("SCAN_DATE", "").strip()
+    if backfill_date:
+        target = datetime.strptime(backfill_date, "%Y-%m-%d").replace(hour=23, tzinfo=TAIPEI)
+        today, t86_rows, stat = resolve_latest_trading_day(target, max_lookback_days=1)
+    else:
+        today, t86_rows, stat = resolve_latest_trading_day(run_time)
     date_str = today.strftime("%Y%m%d")
     iso_date = today.strftime("%Y-%m-%d")
     month_first = today.strftime("%Y%m") + "01"
@@ -519,6 +528,13 @@ def main():
             "法人買超前8一定進候選名單;連續買超改看3個交易日。",
         ],
     }
+
+    if backfill_date:
+        result["backfill"] = {
+            "requested_date": backfill_date,
+            "note": "事後回補:法人買超前8與日成交都是官方歷史資料;wantgoo 量能/漲幅排行只有即時版,"
+                    "所以候選名單改用原始存檔留下的代號(有的話),沒有原始存檔的日子只看法人買超前8。",
+        }
 
     # T86(已經在resolve_latest_trading_day裡抓過了)
     if stat != "OK":
@@ -551,8 +567,12 @@ def main():
 
     # 候選名單來源二(wantgoo 量能異常 + 漲幅排行, best-effort)
     wantgoo_codes = set()
-    for path in ("volume-shocker", "top-gainer"):
-        wantgoo_codes |= fetch_wantgoo_codes(path)
+    if backfill_date:
+        # wantgoo 只有「現在」的排行,回補時抓它會混進今天的股票,改用原始存檔的候選代號
+        wantgoo_codes = {c for c in os.environ.get("SCAN_EXTRA_CODES", "").split(",") if is_plain_stock_code(c)}
+    else:
+        for path in ("volume-shocker", "top-gainer"):
+            wantgoo_codes |= fetch_wantgoo_codes(path)
 
     # v11.4:法人買超前8一定排前面,剩下名額才給wantgoo(原本用set再截前20,順序隨機,可能把法人買超股擠掉)
     candidate_codes = [p["code"] for p in top8]
@@ -756,6 +776,10 @@ def main():
         print(f"[warn] 連續買超天數計算失敗,略過: {e}", file=sys.stderr)
 
     # 戰績追蹤:回頭驗證前一個交易日標記過的股票,今天實際表現如何
+    # (回補模式不在這裡算,補完後由 rebuild_track.py 依相鄰交易日整份重建)
+    if backfill_date:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return
     try:
         track_new, track_stats = compute_track_record(iso_date, month_first)
         result["track_record_new_entries"] = track_new

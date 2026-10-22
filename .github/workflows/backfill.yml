@@ -1,0 +1,56 @@
+name: 回補盤後掃描
+
+on:
+  workflow_dispatch:
+    inputs:
+      dates:
+        description: "要回補的交易日,空白分隔,例如 2026-10-13 2026-10-19"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+
+      - name: 逐日回補
+        env:
+          DATES: ${{ github.event.inputs.dates }}
+        run: |
+          mkdir -p data
+          for d in $(echo "$DATES" | tr ' ' '\n' | sort); do
+            extra=""
+            if [ -f "data/$d.json" ]; then
+              # 原始存檔留下的候選代號(wantgoo 來源),回補時沿用
+              extra=$(python -c "
+          import json;x=json.load(open('data/$d.json'))
+          top={s['code'] for s in x.get('institutional_buy_rank_top8',[])}
+          c={e.get('code') for k in ('focus_stocks','surge_watch','excluded_incomplete_volume_data') for e in x.get(k,[])}
+          print(','.join(sorted(str(v) for v in c-top if v)))")
+            fi
+            echo "== $d extra=[$extra]"
+            SCAN_DATE="$d" SCAN_EXTRA_CODES="$extra" python scan.py > /tmp/out.json || { echo "$d 失敗"; continue; }
+            st=$(python -c "import json;x=json.load(open('/tmp/out.json'));print(x.get('market_status'),x.get('date'))")
+            echo "$d → $st"
+            if [ "$st" = "OK $d" ]; then cp /tmp/out.json "data/$d.json"; fi
+            sleep 3
+          done
+
+      - name: 重建戰績
+        run: python rebuild_track.py
+
+      - name: 存回 repo
+        run: |
+          git config user.name "tw-signal-scanner-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data/
+          git diff --quiet --cached || git commit -m "回補盤後掃描並重建戰績: ${{ github.event.inputs.dates }}"
+          git push || (git pull --rebase origin main && git push)
