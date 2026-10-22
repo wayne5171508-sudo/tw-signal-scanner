@@ -1453,20 +1453,25 @@ function sigTags(q){
   }).join(' ');
 }
 
-function renderSignals(intraday){
-  const el = document.getElementById('signalBox');
-  if(!el) return;
-  const ss = intraday && intraday.signal_stats;
-  if(!ss){ el.style.display = 'none'; return; }
+function sigRowsHtml(ss){
   const sg = x => (x > 0 ? '+' : '') + x.toFixed(2) + '%';
-  const rows = Object.keys(SIG_DEFS).map(k => {
+  return Object.keys(SIG_DEFS).map(k => {
     const r = ss.strats && ss.strats[k], v = sigVerdict(r);
     const l2 = (r && r.n) ? `${r.n} 筆,收盤賺錢 ${Math.round(r.win / r.n * 100)}%,平均 ${sg(r.avg)},同時點全體 ${sg(r.base)},差距 <b>${sg(r.edge)}</b>` : '還沒有符合的樣本';
     return `<div class="sigrow"><div class="l1"><span><b>${k}</b> <small style="color:var(--muted)">${SIG_DEFS[k].side === 'long' ? '做多' : '放空'}</small></span><span class="sigv ${v.c}">${v.t}</span></div><div class="l2">${SIG_DEFS[k].desc}<br>${l2}</div></div>`;
   }).join('');
+}
+
+function renderSignals(intraday){
+  const el = document.getElementById('signalBox');
+  if(!el) return;
+  const ss = intraday && intraday.signal_stats, ms = intraday && intraday.market_signal_stats;
+  if(!ss){ el.style.display = 'none'; return; }
   el.className = 'sigbox';
   el.innerHTML = `<div class="sh"><b>訊號實驗室</b><small>${ss.days} 個交易日</small></div>
-    <div class="onote" style="margin:0 0 4px">每天 09:30、10:30、12:00、13:00 記下符合條件的股票,假設當下進場抱到收盤,和同時點全部自選股的平均比較。「差距」要穩定大於 ${ss.cost_pct}%(來回成本)、樣本累積到 ${SIG_MIN_N} 筆以上,才算有優勢跡象。驗證前只是觀察,不是買賣建議。</div>` + rows;
+    <div class="onote" style="margin:0 0 4px">每天 09:30、10:30、12:00、13:00 記下符合條件的股票,假設當下進場抱到收盤,和同時點全部股票的平均比較。「差距」要穩定大於 ${ss.cost_pct}%(來回成本)、樣本累積到 ${SIG_MIN_N} 筆以上,才算有優勢跡象。驗證前只是觀察,不是買賣建議。</div>`
+    + `<div class="onote" style="margin:8px 0 0"><b>自選股樣本</b></div>` + sigRowsHtml(ss)
+    + (ms && ms.days ? `<div class="onote" style="margin:12px 0 0"><b>全市場樣本</b>(${ms.days} 個交易日)</div><div class="onote" style="margin:0 0 4px">範圍是上市櫃成交量較大的約 660 檔,每天符合的筆數比自選股多很多,所以驗證得比較快。量能倍數用較粗的算法,和自選股的不完全一樣,兩邊分開看。</div>` + sigRowsHtml(ms) : '');
   el.style.display = '';
 }
 
