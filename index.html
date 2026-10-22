@@ -263,6 +263,7 @@
   .sigv.good{background:rgba(209,64,63,.14);color:var(--up)} .sigv.bad{background:rgba(24,143,99,.14);color:var(--down)}
   .stt{display:inline-block;font-size:11px;font-weight:700;border-radius:6px;padding:1px 7px;background:#f1f0ea;color:var(--sec)}
   .stt.hold{background:#fff1d6;color:#8a5a00} .stt.str{background:rgba(209,64,63,.14);color:var(--up)} .stt.wk{background:rgba(24,143,99,.14);color:var(--down)}
+  .newslk{font-size:11px;font-weight:600;color:var(--accent);border:1px solid var(--accent);border-radius:6px;padding:0 6px;text-decoration:none;white-space:nowrap}
   .found{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.5} .found b{font-weight:700}
   .flowbox{margin:10px 0;padding:12px;border-radius:14px;background:#111216;color:#e9e9ec;border:1px solid #23252b}
   .flowbox .fhd{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
@@ -963,14 +964,9 @@ function setTab(t){
   if(!TABS.includes(t)) t = 'today';
   document.body.dataset.tab = t;
   document.querySelectorAll('#tabBar button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
-  try { localStorage.setItem('radarTab', t); } catch(e) { /* 讀不到就用預設分頁 */ }
   window.scrollTo(0, 0);
 }
-function initTab(){
-  let t = 'today';
-  try { t = localStorage.getItem('radarTab') || 'today'; } catch(e) { /* ignore */ }
-  setTab(t);
-}
+function initTab(){ setTab('today'); }   // 每次打開固定從「今日重點」開始
 
 // ---- 搜尋框 ----
 function setupSearch(){
@@ -1253,6 +1249,12 @@ function pool_fol(side){
 }
 const pct2 = r => (r && r.n > 0) ? `${Math.round(r.rev / r.n * 100)}%(${r.n})` : '-';
 
+// 查新聞:Google 新聞搜尋「股票名稱 代號」,只看最近一天
+function newsLink(name, code){
+  const q = encodeURIComponent(`${name} ${code}`) + '%20when%3A1d';
+  return `<a class="newslk" href="https://news.google.com/search?q=${q}&hl=zh-TW&gl=TW&ceid=TW%3Azh-Hant" target="_blank" rel="noopener" onclick="event.stopPropagation()">查新聞</a>`;
+}
+
 // 發現後狀態:依「現價相對今日高低」判斷(進場方看是否被拉回,出場方看是否反彈)
 function afterInfo(q, side, ff){
   const last = num(q.last), hi = num(q.high), lo = num(q.low);
@@ -1364,7 +1366,7 @@ function renderFocus(intraday){
       <div class="fic ${c.side}">${icon[c.side]}</div>
       <div class="fbody">
         <div class="ftop"><div class="fname">${c.q.name}<small>${c.q.code}</small></div><div class="fprice"><b>${fmtNum(c.q.last)}</b><span class="${c.side}">${c.pct === null ? '-' : fmtPct(c.pct)}</span></div></div>
-        <div class="fmid"><span class="fverdict ${c.side}">${focusVerdict(c.side, c.st)}</span><span class="flames" title="量能 ${c.p.toFixed(1)} 倍">${flames}</span><span class="fx">${c.p.toFixed(1)}倍</span>${ai.tag}</div>
+        <div class="fmid"><span class="fverdict ${c.side}">${focusVerdict(c.side, c.st)}</span><span class="flames" title="量能 ${c.p.toFixed(1)} 倍">${flames}</span><span class="fx">${c.p.toFixed(1)}倍</span>${ai.tag}${newsLink(c.q.name, c.q.code)}</div>
         ${ai.txt ? `<div class="found">${ai.txt}</div>` : ''}
         ${(t => t ? `<div class="found">${t}</div>` : '')(sigTags(c.q))}
         ${bar}
@@ -1388,13 +1390,13 @@ function focusStatsHtml(fs){
     body = '尚無資料。每天收盤後自動評估當天焦點,累積幾天後這裡會出現結果。';
   } else {
     const side = (nm, r) => (r && r.n > 0)
-      ? `<div>${nm}:${r.n} 筆,收盤方向正確 ${pc(r.win, r.n)},平均收盤 ${r.avg_ret > 0 ? '+' : ''}${r.avg_ret}%,盤中最有利 ${r.avg_fav > 0 ? '+' : ''}${r.avg_fav}%,最不利 ${r.avg_adv}%</div>` : '';
+      ? `<div>${nm}:${r.n} 筆,收盤方向正確 ${pc(r.win, r.n)},平均收盤 ${r.avg_ret > 0 ? '+' : ''}${r.avg_ret}%,盤中最有利 ${r.avg_fav > 0 ? '+' : ''}${r.avg_fav}%,最不利 ${r.avg_adv}%${r.n_ex > 0 && r.avg_excess != null ? `,比同時段自選股平均 <b>${r.avg_excess > 0 ? '多' : '少'} ${Math.abs(r.avg_excess)}%</b>(${r.n_ex}筆)` : ''}</div>` : '';
     const bk = fs.buckets || {};
     const bkt = ['2.5-4', '4-6', '6+'].map(k => bk[k] && bk[k].n > 0 ? `${k}倍 ${pc(bk[k].win, bk[k].n)}(${bk[k].n}筆)` : '').filter(Boolean).join('、');
     body = side('進場(量大上漲)', fs.in) + side('出場(量大下跌)', fs.out)
       + (bkt ? `<div>依量能倍數的方向正確率:${bkt}</div>` : '')
       + ((nm => Object.keys(fs.by_regime || {}).map(k => { const r = fs.by_regime[k], i = r.in || {n:0}; return i.n > 0 ? `<div>大盤${nm[k]}日(${r.days}天):進場 ${i.n} 筆,收盤上漲 ${pc(i.win, i.n)},平均 ${i.avg_ret > 0 ? '+' : ''}${i.avg_ret}%</div>` : ''; }).join(''))({strong:'偏強', normal:'平穩', weak:'偏弱'}))
-      + `<div style="margin-top:4px">資料:${fs.days} 個交易日、${fs.n} 筆(方向不明 ${fs.flat ? fs.flat.n : 0} 筆未計入方向)。記錄價=名單第一次出現當下的價格,收盤價以收盤前最後一筆計。樣本少時請勿過度解讀。</div>`;
+      + `<div style="margin-top:4px">資料:${fs.days} 個交易日、${fs.n} 筆(方向不明 ${fs.flat ? fs.flat.n : 0} 筆未計入方向)。記錄價=名單第一次出現當下的價格,收盤價以收盤前最後一筆計。「比同時段自選股平均多/少」是和同一段時間全部自選股(不含ETF)的平均漲跌相比,扣掉大盤整體漲跌後才看得出這檔本身有沒有比較強。樣本少時請勿過度解讀。</div>`;
   }
   return `<details style="margin-top:8px"><summary style="cursor:pointer;color:var(--muted);font-size:12px">焦點成績單(過去的表現)</summary><div class="onote" style="margin-top:6px">${body}</div></details>`;
 }
@@ -1412,7 +1414,7 @@ function renderMarket(mk){
     return `<div class="orow" ${x.in_watch ? `onclick="searchAndOpen('${x.code}')"` : ''}>
       <span class="orank">${i + 1}</span>
       <span class="tag ${side}">${x.in_watch ? '自選' : '新發現'}</span>
-      <span class="nm">${x.name}<small>${x.code}</small></span>
+      <span class="nm">${x.name}<small>${x.code}</small> ${newsLink(x.name, x.code)}</span>
       <span class="rt"><b>${fmtNum(x.last)}</b> ${fmtPct(x.pct)}<br>量能約 ${x.pace}倍</span>
     </div>`;
   };
@@ -1615,7 +1617,7 @@ function renderOpening(intraday){
     return `<div class="orow${cool}" onclick="searchAndOpen('${x.code}')">
       <span class="orank">${i + 1}</span>
       <span class="tag ${x.side}">${tagTxt[x.side] || ''}</span>
-      <span class="nm">${x.strong ? '🔥' : ''}${x.name}<small>${x.code}</small></span>
+      <span class="nm">${x.strong ? '🔥' : ''}${x.name}<small>${x.code}</small> ${newsLink(x.name, x.code)}</span>
       <span class="rt"><b>${fmtNum(QM[x.code] && num(QM[x.code].last) !== null ? QM[x.code].last : x.last)}</b> ${QM[x.code] && num(QM[x.code].pct) !== null ? fmtPct(QM[x.code].pct) : pc}<br>量能 ${x.pace}倍${peakTxt}</span>
     </div>` + ((ai.tag || ai.txt || sgt) ? `<div class="found" style="padding:0 0 6px 26px">${ai.tag} ${ai.txt} ${sgt}</div>` : '');
   };
