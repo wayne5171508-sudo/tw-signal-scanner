@@ -953,7 +953,8 @@ function renderChip(data){
   summaryEl.innerHTML = `
     <div class="meta">${data.date}</div>
     <span class="badge ${badgeClass}">大盤環境:${regime}</span>
-    <span class="tag">加權指數 ${fmtPct(data.taiex_change_pct)}</span>`;
+    <span class="tag">加權指數 ${fmtPct(data.taiex_change_pct)}</span>`
+    + ((t => t && t.sample_size > 0 ? `<div class="note" style="margin-top:8px">盤後訊號隔日成績(近 ${t.sample_size} 筆):收盤上漲 ${t.win_rate_close_pct}%,平均隔日收盤 ${fmtPct(t.avg_close_return_pct)},隔日最高平均 ${fmtPct(t.avg_day_high_return_pct)}。${t.sample_size < 30 ? '樣本還少,只當參考。' : ''}以訊號日收盤價為基準,未扣成本。</div>` : '')(data.track_record_stats));
 
   if(data.institutional_buy_rank_top8 && data.institutional_buy_rank_top8.length){
     document.getElementById('chipRank').style.display = '';
