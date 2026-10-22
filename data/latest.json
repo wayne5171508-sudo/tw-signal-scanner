@@ -244,10 +244,10 @@
     }
   ],
   "track_record_stats": {
-    "sample_size": 23,
-    "win_rate_close_pct": 39.1,
-    "avg_close_return_pct": -1.22,
-    "avg_day_high_return_pct": 1.32,
+    "sample_size": 60,
+    "win_rate_close_pct": 40.0,
+    "avg_close_return_pct": -0.23,
+    "avg_day_high_return_pct": 2.13,
     "note": "這是根據過去實際執行結果累積算出來的統計,不是理論值;樣本數還小時(例如<20)不具統計意義,僅供參考,不構成任何保證。"
   }
 }

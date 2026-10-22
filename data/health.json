@@ -1,7 +1,7 @@
 {
-  "checked_at": "2026-10-22T17:16:25+08:00",
+  "checked_at": "2026-10-22T22:39:26+08:00",
   "trade_date": "2026-10-22",
-  "ok": false,
+  "ok": true,
   "items": [
     {
       "key": "quotes",
@@ -42,14 +42,14 @@
     {
       "key": "scan",
       "name": "盤後掃描存檔",
-      "ok": false,
-      "detail": "缺 09-30、10-01、10-13、10-19"
+      "ok": true,
+      "detail": "16 個交易日都有"
     },
     {
       "key": "track",
       "name": "隔日戰績",
       "ok": true,
-      "detail": "23 筆,無重複、皆為隔日"
+      "detail": "61 筆,無重複、皆為隔日"
     }
   ]
 }
