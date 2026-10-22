@@ -1,6 +1,6 @@
 {
   "date": "2026-10-22",
-  "generated_at": "2026-10-22T22:55:28.756424+08:00",
+  "generated_at": "2026-10-22T23:21:29.960259+08:00",
   "pipeline_version": "v11.5-realcode",
   "scope_decisions": [
     "這份JSON由GitHub Actions上的Python直接呼叫TWSE官方API算出,不經過Claude的WebFetch,所以不會有大表格漏行的問題。新聞面查核跟最終文字撰寫仍由Claude排程完成。",
