@@ -1,5 +1,5 @@
 {
- "as_of": "2026-10-23T16:39:39.013126+08:00",
+ "as_of": "2026-10-23T16:49:19.434348+08:00",
  "latest_bar": "2026-10-22",
  "stocks": 73,
  "fetched_fresh": 73,
@@ -1103,42 +1103,42 @@
   "last": "2026-10-21",
   "all": {
    "days": 725,
-   "stock_days": 52260,
+   "stock_days": 52209,
    "by_window": {
     "09": {
-     "n": 52260,
+     "n": 52209,
      "cheap": 0.21,
      "below_close": 41.7,
      "t_cheap": 5.45,
-     "nxt": 0.04
+     "nxt": 0.05
     },
     "10": {
-     "n": 52260,
-     "cheap": 0.14,
+     "n": 52209,
+     "cheap": 0.13,
      "below_close": 40.9,
      "t_cheap": 4.92,
-     "nxt": 0.09
+     "nxt": 0.1
     },
     "11": {
-     "n": 52260,
+     "n": 52209,
      "cheap": 0.09,
      "below_close": 40.2,
-     "t_cheap": 4.3,
-     "nxt": 0.13
+     "t_cheap": 4.29,
+     "nxt": 0.14
     },
     "12": {
-     "n": 52260,
+     "n": 52209,
      "cheap": 0.04,
      "below_close": 39.8,
-     "t_cheap": 3.44,
+     "t_cheap": 3.43,
      "nxt": 0.17
     },
     "13": {
-     "n": 52260,
+     "n": 52209,
      "cheap": 0.01,
      "below_close": 37.0,
      "t_cheap": 2.32,
-     "nxt": 0.19
+     "nxt": 0.2
     }
    },
    "ready": true,
@@ -1148,42 +1148,42 @@
   },
   "after_bear": {
    "days": 187,
-   "stock_days": 2074,
+   "stock_days": 2047,
    "by_window": {
     "09": {
-     "n": 2074,
-     "cheap": 0.26,
-     "below_close": 43.4,
-     "t_cheap": 0.97,
-     "nxt": 0.22
+     "n": 2047,
+     "cheap": 0.24,
+     "below_close": 43.8,
+     "t_cheap": 1.04,
+     "nxt": 0.28
     },
     "10": {
-     "n": 2074,
-     "cheap": 0.02,
-     "below_close": 45.1,
-     "t_cheap": 0.09,
-     "nxt": 0.42
+     "n": 2047,
+     "cheap": 0.01,
+     "below_close": 45.3,
+     "t_cheap": 0.14,
+     "nxt": 0.48
     },
     "11": {
-     "n": 2074,
-     "cheap": -0.06,
-     "below_close": 44.6,
-     "t_cheap": -0.24,
-     "nxt": 0.48
+     "n": 2047,
+     "cheap": -0.07,
+     "below_close": 45.0,
+     "t_cheap": -0.3,
+     "nxt": 0.54
     },
     "12": {
-     "n": 2074,
-     "cheap": -0.06,
-     "below_close": 43.2,
-     "t_cheap": -0.36,
-     "nxt": 0.48
+     "n": 2047,
+     "cheap": -0.07,
+     "below_close": 43.7,
+     "t_cheap": -0.46,
+     "nxt": 0.54
     },
     "13": {
-     "n": 2074,
+     "n": 2047,
      "cheap": -0.01,
-     "below_close": 38.8,
-     "t_cheap": 0.35,
-     "nxt": 0.42
+     "below_close": 39.2,
+     "t_cheap": 0.32,
+     "nxt": 0.47
     }
    },
    "ready": true,
