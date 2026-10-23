@@ -16,6 +16,8 @@
   mom_long   強勢續攻:10:00 那根收盤漲 >= 3% 且在均價線之上
   mom_short  弱勢續跌:10:00 那根收盤跌 >= 3% 且在均價線之下
   bear_bounce_s 利空隔天反彈空:前一天收盤出現「有效/觀察」利空訊號,09:15-10:30 反彈到昨收 0.5% 內就放空
+  rsi_vol_now / rsi_vol_reclaim  RSI 超賣爆量(來自 Threads 串文):5 分K RSI(14) < 30 且量 >= 前 20 根平均 2 倍;
+    now=下一根直接買,reclaim=之後 30 分鐘內收盤站上訊號 K 最高價才買、先跌破訊號 K 最低價就放棄
   score_long / score_short       多空分數(bias.py)09:15-12:30 第一次 >= 60 / <= -60
   score_long_80 / score_short_80 同上,門檻 80
   pb_long / pb_short   拉回均價線:分數先到 >= 60(<= -60),之後某根最低價回到均價線 0.2% 內、收盤仍在均價線同一側、分數仍同方向
@@ -27,6 +29,7 @@
 成本:來回 COST_PCT(手續費買賣各 0.1425% 打 6 折 + 當沖證交稅 0.15%,約 0.3%)。
 判斷:前 TRAIN_FRAC 交易日挑參數(訓練),之後只用來驗證。
   「有優勢」= 訓練段和驗證段扣成本後平均都 > 0,而且以「天」為單位的 t 值都 >= 2,驗證段至少 30 筆。
+  另外算最大回撤(每天資金平均分給當天訊號、依日期累加的資金曲線從高點回落多少 %)、最差一天、最長連虧天數。
 
 產出:data/daytrade.json。這是歷史統計,不是預測,也不是買賣建議。
 """
@@ -43,6 +46,7 @@ import requests
 
 import bear_signals as bs
 import bias
+import lab
 from intraday import BIAS_LOG_FILE, DATA_DIR, GROUP_OF, HISTORY_FILE, TAIPEI, load_json_safe, log_bias_day, write_json_atomic
 
 OUT_FILE = os.path.join(DATA_DIR, "daytrade.json")
@@ -57,6 +61,9 @@ STOPS = (1.0, 1.5, 2.5)
 TARGETS = (1.0, 2.0, 3.0, None)
 GAP_PCT = 2.0
 MOM_PCT = 3.0
+RSI_N, RSI_LO = 14, 30          # 影片規則:5 分K RSI(14) 低於 30
+VOL_AVG_N, VOL_MULT = 20, 2.0   # 這根量 >= 前 20 根平均的 2 倍
+RECLAIM_BARS = 6                # 站回確認最多等幾根(30 分鐘)
 LAST_BAR = "13:20"         # 當沖要在 13:30 前了結,用 13:20 那根收盤出場
 SCORE_FROM, SCORE_TO = "09:15", "12:30"   # 多空分數只在這段時間找進場點
 PACE_DAYS, PACE_MIN_DAYS = 20, 5
@@ -81,6 +88,8 @@ RULES = {
     "pb_short": ("反彈均價線放空", "short", f"分數先 <= -{bias.THRESHOLD},之後反彈到均價線 {PB_TOL_PCT:g}% 內且收在均價線下"),
     "fade_long": ("超跌反向做多", "long", f"分數 <= -{bias.STRONG} 且低於均價線 {FADE_PCT:g}% 以上"),
     "fade_short": ("超漲反向放空", "short", f"分數 >= {bias.STRONG} 且高於均價線 {FADE_PCT:g}% 以上"),
+    "rsi_vol_now": ("RSI超賣爆量立刻買", "long", f"09:15-12:30 第一次 5 分K RSI({RSI_N}) < {RSI_LO} 且量 >= 前 {VOL_AVG_N} 根平均 {VOL_MULT:g} 倍,下一根買"),
+    "rsi_vol_reclaim": ("RSI超賣爆量站回才買", "long", f"同上的訊號 K 之後 {RECLAIM_BARS} 根內收盤站上訊號 K 最高價才買;先跌破訊號 K 最低價就放棄"),
 }
 
 
@@ -314,6 +323,7 @@ def live_stats(log, rules_now):
                             "t": round(tt, 2) if tt is not None else None,
                             "slip": round(stx.mean(slips), 3) if slips else None,
                             "n_holds": sum(1 for _, t in xs if t.get("holds")),
+                            **drawdown([(d, t["result"]["net"]) for d, t in xs]),
                             "backtest_test_avg": (best.get("test") or {}).get("avg")}
     return out
 
@@ -332,6 +342,27 @@ def entry_index(rule, bars, prev_close, bear_prev, series=None):
     """回傳進場的 K 棒 index(用這根的開盤價成交),沒有觸發回傳 None。
     series 是 score_series() 的結果,只有 score_* 規則用得到。"""
     if not prev_close:
+        return None
+    if rule in ("rsi_vol_now", "rsi_vol_reclaim"):
+        # Threads 串文(Claude + TradingView 台股短線)的規則:RSI 超賣 + 爆量只是候選,站回關鍵位置才進場
+        rs = lab.rsi([b["c"] for b in bars], RSI_N)
+        sig = None
+        for i in range(VOL_AVG_N, len(bars) - 1):
+            if not (SCORE_FROM <= bars[i]["t"] <= SCORE_TO) or rs[i] is None:
+                continue
+            avg = sum(b["v"] for b in bars[i - VOL_AVG_N:i]) / VOL_AVG_N
+            if rs[i] < RSI_LO and avg > 0 and bars[i]["v"] >= VOL_MULT * avg:
+                sig = i
+                break
+        if sig is None:
+            return None
+        if rule == "rsi_vol_now":
+            return sig + 1
+        for k in range(sig + 1, min(sig + 1 + RECLAIM_BARS, len(bars) - 1)):
+            if bars[k]["l"] < bars[sig]["l"]:
+                return None
+            if bars[k]["c"] > bars[sig]["h"] and bars[k + 1]["t"] <= LAST_BAR:
+                return k + 1
         return None
     if rule in bias.RULE_SIDE:
         armed = {}
@@ -453,7 +484,28 @@ def _stats(rows):
     if wins and losses:
         out["payoff"] = round(stx.mean(wins) / stx.mean(losses), 2)   # 平均賺 ÷ 平均賠(損益比)
     out["exits"] = {k: sum(1 for _, _, w, _ in rows if w == k) for k in ("stop", "target", "close")}
+    out.update(drawdown([(d, r) for d, r, _, _ in rows]))
     return out
+
+
+def drawdown(rows):
+    """最大回撤:假設每天把資金平均分給當天所有訊號,每天損益 = 當天各筆扣成本後報酬的平均(%),
+    依日期累加成資金曲線,從最高點往下掉最多多少 %(單利累加)。也回傳最差的一天與最長連續虧損天數。"""
+    byd = {}
+    for d, r in rows:
+        byd.setdefault(d, []).append(r)
+    daily = [sum(v) / len(v) for _, v in sorted(byd.items())]
+    if not daily:
+        return {}
+    eq = peak = mdd = 0.0
+    streak = worst_streak = 0
+    for x in daily:
+        eq += x
+        peak = max(peak, eq)
+        mdd = max(mdd, peak - eq)
+        streak = streak + 1 if x < 0 else 0
+        worst_streak = max(worst_streak, streak)
+    return {"mdd": round(mdd, 2), "worst_day": round(min(daily), 2), "lose_streak": worst_streak, "cum": round(eq, 2)}
 
 
 def evaluate(trades):

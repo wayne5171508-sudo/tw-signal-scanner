@@ -455,3 +455,32 @@ def test_bias_log_and_live_evaluation(tmp_path, monkeypatch):
     assert r["slip"] == pytest.approx(-(100 / 100.2 - 1) * 100, abs=1e-3)
     st = daytrade_lab.live_stats(log, {"score_short": {"name": "多空分數放空", "best": {"test": {"avg": -0.2}}}})
     assert st["n"] == 1 and st["rules"]["score_short"]["avg"] == pytest.approx(1.7) and st["rules"]["score_short"]["backtest_test_avg"] == -0.2
+
+
+def _rsi_vol_day(reclaim=True):
+    px = [100.0 - k * 0.3 for k in range(26)] + [92.0] * 28          # 一路跌,RSI 壓到 30 以下
+    bars = _5m_day(px)
+    for b in bars:
+        b["v"] = 100
+    bars[22]["v"] = 500                                               # 10:50 爆量(>= 前 20 根平均 2 倍)
+    bars[22].update(h=93.6, l=93.0)
+    if reclaim:
+        bars[24].update(c=93.8, h=93.9, l=93.2)                       # 11:00 收盤站上訊號 K 最高價
+    return bars
+
+
+def test_daytrade_rsi_vol_rules():
+    bars = _rsi_vol_day()
+    assert bars[22]["t"] == "10:50"
+    assert daytrade_lab.entry_index("rsi_vol_now", bars, 100, False) == 23
+    assert daytrade_lab.entry_index("rsi_vol_reclaim", bars, 100, False) == 25
+    lost = _rsi_vol_day()
+    lost[23].update(l=92.5)                                           # 站回之前先跌破訊號 K 低點,放棄
+    assert daytrade_lab.entry_index("rsi_vol_reclaim", lost, 100, False) is None
+
+
+def test_daytrade_drawdown():
+    rows = [("d1", 1.0), ("d1", 3.0), ("d2", -1.5), ("d3", -1.0), ("d4", 2.0)]
+    dd = daytrade_lab.drawdown(rows)
+    assert dd == {"mdd": 2.5, "worst_day": -1.5, "lose_streak": 2, "cum": 1.5}
+    assert daytrade_lab.drawdown([]) == {}
