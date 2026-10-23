@@ -360,6 +360,7 @@
 </div>
 
 <div data-pane="today">
+<div id="biasBox" style="display:none"></div>
 <div id="reviewTop" style="display:none"></div>
 <div id="focusBox" style="display:none"></div>
 <div id="bearBox" style="display:none"></div>
@@ -1122,6 +1123,7 @@ async function loadAll(opts){
   const safe = (name, fn) => { try { fn(); } catch(e) { console.error('render ' + name, e); } };
   safe('fresh', () => renderFresh(intraday));
   safe('health', () => renderHealth(HEALTH));
+  safe('bias', () => renderBias(intraday));
   safe('focus', () => renderFocus(intraday));
   safe('opening', () => renderOpening(intraday));
   safe('market', () => renderMarket(MARKET));
@@ -1780,6 +1782,39 @@ function renderBear(sc){
 // ================= 當沖規則實驗室(data/daytrade.json,收盤後由 daytrade_lab.py 產生) =================
 // 只有「訓練段和驗證段扣成本後都賺錢、t 值都 >= 2」的規則才會出現在今日重點;其餘只在「更多」照實列出。
 function dtExit(b){ return `停損 ${b.stop}%・${b.target ? '停利 ' + b.target + '%' : '不設停利,13:20 出場'}`; }
+// ================= 多空判斷(公式在 bias.py,回測在 daytrade_lab.py 的 score_* 規則) =================
+function renderBias(intraday){
+  const el = document.getElementById('biasBox');
+  if(!el) return;
+  const b = intraday && intraday.bias;
+  if(!b){ el.style.display = 'none'; return; }
+  const items = b.items || [];
+  const rules = b.rules || {};
+  const tested = Object.values(rules).some(r => r.stop != null);
+  const holds = Object.values(rules).some(r => r.holds);
+  const status = holds ? '<span class="bst active">回測站得住</span>'
+    : `<span class="bst watch">${tested ? '實驗中:回測未通過' : '實驗中:等收盤後回測'}</span>`;
+  const row = x => {
+    const lg = x.side === 'long', cls = lg ? 'up' : 'down';
+    const lv = [x.vwap != null ? `均價 ${fmtNum(x.vwap)}` : '',
+      x.stop != null ? `停損 ${fmtNum(x.stop)}(${x.stop_pct}%)` : '',
+      x.target != null ? `停利 ${fmtNum(x.target)}(${x.target_pct}%)` : (x.stop != null ? '停利 抱到13:20' : '')].filter(Boolean);
+    return `<div class="bsig" style="cursor:pointer" onclick="searchAndOpen('${x.code}')"><div class="l1"><span><b>${bearEsc(x.name)}</b> <small style="color:var(--muted)">${x.code}</small> <span class="bchip" style="background:var(--${lg ? 'up' : 'down'}-fill);color:var(--${cls});font-weight:700">${lg ? '做多' : '放空'}${x.strong ? '・強' : ''}</span>${rules[x.rule] && rules[x.rule].holds ? '' : '<small style="color:var(--muted)">未驗證</small>'}</span><span class="${cls}"><b>${x.score > 0 ? '+' : ''}${x.score}</b></span></div>
+      <div class="l2"><span>現價 <b>${fmtNum(x.last)}</b> <span class="${num(x.pct) > 0 ? 'up' : 'down'}">${x.pct == null ? '' : fmtPct(x.pct)}</span></span>${lv.map(t => `<span>${t}</span>`).join('')}</div>
+      <div class="onote" style="margin-top:2px">理由:${(x.reasons || []).join('、') || '-'}</div></div>`;
+  };
+  const longs = items.filter(x => x.side === 'long').slice(0, 6), shorts = items.filter(x => x.side === 'short').slice(0, 6);
+  const nl = items.filter(x => x.side === 'long').length, ns = items.length - nl;
+  const when = b.active ? '' : `<div class="onote" style="margin:0 0 4px"><b>${b.as_of < '09:15' ? '09:15 後才開始判斷(要先有開盤區間)' : '12:30 之後不建議新進場,以下是最後一次的分數'}</b></div>`;
+  const w = b.weights || {};
+  el.className = 'sigbox';
+  el.innerHTML = `<div class="sh"><b>多空判斷</b><small>${b.as_of} 更新・${status}</small></div>${when}
+    ${items.length ? `<div class="onote" style="margin:0 0 4px">做多 ${nl} 檔、放空 ${ns} 檔,其餘觀望。${nl + ns > 30 ? '多數股票同方向,通常是大盤整體在走,個股本身的訊號參考性較低。' : ''}</div>` : `<div class="fempty">目前沒有分數達到 ±${b.threshold} 的標的,全部觀望</div>`}
+    ${longs.map(row).join('')}${shorts.map(row).join('')}
+    <details class="howto"><summary>分數怎麼算</summary><div class="onote">每檔每一輪算一個 -100 ~ +100 的分數:大盤 ${w.mkt}、均價線 ${w.vwap}、開盤區間(09:00-09:15 高低${b.orb_t ? ',' + b.orb_t + ' 記錄' : ''})${w.orb}、量能 ${w.vol}、當日高低位置 ${w.pos}、族群同步 ${w.grp}。≥ +${b.threshold} 做多、≤ -${b.threshold} 放空,≥ ${b.strong} 標「強」;大盤方向相反或離漲跌停不到 1% 改成觀望。停損停利用「當沖規則實驗室」裡同一條規則回測出來的最佳參數,以現價計。均價線在報價沒有成交金額時,用每 5 分鐘快照估算。只算自選股、不含 ETF。資料約延遲 5 分鐘。「未驗證」代表這條規則回測還沒站得住,只能當觀察。這是機械式分數,不是預測,不構成買賣建議。</div></details>`;
+  el.style.display = '';
+}
+
 function renderDaytrade(dt){
   const top = document.getElementById('dtTopBox'), el = document.getElementById('dtBox');
   if(!top || !el) return;

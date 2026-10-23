@@ -1,0 +1,26 @@
+name: 多空分數回測(分支試跑)
+
+# 改了多空分數公式或回測程式,推到非 main 的分支時先跑一次回測,只印結果、不存回 repo。
+# 結果在這次執行的 log 和 Artifacts(daytrade.json)裡;合併到 main 後,每天收盤由 bear.yml 正式更新。
+on:
+  push:
+    branches-ignore: [main]
+    paths: ["bias.py", "daytrade_lab.py", ".github/workflows/score-backtest.yml"]
+  workflow_dispatch: {}
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install requests
+      - name: 跑當沖規則回測(含多空分數)
+        run: python daytrade_lab.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: daytrade
+          path: data/daytrade.json
