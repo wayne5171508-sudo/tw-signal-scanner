@@ -12,6 +12,7 @@ import pytest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
+import bear_signals  # noqa: E402
 import health  # noqa: E402
 import intraday  # noqa: E402
 import lab  # noqa: E402
@@ -93,6 +94,44 @@ def test_rsi_bounds_and_warmup():
 def test_rsi_fills_gaps():
     r = lab.rsi([1, 2, None, 4, 5, 6, 7, 8, 9], 3)
     assert r[-1] == 100.0
+
+
+
+# ---------- bear_signals.py ----------
+
+def _flat_bars(n=80, px=100.0, vol=1000):
+    return [{"d": f"d{i:03d}", "o": px, "h": px * 1.01, "l": px * 0.99, "c": px, "v": vol} for i in range(n)]
+
+
+def test_bear_big_black_fires():
+    b = _flat_bars()
+    b[-1] = {"d": "d079", "o": 100.0, "h": 100.5, "l": 95.0, "c": 95.5, "v": 3000}
+    sig = bear_signals.signals_on(b, len(b) - 1)
+    assert "big_black" in sig and "vol_down" in sig
+    assert "big_black" not in bear_signals.signals_on(b, len(b) - 2)
+
+
+def test_bear_signals_ignore_future_bars():
+    rnd = random.Random(7)
+    b, px = [], 100.0
+    for i in range(120):
+        nxt = px * (1 + rnd.uniform(-0.04, 0.04))
+        b.append({"d": f"d{i:03d}", "o": px, "h": max(px, nxt) * 1.01, "l": min(px, nxt) * 0.99,
+                  "c": nxt, "v": rnd.randint(500, 5000)})
+        px = nxt
+    before = [bear_signals.signals_on(b, i) for i in range(100)]
+    for x in b[100:]:
+        x["c"] *= 0.5
+        x["l"] *= 0.5
+    assert [bear_signals.signals_on(b, i) for i in range(100)] == before
+
+
+def test_bear_grade_rules():
+    good = {"n": 300, "ex": -1.5, "t": -2.5, "lose_gap": 5.0}
+    assert bear_signals.grade(good, {"n": 50, "ex": -1.0})[0] == "active"
+    assert bear_signals.grade(good, {"n": 50, "ex": 0.3})[0] == "watch"
+    assert bear_signals.grade({**good, "ex": 0.4, "t": 1.0}, {"n": 50, "ex": 0.3})[0] == "inactive"
+    assert bear_signals.grade({**good, "n": 10}, {"n": 5, "ex": -1})[0] == "inactive"
 
 
 # ---------- rebuild_track.py ----------

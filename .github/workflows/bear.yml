@@ -1,0 +1,59 @@
+name: 收盤後利空回測
+
+on:
+  schedule:
+    # 收盤 13:30,盤中迴圈 13:40 結束;14:30 再跑,日K才是正式的今天那根。
+    # GitHub 的 cron 可能延遲或跳過,15:30 再補一次;同一天已更新過就會很快結束。
+    - cron: "30 6 * * 1-5"   # 14:30 台北
+    - cron: "30 7 * * 1-5"   # 15:30 台北
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "非交易日也強制重算(測試用)"
+        type: boolean
+        default: false
+
+# 和盤中迴圈分開排隊,但都會改 data/,所以 push 前一定先 pull
+concurrency:
+  group: bear-backtest
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  bear:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: 安裝套件
+        run: pip install requests
+      - name: 今天已經算過就跳過
+        id: check
+        run: |
+          today=$(TZ=Asia/Taipei date +%Y-%m-%d)
+          if [ "${{ inputs.force }}" != "true" ] && [ -f data/bear_scorecard.json ] \
+             && grep -q "\"latest_bar\": \"$today\"" data/bear_scorecard.json; then
+            echo "今天的成績單已經更新過"; echo "skip=1" >> "$GITHUB_OUTPUT"
+          fi
+      - name: 跑利空回測
+        if: steps.check.outputs.skip != '1'
+        run: |
+          if [ "${{ inputs.force }}" = "true" ]; then python bear_signals.py --force; else python bear_signals.py; fi
+      - name: 存回 repo
+        if: steps.check.outputs.skip != '1'
+        run: |
+          git config user.name "tw-signal-scanner-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data/bear_scorecard.json
+          if git diff --quiet --cached; then echo "沒有變動"; exit 0; fi
+          git commit -m "利空回測成績單 $(TZ=Asia/Taipei date +'%Y-%m-%d %H:%M')"
+          for i in 1 2 3; do
+            git pull --rebase origin main && git push && exit 0
+            git rebase --abort 2>/dev/null; sleep 5
+          done
+          echo "push 失敗"; exit 1
