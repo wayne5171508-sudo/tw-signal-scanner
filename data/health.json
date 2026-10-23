@@ -1,5 +1,5 @@
 {
-  "checked_at": "2026-10-22T23:23:23+08:00",
+  "checked_at": "2026-10-23T23:14:16+08:00",
   "trade_date": "2026-10-22",
   "ok": true,
   "items": [
@@ -43,7 +43,7 @@
       "key": "scan",
       "name": "盤後掃描存檔",
       "ok": true,
-      "detail": "16 個交易日都有"
+      "detail": "17 個交易日都有"
     },
     {
       "key": "track",
