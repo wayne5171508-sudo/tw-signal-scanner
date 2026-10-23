@@ -24,7 +24,7 @@ permissions:
 jobs:
   bear:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v6
@@ -44,12 +44,16 @@ jobs:
         if: steps.check.outputs.skip != '1'
         run: |
           if [ "${{ inputs.force }}" = "true" ]; then python bear_signals.py --force; else python bear_signals.py; fi
+      - name: 跑當沖規則回測
+        if: steps.check.outputs.skip != '1'
+        continue-on-error: true
+        run: python daytrade_lab.py
       - name: 存回 repo
         if: steps.check.outputs.skip != '1'
         run: |
           git config user.name "tw-signal-scanner-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add data/bear_scorecard.json data/corp_actions.json
+          git add data/bear_scorecard.json data/corp_actions.json data/daytrade.json
           if git diff --quiet --cached; then echo "沒有變動"; exit 0; fi
           git commit -m "利空回測成績單 $(TZ=Asia/Taipei date +'%Y-%m-%d %H:%M')"
           for i in 1 2 3; do
