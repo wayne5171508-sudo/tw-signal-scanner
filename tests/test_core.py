@@ -13,6 +13,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
 import bear_signals  # noqa: E402
+import daytrade_lab  # noqa: E402
 import health  # noqa: E402
 import intraday  # noqa: E402
 import lab  # noqa: E402
@@ -173,6 +174,35 @@ def test_bear_level_rr():
     assert rr["stop"] == 95.0 and rr["target"] == 110.0 and rr["rr"] == 2.0
     b[-1]["c"] = 94.0
     assert "note" in bear_signals.level_rr(b, len(b) - 1)
+
+
+def _5m_day(prices):
+    bars, t = [], dt.datetime(2026, 1, 5, 9, 0)
+    for p in prices:
+        bars.append({"t": t.strftime("%H:%M"), "o": p, "h": p * 1.001, "l": p * 0.999, "c": p, "v": 100})
+        t += dt.timedelta(minutes=5)
+    return bars
+
+
+def test_daytrade_orb_entry_uses_next_bar_and_no_lookahead():
+    px = [100, 100.5, 100.2] + [100.3] * 3 + [101.0] + [101.5] * 47
+    bars = _5m_day(px)
+    i = daytrade_lab.entry_index("orb_long", bars, 99.0, False)
+    assert bars[i - 1]["c"] == 101.0 and bars[i]["t"] == "09:35"
+    assert daytrade_lab.entry_index("orb_long", bars[:7], 99.0, False) is None
+
+
+def test_daytrade_simulate_stop_target_close_and_same_bar_rule():
+    bars = _5m_day([100] * 54)
+    bars[5] = {"t": bars[5]["t"], "o": 100, "h": 102.5, "l": 98.5, "c": 100, "v": 1}   # 同一根碰到停損與停利
+    assert daytrade_lab.simulate(bars, 1, "long", 1.0, 2.0) == (-1.0, "stop")
+    bars[5] = {"t": bars[5]["t"], "o": 100, "h": 102.5, "l": 99.9, "c": 102, "v": 1}
+    assert daytrade_lab.simulate(bars, 1, "long", 1.0, 2.0) == (2.0, "target")
+    r, why = daytrade_lab.simulate(bars, 1, "short", 5.0, None)
+    assert why == "close" and r == 0.0
+    gap = _5m_day([100] * 54)
+    gap[3] = {"t": gap[3]["t"], "o": 96, "h": 96, "l": 95, "c": 95.5, "v": 1}         # 跳空越過停損,用開盤價出
+    assert daytrade_lab.simulate(gap, 1, "long", 1.0, None) == (pytest.approx(-4.0), "stop")
 
 # ---------- rebuild_track.py ----------
 

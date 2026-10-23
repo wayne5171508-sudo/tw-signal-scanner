@@ -1,0 +1,526 @@
+{
+ "as_of": "2026-10-23T16:58:28.028738+08:00",
+ "stocks": 74,
+ "first": "2026-07-29",
+ "last": "2026-10-22",
+ "days": 59,
+ "train_until": "2026-09-22",
+ "cost_pct": 0.3,
+ "rules": {
+  "orb_long": {
+   "name": "開盤區間突破做多",
+   "side": "long",
+   "desc": "09:15 後收盤站上 09:00-09:15 最高價",
+   "best": {
+    "stop": 1.0,
+    "target": 3.0,
+    "train": {
+     "n": 1238,
+     "days": 39,
+     "avg": -0.241,
+     "win": 32.1,
+     "t": -4.21,
+     "avg_win": 1.71,
+     "avg_loss": 1.16,
+     "payoff": 1.47,
+     "exits": {
+      "stop": 701,
+      "target": 181,
+      "close": 356
+     }
+    },
+    "test": {
+     "n": 622,
+     "days": 20,
+     "avg": -0.259,
+     "win": 30.5,
+     "t": -3.09,
+     "avg_win": 1.68,
+     "avg_loss": 1.11,
+     "payoff": 1.51,
+     "exits": {
+      "stop": 329,
+      "target": 86,
+      "close": 207
+     }
+    },
+    "all": {
+     "n": 1860,
+     "days": 59,
+     "avg": -0.247,
+     "win": 31.6,
+     "t": -5.26,
+     "avg_win": 1.7,
+     "avg_loss": 1.15,
+     "payoff": 1.48,
+     "exits": {
+      "stop": 1030,
+      "target": 267,
+      "close": 563
+     }
+    }
+   },
+   "holds": false,
+   "tested": 12,
+   "n_positive_train": 0
+  },
+  "orb_short": {
+   "name": "開盤區間跌破做空",
+   "side": "short",
+   "desc": "09:15 後收盤跌破 09:00-09:15 最低價",
+   "best": {
+    "stop": 1.0,
+    "target": 3.0,
+    "train": {
+     "n": 1432,
+     "days": 39,
+     "avg": -0.266,
+     "win": 32.4,
+     "t": -4.19,
+     "avg_win": 1.58,
+     "avg_loss": 1.15,
+     "payoff": 1.37,
+     "exits": {
+      "stop": 789,
+      "target": 166,
+      "close": 477
+     }
+    },
+    "test": {
+     "n": 789,
+     "days": 20,
+     "avg": -0.015,
+     "win": 42.8,
+     "t": -1.14,
+     "avg_win": 1.4,
+     "avg_loss": 1.08,
+     "payoff": 1.3,
+     "exits": {
+      "stop": 333,
+      "target": 108,
+      "close": 348
+     }
+    },
+    "all": {
+     "n": 2221,
+     "days": 59,
+     "avg": -0.177,
+     "win": 36.1,
+     "t": -3.99,
+     "avg_win": 1.5,
+     "avg_loss": 1.13,
+     "payoff": 1.33,
+     "exits": {
+      "stop": 1122,
+      "target": 274,
+      "close": 825
+     }
+    }
+   },
+   "holds": false,
+   "tested": 12,
+   "n_positive_train": 0
+  },
+  "gap_fade_s": {
+   "name": "開高放空",
+   "side": "short",
+   "desc": "開盤比昨收高 2% 以上,09:05 放空",
+   "best": {
+    "stop": 2.5,
+    "target": 2.0,
+    "train": {
+     "n": 502,
+     "days": 37,
+     "avg": 0.089,
+     "win": 59.6,
+     "t": 0.2,
+     "avg_win": 1.63,
+     "avg_loss": 2.17,
+     "payoff": 0.75,
+     "exits": {
+      "stop": 132,
+      "target": 280,
+      "close": 90
+     }
+    },
+    "test": {
+     "n": 200,
+     "days": 17,
+     "avg": -0.197,
+     "win": 55.5,
+     "t": -0.98,
+     "avg_win": 1.58,
+     "avg_loss": 2.41,
+     "payoff": 0.65,
+     "exits": {
+      "stop": 69,
+      "target": 100,
+      "close": 31
+     }
+    },
+    "all": {
+     "n": 702,
+     "days": 54,
+     "avg": 0.008,
+     "win": 58.4,
+     "t": -0.38,
+     "avg_win": 1.61,
+     "avg_loss": 2.25,
+     "payoff": 0.72,
+     "exits": {
+      "stop": 201,
+      "target": 380,
+      "close": 121
+     }
+    }
+   },
+   "holds": false,
+   "tested": 12,
+   "n_positive_train": 4
+  },
+  "gap_fade_l": {
+   "name": "開低承接",
+   "side": "long",
+   "desc": "開盤比昨收低 2% 以上,09:05 買進",
+   "best": {
+    "stop": 2.5,
+    "target": 3.0,
+    "train": {
+     "n": 250,
+     "days": 27,
+     "avg": 0.266,
+     "win": 54.0,
+     "t": 0.37,
+     "avg_win": 2.33,
+     "avg_loss": 2.16,
+     "payoff": 1.08,
+     "exits": {
+      "stop": 72,
+      "target": 110,
+      "close": 68
+     }
+    },
+    "test": {
+     "n": 164,
+     "days": 12,
+     "avg": -0.745,
+     "win": 36.6,
+     "t": -0.54,
+     "avg_win": 2.33,
+     "avg_loss": 2.52,
+     "payoff": 0.93,
+     "exits": {
+      "stop": 86,
+      "target": 44,
+      "close": 34
+     }
+    },
+    "all": {
+     "n": 414,
+     "days": 39,
+     "avg": -0.135,
+     "win": 47.1,
+     "t": 0.08,
+     "avg_win": 2.33,
+     "avg_loss": 2.33,
+     "payoff": 1.0,
+     "exits": {
+      "stop": 158,
+      "target": 154,
+      "close": 102
+     }
+    }
+   },
+   "holds": false,
+   "tested": 12,
+   "n_positive_train": 6
+  },
+  "vwap_long": {
+   "name": "站上均價線做多",
+   "side": "long",
+   "desc": "09:30 後由下往上穿過均價線,且當天上漲",
+   "best": {
+    "stop": 1.0,
+    "target": 3.0,
+    "train": {
+     "n": 1269,
+     "days": 39,
+     "avg": -0.272,
+     "win": 31.3,
+     "t": -3.72,
+     "avg_win": 1.59,
+     "avg_loss": 1.12,
+     "payoff": 1.42,
+     "exits": {
+      "stop": 672,
+      "target": 151,
+      "close": 446
+     }
+    },
+    "test": {
+     "n": 619,
+     "days": 20,
+     "avg": -0.468,
+     "win": 23.9,
+     "t": -4.43,
+     "avg_win": 1.47,
+     "avg_loss": 1.08,
+     "payoff": 1.37,
+     "exits": {
+      "stop": 331,
+      "target": 54,
+      "close": 234
+     }
+    },
+    "all": {
+     "n": 1888,
+     "days": 59,
+     "avg": -0.337,
+     "win": 28.9,
+     "t": -5.49,
+     "avg_win": 1.56,
+     "avg_loss": 1.11,
+     "payoff": 1.41,
+     "exits": {
+      "stop": 1003,
+      "target": 205,
+      "close": 680
+     }
+    }
+   },
+   "holds": false,
+   "tested": 12,
+   "n_positive_train": 0
+  },
+  "vwap_short": {
+   "name": "跌破均價線做空",
+   "side": "short",
+   "desc": "09:30 後由上往下跌破均價線,且當天下跌",
+   "best": {
+    "stop": 1.0,
+    "target": null,
+    "train": {
+     "n": 1000,
+     "days": 38,
+     "avg": -0.121,
+     "win": 36.4,
+     "t": -2.42,
+     "avg_win": 1.58,
+     "avg_loss": 1.1,
+     "payoff": 1.44,
+     "exits": {
+      "stop": 480,
+      "target": 0,
+      "close": 520
+     }
+    },
+    "test": {
+     "n": 557,
+     "days": 20,
+     "avg": -0.146,
+     "win": 38.4,
+     "t": -0.88,
+     "avg_win": 1.26,
+     "avg_loss": 1.02,
+     "payoff": 1.23,
+     "exits": {
+      "stop": 224,
+      "target": 0,
+      "close": 333
+     }
+    },
+    "all": {
+     "n": 1557,
+     "days": 58,
+     "avg": -0.13,
+     "win": 37.1,
+     "t": -2.42,
+     "avg_win": 1.46,
+     "avg_loss": 1.07,
+     "payoff": 1.37,
+     "exits": {
+      "stop": 704,
+      "target": 0,
+      "close": 853
+     }
+    }
+   },
+   "holds": false,
+   "tested": 12,
+   "n_positive_train": 0
+  },
+  "mom_long": {
+   "name": "強勢續攻",
+   "side": "long",
+   "desc": "10:00 那根收盤漲 >= 3% 且在均價線之上",
+   "best": {
+    "stop": 1.0,
+    "target": 3.0,
+    "train": {
+     "n": 412,
+     "days": 38,
+     "avg": -0.368,
+     "win": 23.1,
+     "t": -1.87,
+     "avg_win": 1.88,
+     "avg_loss": 1.04,
+     "payoff": 1.81,
+     "exits": {
+      "stop": 229,
+      "target": 46,
+      "close": 137
+     }
+    },
+    "test": {
+     "n": 165,
+     "days": 20,
+     "avg": -0.439,
+     "win": 22.4,
+     "t": -1.17,
+     "avg_win": 1.78,
+     "avg_loss": 1.08,
+     "payoff": 1.65,
+     "exits": {
+      "stop": 100,
+      "target": 17,
+      "close": 48
+     }
+    },
+    "all": {
+     "n": 577,
+     "days": 58,
+     "avg": -0.389,
+     "win": 22.9,
+     "t": -2.2,
+     "avg_win": 1.86,
+     "avg_loss": 1.05,
+     "payoff": 1.76,
+     "exits": {
+      "stop": 329,
+      "target": 63,
+      "close": 185
+     }
+    }
+   },
+   "holds": false,
+   "tested": 12,
+   "n_positive_train": 0
+  },
+  "mom_short": {
+   "name": "弱勢續跌",
+   "side": "short",
+   "desc": "10:00 那根收盤跌 >= 3% 且在均價線之下",
+   "best": {
+    "stop": 1.0,
+    "target": 3.0,
+    "train": {
+     "n": 248,
+     "days": 32,
+     "avg": -0.273,
+     "win": 30.2,
+     "t": -1.1,
+     "avg_win": 1.71,
+     "avg_loss": 1.13,
+     "payoff": 1.51,
+     "exits": {
+      "stop": 140,
+      "target": 32,
+      "close": 76
+     }
+    },
+    "test": {
+     "n": 181,
+     "days": 16,
+     "avg": -0.401,
+     "win": 27.6,
+     "t": -0.34,
+     "avg_win": 1.77,
+     "avg_loss": 1.23,
+     "payoff": 1.44,
+     "exits": {
+      "stop": 119,
+      "target": 18,
+      "close": 44
+     }
+    },
+    "all": {
+     "n": 429,
+     "days": 48,
+     "avg": -0.327,
+     "win": 29.1,
+     "t": -1.09,
+     "avg_win": 1.73,
+     "avg_loss": 1.17,
+     "payoff": 1.48,
+     "exits": {
+      "stop": 259,
+      "target": 50,
+      "close": 120
+     }
+    }
+   },
+   "holds": false,
+   "tested": 12,
+   "n_positive_train": 0
+  },
+  "bear_bounce_s": {
+   "name": "利空隔天反彈空",
+   "side": "short",
+   "desc": "前一天出現有效/觀察利空訊號,09:15-10:30 反彈到昨收 0.5% 內放空",
+   "best": {
+    "stop": 1.0,
+    "target": 2.0,
+    "train": {
+     "n": 266,
+     "days": 35,
+     "avg": -0.116,
+     "win": 40.6,
+     "t": 1.05,
+     "avg_win": 1.48,
+     "avg_loss": 1.21,
+     "payoff": 1.23,
+     "exits": {
+      "stop": 139,
+      "target": 87,
+      "close": 40
+     }
+    },
+    "test": {
+     "n": 197,
+     "days": 19,
+     "avg": -0.381,
+     "win": 32.0,
+     "t": -0.52,
+     "avg_win": 1.39,
+     "avg_loss": 1.21,
+     "payoff": 1.14,
+     "exits": {
+      "stop": 120,
+      "target": 47,
+      "close": 30
+     }
+    },
+    "all": {
+     "n": 463,
+     "days": 54,
+     "avg": -0.229,
+     "win": 36.9,
+     "t": 0.61,
+     "avg_win": 1.45,
+     "avg_loss": 1.21,
+     "payoff": 1.2,
+     "exits": {
+      "stop": 259,
+      "target": 134,
+      "close": 70
+     }
+    }
+   },
+   "holds": false,
+   "tested": 12,
+   "n_positive_train": 0
+  }
+ },
+ "method": "5分K,觸發後下一根開盤成交;同根同時碰停損停利算停損;13:20 那根收盤強制出場;前 2/3 交易日挑參數,後 1/3 驗證",
+ "note": "歷史統計,不是預測,不構成買賣建議。當沖風險高,實際成交會有滑價。"
+}

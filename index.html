@@ -363,6 +363,7 @@
 <div id="reviewTop" style="display:none"></div>
 <div id="focusBox" style="display:none"></div>
 <div id="bearBox" style="display:none"></div>
+<div id="dtTopBox" style="display:none"></div>
 <div id="openingBox" style="display:none"></div>
 <div id="marketBox" style="display:none"></div>
 <div class="idxgrid" id="indicesGrid"></div>
@@ -393,6 +394,7 @@
 
 <div data-pane="more">
 <div id="bearCardBox" style="display:none"></div>
+<div id="dtBox" style="display:none"></div>
 <div id="signalBox" style="display:none"></div>
 <div id="labBox" style="display:none"></div>
 <details class="more" id="reviewPastWrap" style="display:none">
@@ -441,7 +443,7 @@
 <script>
 let INTRADAY = null, HISTORY = null, CHIP = null, CURRENT_DETAIL = null, MARKET = null;
 let REVIEW = null, LAB = null, SLOW_AT = 0, REVIEW_PICK = null;
-let BEAR = null, BEAR_ALL = false;
+let BEAR = null, BEAR_ALL = false, DAYTRADE = null;
 
 const num = n => { if(n === null || n === undefined || n === '') return null; const v = Number(n); return Number.isFinite(v) ? v : null; };
 const PCT_CLASS = p => { const v = num(p); return v > 0 ? 'up' : (v < 0 ? 'down' : 'flat'); };
@@ -1111,6 +1113,7 @@ async function loadAll(opts){
     try{ const r = await fetch('data/review.json', {cache:'no-store'}); if(r.ok) REVIEW = await r.json(); }catch(e){ /* 還沒有復盤資料 */ }
     try{ const r = await fetch('data/lab.json', {cache:'no-store'}); if(r.ok) LAB = await r.json(); }catch(e){ /* 還沒有驗證資料 */ }
     try{ const r = await fetch('data/bear_scorecard.json', {cache:'no-store'}); if(r.ok) BEAR = await r.json(); }catch(e){ /* 還沒有利空成績單 */ }
+    try{ const r = await fetch('data/daytrade.json', {cache:'no-store'}); if(r.ok) DAYTRADE = await r.json(); }catch(e){ /* 還沒有當沖回測 */ }
   }
   try{ const r = await fetch('data/health.json', {cache:'no-store'}); if(r.ok) HEALTH = await r.json(); }catch(e){ /* 沒有健康檢查就不顯示 */ }
 
@@ -1127,6 +1130,7 @@ async function loadAll(opts){
   safe('review', () => renderReview(REVIEW));
   safe('lab', () => renderLab(LAB));
   safe('bear', () => renderBear(BEAR));
+  safe('daytrade', () => renderDaytrade(DAYTRADE));
   safe('touchnote', () => renderTouchNote(intraday));
   safe('srcnote', () => { const sn = document.getElementById('srcNote'); if(sn) sn.textContent = (intraday && intraday.official_bars_status) ? ' 日K資料狀態:' + intraday.official_bars_status + '。' : ''; });
   safe('indices', () => renderIndices(intraday));
@@ -1771,6 +1775,40 @@ function renderBear(sc){
     ${srows}
     <div class="onote">資料處理:價格已還原除權息與分割(${dq.adjusted_stocks || 0} 檔、${dq.adjusted_events || 0} 次事件),事件當天不判斷訊號;ETF 不納入。${bearEsc(sc.note || '')}</div>`;
   card.style.display = '';
+}
+
+// ================= 當沖規則實驗室(data/daytrade.json,收盤後由 daytrade_lab.py 產生) =================
+// 只有「訓練段和驗證段扣成本後都賺錢、t 值都 >= 2」的規則才會出現在今日重點;其餘只在「更多」照實列出。
+function dtExit(b){ return `停損 ${b.stop}%・${b.target ? '停利 ' + b.target + '%' : '不設停利,13:20 出場'}`; }
+function renderDaytrade(dt){
+  const top = document.getElementById('dtTopBox'), el = document.getElementById('dtBox');
+  if(!top || !el) return;
+  if(!dt || !dt.rules){ top.style.display = 'none'; el.style.display = 'none'; return; }
+  const keys = Object.keys(dt.rules);
+  const pass = keys.filter(k => dt.rules[k].holds);
+  if(pass.length){
+    top.className = 'sigbox';
+    top.innerHTML = `<div class="sh"><b>當沖規則(扣成本後站得住)</b><small>近 ${dt.days} 個交易日</small></div>` + pass.map(k => {
+      const r = dt.rules[k], te = r.best.test || {};
+      return `<div class="bsig"><div class="l1"><span><b>${bearEsc(r.name)}</b> <span class="bchip ${r.side === 'short' ? 'active' : ''}">${r.side === 'long' ? '做多' : '做空'}</span></span><span class="bst active">站得住</span></div>
+        <div class="onote" style="margin-top:2px">${bearEsc(r.desc)}・${dtExit(r.best)}</div>
+        <div class="l2"><span>驗證段每筆 <b>${bearPct(te.avg)}</b>(已扣成本)</span><span>勝率 ${te.win}%</span><span>損益比 ${te.payoff == null ? '-' : te.payoff}</span><span>${te.n} 筆</span></div></div>`;
+    }).join('') + `<div class="onote">歷史統計,不是預測,不構成買賣建議。實際成交會有滑價。</div>`;
+    top.style.display = '';
+  } else { top.style.display = 'none'; }
+  const rows = keys.map(k => {
+    const r = dt.rules[k], b = r.best || {}, tr = b.train || {}, te = b.test || {};
+    const gross = te.avg == null ? null : te.avg + (dt.cost_pct || 0);
+    return `<div class="bsig"><div class="l1"><span><b>${bearEsc(r.name)}</b> <small style="color:var(--muted)">${r.side === 'long' ? '做多' : '做空'}</small></span><span class="bst ${r.holds ? 'active' : 'inactive'}">${r.holds ? '站得住' : '沒有優勢'}</span></div>
+      <div class="l2"><span>訓練 ${bearPct(tr.avg)}</span><span>驗證 <b class="${te.avg > 0 ? 'up' : 'down'}">${bearPct(te.avg)}</b></span><span>扣成本前 ${bearPct(gross)}</span><span>勝率 ${te.win == null ? '-' : te.win + '%'}</span><span>損益比 ${te.payoff == null ? '-' : te.payoff}</span><span>${te.n || 0} 筆</span></div>
+      <div class="onote" style="margin-top:2px">${bearEsc(r.desc)}。最佳參數:${b.stop ? dtExit(b) : '-'}</div></div>`;
+  }).join('');
+  el.className = 'sigbox';
+  el.innerHTML = `<div class="sh"><b>當沖規則實驗室</b><small>${(dt.first || '').slice(5)} ~ ${(dt.last || '').slice(5)}・${dt.stocks} 檔・${dt.days} 天</small></div>
+    <div class="onote" style="margin:0 0 4px">用 5 分K 回測 ${keys.length} 種常見當沖規則,每種試 12 組停損停利。觸發後下一根開盤價成交,同一根同時碰到停損停利一律算停損,13:20 強制出場,每筆扣 ${dt.cost_pct}% 來回成本(手續費打 6 折 + 當沖證交稅)。前 2/3 天挑參數,${(dt.train_until || '').slice(5)} 起只用來驗證。兩段扣成本後都賺錢、t 值都 ≥ 2 才算站得住。目前站得住:<b>${pass.length} 條</b>。</div>
+    ${rows}
+    <div class="onote">「扣成本前」接近 0 或為負,代表規則本身就沒賺頭;為正但扣成本後變負,代表賺的不夠付手續費和稅。每天收盤後用最新約 60 個交易日重算。${bearEsc(dt.note || '')}</div>`;
+  el.style.display = '';
 }
 
 // ================= 資金流向(自選股估算) =================
