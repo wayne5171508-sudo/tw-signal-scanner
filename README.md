@@ -7,6 +7,7 @@
 
 - `scan.py`:主程式,抓資料、算量能倍數/技術面評分/融資增減/連續買超天數,印出一份JSON。
 - `requirements.txt`:程式需要的套件清單。
+- `bear_signals.py` + `.github/workflows/bear.yml`:每個交易日 14:30 回測利空訊號(價格已還原除權息)、算損益比與建議進場時段,寫進 `data/bear_scorecard.json`,網頁「今日重點 > 收盤後利空雷達」與「更多 > 利空訊號成績單」顯示。
 - `.github/workflows/scan.yml`:排程設定,告訴GitHub「每個交易日台北時間18:20自動跑一次」。
 - 跑完會自動把結果存成 `data/latest.json`(最新一次)跟 `data/2026-09-30.json`(當天存檔)兩個檔案,存回你自己的repo裡。
 
