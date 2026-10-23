@@ -285,7 +285,7 @@ def curve_frac(m):
 
 
 CURVE_GRID = [1, 5, 10, 15, 20, 30, 45, 60, 90, 120, 180, 240, 270]   # 開盤後第幾分鐘
-CURVE_KEEP_DAYS = 15
+CURVE_KEEP_DAYS = 20        # 和 daytrade_lab.PACE_DAYS 一致:多空分數的量能要用前 20 天同一時間的累積量
 CURVE_MIN_DAYS = 5          # 單檔至少累積幾天才開始採用自己的曲線
 CURVE_SHRINK_N = 5          # 採用比例 = n/(n+5);天數越多越信自己的曲線
 FOCUS_LOG_PACE = 2.5        # 量能倍數>=2.5 才記進成績單
@@ -1015,7 +1015,8 @@ def compute_opening_alerts(run_time, watchlist_out, official):
 BIAS_ORB_MIN = 15          # 09:15 後才有開盤區間
 BIAS_ORB_LATE = 25         # 09:25 之後才第一次抓到就不記開盤區間
 BIAS_FROM, BIAS_TO = 15, 210   # 09:15 ~ 12:30 才給新進場方向(跟回測一致)
-BIAS_FADE_PCT = 2.0        # 跟 daytrade_lab.FADE_PCT 一致
+BIAS_FRESH_MIN = 10        # 觸發後幾分鐘內算「剛觸發」;回測是觸發後下一根(5 分鐘)開盤進場,再晚就不是同一個情況
+BIAS_PACE_DAYS, BIAS_PACE_MIN_DAYS = 20, 5   # 和 daytrade_lab.PACE_DAYS / PACE_MIN_DAYS 一致
 BIAS_VWAP_LAG = 14         # 均價線方向:跟大約 15 分鐘前比
 DAYTRADE_FILE = os.path.join(DATA_DIR, "daytrade.json")
 
@@ -1042,24 +1043,49 @@ def _approx_vwap(pts, code, open_price):
 
 
 def bias_rules():
-    """回測結果:每條 score_* 規則的停損停利與是否站得住。"""
+    """回測結果:每條分數類規則(bias.RULE_SIDE)的停損停利與是否站得住。"""
     rules = ((load_json_safe(DAYTRADE_FILE, {}) or {}).get("rules") or {})
     out = {}
-    for k in ("score_long", "score_short", "score_long_80", "score_short_80", "fade_long", "fade_short"):
+    for k in bias.RULE_SIDE:
         r = rules.get(k) or {}
         b = r.get("best") or {}
-        out[k] = {"holds": bool(r.get("holds")), "stop": b.get("stop"), "target": b.get("target"),
+        out[k] = {"name": r.get("name"), "holds": bool(r.get("holds")), "stop": b.get("stop"), "target": b.get("target"),
                   "test_avg": (b.get("test") or {}).get("avg"), "test_n": (b.get("test") or {}).get("n")}
     return out
 
 
-def compute_bias(run_time, indices_out, watchlist_out):
-    """每檔自選股(不含ETF)的多空分數,給網頁「多空判斷」區塊。要在 update_history 之後呼叫。"""
+def same_time_pace(code, m, today, vol, curves, official_bars):
+    """量能倍數,算法和回測(daytrade_lab._pace)一樣:今天累積量 ÷ 前 20 天「同一時間」累積量的中位數。
+    前幾天同一時間的累積量 = 那天的量能曲線(volume_curve.json,累積量占全天比例)× 那天正式日K的全天量。
+    少於 5 天回傳 None,呼叫端退回原本的量能倍數。"""
+    if not _num_ok(vol) or vol <= 0:
+        return None
+    vbar = {b["d"]: b.get("v") for b in (official_bars.get(code) or []) if b.get("d")}
+    base = []
+    for d in sorted(curves)[::-1]:
+        fr = (curves.get(d) or {}).get(code)
+        if d >= today or not isinstance(fr, list) or len(fr) != len(CURVE_GRID) or not _num_ok(vbar.get(d)):
+            continue
+        base.append(_interp([(0, 0.0)] + list(zip(CURVE_GRID, fr)), min(m, 270)) * vbar[d])
+        if len(base) >= BIAS_PACE_DAYS:
+            break
+    base = sorted(x for x in base if x > 0)
+    if len(base) < BIAS_PACE_MIN_DAYS:
+        return None
+    return vol / base[len(base) // 2]
+
+
+def compute_bias(run_time, indices_out, watchlist_out, official=None):
+    """每檔自選股(不含ETF)的多空分數與規則觸發,給網頁「多空判斷」區塊。要在 update_history 之後呼叫。
+    規則條件和回測共用 bias.rule_hits();每條規則每天只記「第一次觸發」的時間和價格(存在 intraday_history.json
+    的 bias_state),停損停利用觸發價算,觸發超過 BIAS_FRESH_MIN 分鐘就標成「不追」,和回測的進場時機一致。"""
     if bias is None:
         return None
+    today = run_time.strftime("%Y-%m-%d")
     m = (run_time - _day_start(run_time)).total_seconds() / 60
+    active = BIAS_FROM <= m <= BIAS_TO
     hist = load_json_safe(HISTORY_FILE, {}) or {}
-    if hist.get("date") != run_time.strftime("%Y-%m-%d"):
+    if hist.get("date") != today:
         hist = {}
     pts = hist.get("points") or []
     cut = run_time.timestamp() - BIAS_VWAP_LAG * 60
@@ -1070,7 +1096,9 @@ def compute_bias(run_time, indices_out, watchlist_out):
                 prev_pt = p
         except (ValueError, KeyError, TypeError):
             continue
+    last_pt = pts[-2] if len(pts) >= 2 else None   # 上一輪(最後一筆是這一輪自己)
     orb = hist.get("orb") or {}
+    state = hist.get("bias_state") or {}
     tse = next((q for q in indices_out if q["code"] == "TWS:TSE01:INDEX"), {})
     tse_open = tse.get("open") or next((p["idx"].get("TWS:TSE01:INDEX") for p in pts if (p.get("idx") or {}).get("TWS:TSE01:INDEX")), None)
     by_grp = {}
@@ -1078,8 +1106,10 @@ def compute_bias(run_time, indices_out, watchlist_out):
         g = GROUP_OF.get(q["code"])
         if g and _num_ok(q.get("pct")):
             by_grp.setdefault(g, []).append((q["code"], q["pct"]))
+    curves = (load_json_safe(CURVE_FILE, {}) or {}).get("days") or {}
+    off_bars = (official or {}).get("bars") or {}
     rules = bias_rules()
-    items = []
+    items, pace_src = [], {"same_time": 0, "fallback": 0}
     for q in watchlist_out:
         code = q["code"]
         if code.startswith("00") or not _num_ok(q.get("last"), q.get("prev_close")):
@@ -1091,36 +1121,49 @@ def compute_bias(run_time, indices_out, watchlist_out):
         else:
             vw = _approx_vwap(pts, code, q.get("open"))
             vp = _approx_vwap(pts[:pts.index(prev_pt) + 1], code, q.get("open")) if prev_pt else None
+        pace = same_time_pace(code, m, today, q.get("volume"), curves, off_bars)
+        pace_src["same_time" if pace is not None else "fallback"] += 1
+        if pace is None:
+            pace = q.get("pace")
         o = orb.get(code) or [None, None]
+        prev_last = ((last_pt or {}).get("wl") or {}).get(code)
+        band = [x for x in (prev_last, q["last"]) if _num_ok(x)]
         f = {"last": q["last"], "prev_close": q["prev_close"], "vwap": vw, "vwap_prev": vp, "orb_hi": o[0], "orb_lo": o[1],
-             "pace": q.get("pace"), "day_hi": q.get("high"), "day_lo": q.get("low"),
+             "pace": pace, "day_hi": q.get("high"), "day_lo": q.get("low"),
              "mkt_pct": tse.get("pct"), "mkt_last": tse.get("last"), "mkt_open": tse_open,
              "grp_pct": sum(others) / len(others) if others else None,
-             "up_lim": q.get("upper_limit"), "lo_lim": q.get("lower_limit")}
+             "up_lim": q.get("upper_limit"), "lo_lim": q.get("lower_limit"),
+             # 盤中沒有 5 分K,用上一輪到這一輪的價格高低代替「這一根」的高低(拉回均價線規則用)
+             "bar_hi": max(band), "bar_lo": min(band)}
         r = bias.score(f)
-        strong = abs(r["score"]) >= bias.STRONG
-        # 偏離反向(回測第二版):分數極端且離均價線 2% 以上時反著做,優先於順勢分數
-        dev = (q["last"] / vw - 1) * 100 if vw else 0
-        if strong and abs(dev) >= BIAS_FADE_PCT and dev * r["score"] > 0:
-            r["side"] = "short" if r["score"] > 0 else "long"
-            rk = "fade_" + r["side"]
-        elif r["side"]:
-            rk = ("score_long" if r["side"] == "long" else "score_short") + ("_80" if strong else "")
-        else:
-            continue
-        rule = rules.get(rk) or {}
-        sg = 1 if r["side"] == "long" else -1
-        stop_pct, tgt_pct = rule.get("stop"), rule.get("target")
-        items.append({"code": code, "name": q["name"], "side": r["side"], "score": r["score"], "strong": strong,
-                      "parts": r["parts"], "reasons": ([f"分數 {r['score']:+d} 極端", f"{'高' if dev > 0 else '低'}於均價線 {abs(dev):.1f}%,反向"] if rk.startswith("fade_")
-                                  else bias.reasons(r["parts"], r["side"])), "last": q["last"], "pct": q.get("pct"),
-                      "vwap": round(vw, 2) if vw else None,
-                      "stop": round(q["last"] * (1 - sg * stop_pct / 100), 2) if stop_pct else None,
-                      "target": round(q["last"] * (1 + sg * tgt_pct / 100), 2) if tgt_pct else None,
-                      "stop_pct": stop_pct, "target_pct": tgt_pct, "rule": rk, "holds": rule.get("holds", False)})
-    items.sort(key=lambda x: -abs(x["score"]))
-    return {"as_of": run_time.strftime("%H:%M"), "active": BIAS_FROM <= m <= BIAS_TO, "orb_t": hist.get("orb_t"),
-            "threshold": bias.THRESHOLD, "strong": bias.STRONG, "weights": bias.WEIGHTS, "rules": rules, "items": items}
+        st = state.setdefault(code, {"armed": {}, "trig": {}})
+        if active:
+            hits, st["armed"] = bias.rule_hits(f, st.get("armed") or {})
+            for rk in hits:
+                if rk not in st["trig"]:
+                    st["trig"][rk] = {"t": run_time.strftime("%H:%M"), "m": round(m, 1), "price": q["last"], "score": r["score"]}
+        for rk, tg in (st.get("trig") or {}).items():
+            rule = rules.get(rk) or {}
+            side = bias.RULE_SIDE[rk]
+            sg = 1 if side == "long" else -1
+            age = round(m - tg["m"], 1)
+            stop_pct, tgt_pct = rule.get("stop"), rule.get("target")
+            items.append({"code": code, "name": q["name"], "rule": rk, "rule_name": rule.get("name") or rk, "side": side,
+                          "holds": rule.get("holds", False), "trig_t": tg["t"], "trig_price": tg["price"], "trig_score": tg["score"],
+                          "age_min": age, "fresh": active and age <= BIAS_FRESH_MIN,
+                          "score": r["score"], "parts": r["parts"], "reasons": bias.reasons(r["parts"], side),
+                          "last": q["last"], "pct": q.get("pct"), "vwap": round(vw, 2) if vw else None,
+                          "move_pct": round(sg * (q["last"] / tg["price"] - 1) * 100, 2),
+                          "stop": round(tg["price"] * (1 - sg * stop_pct / 100), 2) if stop_pct else None,
+                          "target": round(tg["price"] * (1 + sg * tgt_pct / 100), 2) if tgt_pct else None,
+                          "stop_pct": stop_pct, "target_pct": tgt_pct})
+    hist["bias_state"] = state
+    if hist.get("date") == today:
+        write_json_atomic(HISTORY_FILE, hist)
+    items.sort(key=lambda x: (not x["fresh"], x["age_min"], -abs(x["score"])))   # 剛觸發在前,越新越前面
+    return {"as_of": run_time.strftime("%H:%M"), "active": active, "orb_t": hist.get("orb_t"), "fresh_min": BIAS_FRESH_MIN,
+            "threshold": bias.THRESHOLD, "strong": bias.STRONG, "weights": bias.WEIGHTS, "rules": rules, "items": items,
+            "n_holds": sum(1 for r in rules.values() if r["holds"]), "pace_src": pace_src}
 
 
 def update_history(run_time, indices_out, watchlist_out, opening_state=None):
@@ -2053,7 +2096,7 @@ def main():
     except Exception as e:  # noqa: BLE001  成績單/量能曲線是加分功能,不能影響報價
         print(f"[警告] 歷史/成績單/量能曲線處理失敗: {e}")
     try:
-        result["bias"] = compute_bias(run_time, indices_out, watchlist_out)
+        result["bias"] = compute_bias(run_time, indices_out, watchlist_out, official)
     except Exception as e:  # noqa: BLE001  多空判斷是加分功能,不能影響報價
         print(f"[警告] 多空判斷失敗: {e}")
     result["amount_unit"] = amount_unit

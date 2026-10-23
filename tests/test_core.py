@@ -376,3 +376,49 @@ def test_daytrade_pullback_needs_setup_first():
     assert daytrade_lab.entry_index("pb_long", [None] * 20, 100, False, [touch]) is None   # 沒有先達到門檻不進場
     setup = (5, f(104, 103.5, 102.0))
     assert daytrade_lab.entry_index("pb_long", [None] * 20, 100, False, [setup, touch]) == 8
+
+
+def test_bias_rule_hits_shared_conditions():
+    hits, armed = bias.rule_hits(_BULL, {})
+    assert {"score_long", "score_long_80"} <= hits and "pb_long" not in hits and armed["long"]
+    touch = dict(_BULL, last=103.1, vwap=103, bar_lo=103.05, bar_hi=103.2, orb_hi=None, orb_lo=None)
+    assert "pb_long" not in bias.rule_hits(touch, {})[0]          # 沒有先達到門檻
+    assert "pb_long" in bias.rule_hits(touch, armed)[0]
+    far = dict(_BULL, last=106, vwap=103)                         # 分數 >= 80 且高於均價線 2% 以上
+    assert "fade_short" in bias.rule_hits(far, {})[0]
+
+
+def _bias_quote(code, last, vol, high, low):
+    return {"code": code, "name": code, "last": last, "prev_close": 100, "pct": (last / 100 - 1) * 100, "open": 100,
+            "high": high, "low": low, "volume": vol, "pace": 3.0, "upper_limit": 110, "lower_limit": 90}
+
+
+def test_compute_bias_records_first_trigger_and_goes_stale(tmp_path, monkeypatch):
+    hist_f, dt_f, cv_f = tmp_path / "h.json", tmp_path / "d.json", tmp_path / "c.json"
+    monkeypatch.setattr(intraday, "HISTORY_FILE", str(hist_f))
+    monkeypatch.setattr(intraday, "DAYTRADE_FILE", str(dt_f))
+    monkeypatch.setattr(intraday, "CURVE_FILE", str(cv_f))
+    dt_f.write_text(json.dumps({"rules": {"score_long": {"name": "多空分數做多", "holds": True, "best": {"stop": 1.0, "target": 2.0}}}}))
+    idx = [{"code": "TWS:TSE01:INDEX", "last": 101, "open": 100, "pct": 0.8}]
+    t0 = dt.datetime(2026, 10, 26, 9, 30, tzinfo=TPE)
+    pts = [{"t": (t0 - dt.timedelta(minutes=k)).isoformat(), "wl": {"1111": 103}, "wlv": {"1111": 5000 - k * 100}} for k in (20, 15, 10, 5, 0)]
+    hist_f.write_text(json.dumps({"date": "2026-10-26", "points": pts, "orb": {"1111": [104, 101]}}))
+    b = intraday.compute_bias(t0, idx, [_bias_quote("1111", 105, 5000, 105.5, 100.5)])
+    it = next(x for x in b["items"] if x["rule"] == "score_long")
+    assert it["trig_t"] == "09:30" and it["fresh"] and it["stop"] == 103.95 and it["target"] == 107.1
+    later = t0 + dt.timedelta(minutes=15)
+    h = json.loads(hist_f.read_text())
+    h["points"].append({"t": later.isoformat(), "wl": {"1111": 106}, "wlv": {"1111": 6000}})
+    hist_f.write_text(json.dumps(h))
+    b2 = intraday.compute_bias(later, idx, [_bias_quote("1111", 106, 6000, 106.5, 100.5)])
+    it2 = next(x for x in b2["items"] if x["rule"] == "score_long")
+    assert it2["trig_t"] == "09:30" and it2["trig_price"] == 105 and not it2["fresh"] and it2["move_pct"] == pytest.approx(0.95)
+    assert b2["n_holds"] == 1
+
+
+def test_same_time_pace_matches_backtest_definition():
+    grid = intraday.CURVE_GRID
+    curves = {f"2026-10-{d:02d}": {"A": [min(1.0, g / 270) for g in grid]} for d in range(10, 16)}
+    bars = {"A": [{"d": f"2026-10-{d:02d}", "v": 2700} for d in range(10, 16)]}
+    assert intraday.same_time_pace("A", 30, "2026-10-20", 600, curves, bars) == pytest.approx(2.0)
+    assert intraday.same_time_pace("A", 30, "2026-10-20", 600, dict(list(curves.items())[:4]), bars) is None

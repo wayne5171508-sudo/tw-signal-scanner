@@ -23,6 +23,10 @@ MKT_PCT = 0.2
 GRP_PCT = 0.5
 LIMIT_GAP_PCT = 1.0
 ORB_END = 15          # 開盤區間:09:00 起前 15 分鐘
+PB_TOL_PCT = 0.2      # 拉回均價線:最低價回到均價線多少 % 內
+FADE_PCT = 2.0        # 偏離反向:離均價線至少多少 %
+RULE_SIDE = {"score_long": "long", "score_short": "short", "score_long_80": "long", "score_short_80": "short",
+             "pb_long": "long", "pb_short": "short", "fade_long": "long", "fade_short": "short"}
 
 
 def _ok(*xs):
@@ -89,3 +93,30 @@ def reasons(parts, side):
     """跟結論同方向、有加分的項目,給網頁顯示理由。"""
     s = 1 if side == "long" else -1
     return [LABELS[k] for k, v in sorted(parts.items(), key=lambda kv: -abs(kv[1])) if v * s > 0]
+
+
+def rule_hits(f, armed):
+    """這一根(回測)或這一輪(盤中)成立的分數類規則。回測 daytrade_lab.py 和盤中 intraday.py 共用這一份條件,
+    避免兩邊寫法不一致。
+    f 另外可以有 bar_hi / bar_lo(這一根的高低;盤中沒有分K,用前後兩次快照價格的高低代替)。
+    armed={"long":bool,"short":bool}:「之前」某根分數曾 >= THRESHOLD / <= -THRESHOLD,拉回規則要先成立這個。
+    回傳 (成立的規則 set, 更新後的 armed)。"""
+    hits = set()
+    r, r80 = score(f), score(f, STRONG)
+    sc = r["score"]
+    if r["side"]:
+        hits.add("score_" + r["side"])
+    if r80["side"]:
+        hits.add("score_" + r80["side"] + "_80")
+    vw, last = f.get("vwap"), f.get("last")
+    if _ok(vw, last) and vw > 0 and last > 0:
+        if sc <= -STRONG and (vw / last - 1) * 100 >= FADE_PCT:
+            hits.add("fade_long")
+        if sc >= STRONG and (1 - vw / last) * 100 >= FADE_PCT:
+            hits.add("fade_short")
+        lo, hi = f.get("bar_lo", last), f.get("bar_hi", last)
+        if armed.get("long") and sc > 0 and lo <= vw * (1 + PB_TOL_PCT / 100) and last > vw:
+            hits.add("pb_long")
+        if armed.get("short") and sc < 0 and hi >= vw * (1 - PB_TOL_PCT / 100) and last < vw:
+            hits.add("pb_short")
+    return hits, {"long": bool(armed.get("long")) or sc >= THRESHOLD, "short": bool(armed.get("short")) or sc <= -THRESHOLD}
