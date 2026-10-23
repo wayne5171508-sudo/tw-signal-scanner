@@ -17,6 +17,9 @@
   bear_bounce_s 利空隔天反彈空:前一天收盤出現「有效/觀察」利空訊號,09:15-10:30 反彈到昨收 0.5% 內就放空
   score_long / score_short       多空分數(bias.py)09:15-12:30 第一次 >= 60 / <= -60
   score_long_80 / score_short_80 同上,門檻 80
+  pb_long / pb_short   拉回均價線:分數先到 >= 60(<= -60),之後某根最低價回到均價線 0.2% 內、收盤仍在均價線同一側、分數仍同方向
+  fade_long / fade_short 偏離反向:分數 <= -80 且現價低於均價線 2% 以上做多;分數 >= 80 且高於均價線 2% 以上放空
+    (這四條是 2026-10-23 追價版回測沒過後,事先寫死條件的第二版,不再依回測結果調整)
     分數用到的大盤是 Yahoo ^TWII 5 分K;量能倍數 = 累積量 ÷ 前 20 天同一時間累積量的中位數(至少 5 天)。
 出場:停損 1% / 1.5% / 2.5%,停利 1% / 2% / 3% / 不設(抱到 13:20 那根收盤出場),12 種組合。
   同一根 K 同時碰到停損和停利,一律當作先停損(保守);跳空越過停損,用該根開盤價出。
@@ -52,6 +55,8 @@ MOM_PCT = 3.0
 LAST_BAR = "13:20"         # 當沖要在 13:30 前了結,用 13:20 那根收盤出場
 SCORE_FROM, SCORE_TO = "09:15", "12:30"   # 多空分數只在這段時間找進場點
 PACE_DAYS, PACE_MIN_DAYS = 20, 5
+PB_TOL_PCT = 0.2                          # 拉回均價線:最低價回到均價線多少 % 內
+FADE_PCT = 2.0                            # 偏離反向:離均價線至少多少 %
 
 RULES = {
     "orb_long": ("開盤區間突破做多", "long", "09:15 後收盤站上 09:00-09:15 最高價"),
@@ -67,6 +72,10 @@ RULES = {
     "score_short": ("多空分數放空", "short", f"09:15-12:30 多空分數第一次 <= -{bias.THRESHOLD}"),
     "score_long_80": ("多空分數做多(強)", "long", f"09:15-12:30 多空分數第一次 >= {bias.STRONG}"),
     "score_short_80": ("多空分數放空(強)", "short", f"09:15-12:30 多空分數第一次 <= -{bias.STRONG}"),
+    "pb_long": ("拉回均價線做多", "long", f"分數先 >= {bias.THRESHOLD},之後拉回均價線 {PB_TOL_PCT:g}% 內且收在均價線上"),
+    "pb_short": ("反彈均價線放空", "short", f"分數先 <= -{bias.THRESHOLD},之後反彈到均價線 {PB_TOL_PCT:g}% 內且收在均價線下"),
+    "fade_long": ("超跌反向做多", "long", f"分數 <= -{bias.STRONG} 且低於均價線 {FADE_PCT:g}% 以上"),
+    "fade_short": ("超漲反向放空", "short", f"分數 >= {bias.STRONG} 且高於均價線 {FADE_PCT:g}% 以上"),
 }
 SCORE_RULES = {"score_long": ("long", bias.THRESHOLD), "score_short": ("short", bias.THRESHOLD),
                "score_long_80": ("long", bias.STRONG), "score_short_80": ("short", bias.STRONG)}
@@ -177,7 +186,7 @@ def score_series(code, d, bars, prev_close, ctx):
             "orb_hi": orb_hi, "orb_lo": orb_lo, "pace": _pace(ctx, code, d, b["t"], cv.get(b["t"])),
             "day_hi": hi, "day_lo": lo, "mkt_pct": m[1] if m else None, "mkt_last": m[0] if m else None,
             "mkt_open": ix.get("open"), "grp_pct": _grp_pct(ctx, code, d, b["t"]),
-            "up_lim": prev_close * 1.1, "lo_lim": prev_close * 0.9,
+            "up_lim": prev_close * 1.1, "lo_lim": prev_close * 0.9, "bar_hi": b["h"], "bar_lo": b["l"],
         }))
     return out
 
@@ -201,6 +210,26 @@ def entry_index(rule, bars, prev_close, bear_prev, series=None):
         side, th = SCORE_RULES[rule]
         for i, f in series or ():
             if bias.score(f, th)["side"] == side:
+                return i + 1
+        return None
+    if rule in ("pb_long", "pb_short"):
+        sg, armed = (1 if rule == "pb_long" else -1), False
+        for i, f in series or ():
+            sc = bias.score(f)["score"]
+            if armed and sc * sg > 0 and f["vwap"]:
+                vw = f["vwap"]
+                if sg > 0 and f["bar_lo"] <= vw * (1 + PB_TOL_PCT / 100) and f["last"] > vw:
+                    return i + 1
+                if sg < 0 and f["bar_hi"] >= vw * (1 - PB_TOL_PCT / 100) and f["last"] < vw:
+                    return i + 1
+            if sc * sg >= bias.THRESHOLD:
+                armed = True
+        return None
+    if rule in ("fade_long", "fade_short"):
+        sg = 1 if rule == "fade_long" else -1
+        for i, f in series or ():
+            sc, vw = bias.score(f)["score"], f["vwap"]
+            if vw and sc * sg <= -bias.STRONG and sg * (vw / f["last"] - 1) * 100 >= FADE_PCT:
                 return i + 1
         return None
     ts = [b["t"] for b in bars]

@@ -367,3 +367,12 @@ def test_health_amount_and_mkt_checks(tmp_path, monkeypatch):
     _write(d, "intraday_latest.json", {"data_as_of": "2026-10-22T13:33:00+08:00", "amount_unit": None})
     items = {i["key"]: i for i in health.run(dt.datetime(2026, 10, 22, 20, 0, tzinfo=TPE))["items"]}
     assert "amount" not in items and "mkt" not in items      # 上線前的日子不檢查
+
+
+def test_daytrade_pullback_needs_setup_first():
+    f = lambda sc_last, lo, vw: {"last": sc_last, "prev_close": 100, "vwap": vw, "vwap_prev": vw - 0.5, "orb_hi": 101, "orb_lo": 99,
+                                 "pace": 3, "day_hi": sc_last + 0.1, "day_lo": 99, "grp_pct": 1, "bar_hi": sc_last + 0.1, "bar_lo": lo}
+    touch = (7, f(102.1, 102.05, 102.0))          # 碰到均價線、收在上面
+    assert daytrade_lab.entry_index("pb_long", [None] * 20, 100, False, [touch]) is None   # 沒有先達到門檻不進場
+    setup = (5, f(104, 103.5, 102.0))
+    assert daytrade_lab.entry_index("pb_long", [None] * 20, 100, False, [setup, touch]) == 8
