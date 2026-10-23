@@ -300,6 +300,14 @@
   .bsig .l1{display:flex;justify-content:space-between;align-items:center;gap:8px}
   .bsig .l2{display:flex;flex-wrap:wrap;gap:2px 14px;font-size:11.5px;color:var(--muted);margin-top:3px;font-variant-numeric:tabular-nums}
   .bsig .l2 span{white-space:nowrap}
+  .zstrip{margin-top:6px}
+  .zbar{position:relative;height:10px;border-radius:5px;overflow:visible}
+  .zbar i{position:absolute;top:0;bottom:0;border-top:1px solid;border-bottom:1px solid}
+  .zbar i:first-child{border-left:1px solid;border-radius:5px 0 0 5px} .zbar i:nth-child(3){border-right:1px solid;border-radius:0 5px 5px 0}
+  .zbar em{position:absolute;top:-3px;width:12px;height:12px;margin-left:-6px;border-radius:50%;background:var(--text);border:2px solid;box-sizing:border-box}
+  .zft{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:3px;font-variant-numeric:tabular-nums}
+  .zlegend{display:flex;flex-wrap:wrap;gap:3px 12px;font-size:11px;color:var(--muted);margin-top:6px}
+  .zlegend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
   .bmore{margin-top:8px;font-size:12.5px;color:var(--accent);cursor:pointer;background:none;border:0;padding:4px 0;font-family:inherit}
   .stt{display:inline-block;font-size:11px;font-weight:700;border-radius:6px;padding:1px 7px;background:#f1f0ea;color:var(--sec)}
   .stt.hold{background:#fff1d6;color:#8a5a00} .stt.str{background:rgba(209,64,63,.14);color:var(--up)} .stt.wk{background:rgba(24,143,99,.14);color:var(--down)}
@@ -553,6 +561,55 @@ function niceTicks(min, max, count){
   return ticks;
 }
 
+
+// ================= 分區(做多區/平衡區/做空區) =================
+// 平衡區 = 盤中均價線上下 ZONE_BAND_PCT;做空區 = 平衡區上緣到壓力線;做多區 = 支撐線到平衡區下緣。
+// 只是「現在在哪個位置」的參考,不是買賣訊號(觸及回測顯示碰線後的反彈和隨機價位差不多)。
+const ZONE_BAND_PCT = 0.15;
+function approxVwap(code){
+  // 和 intraday.py 的 _approx_vwap 一樣:每段新增量 × (上一輪價 + 這一輪價)/2
+  if(!HISTORY || !HISTORY.points) return null;
+  let pv = 0, vv = 0, pp = null, pvol = 0;
+  for(const p of HISTORY.points){
+    const last = p.wl && p.wl[code], vol = p.wlv && p.wlv[code];
+    if(num(last) === null || num(vol) === null || vol < pvol) continue;
+    const ref = pp === null ? last : (pp + last) / 2;
+    pv += (vol - pvol) * ref; vv += vol - pvol; pp = last; pvol = vol;
+  }
+  return vv > 0 ? pv / vv : null;
+}
+function zoneInfo(q){
+  const {resTarget, supTarget, midVal} = effectiveLevels(q, false);
+  const bi = ((INTRADAY && INTRADAY.bias && INTRADAY.bias.items) || []).find(x => x.code === q.code && x.vwap != null);
+  const vwap = bi ? bi.vwap : (approxVwap(q.code) ?? midVal);
+  if(resTarget == null || supTarget == null || vwap == null || !(resTarget > supTarget)) return null;
+  // 均價線在支撐壓力區間外(例如大跌後均價遠在壓力上方)時,改用區間中點當平衡區,不然整段都會變成同一區
+  const vwapOut = !(vwap > supTarget && vwap < resTarget);
+  const c = vwapOut ? (supTarget + resTarget) / 2 : vwap;
+  const bandLo = Math.max(supTarget, c * (1 - ZONE_BAND_PCT / 100)), bandHi = Math.min(resTarget, c * (1 + ZONE_BAND_PCT / 100));
+  const last = q.last;
+  let zone = null, label = '';
+  if(num(last) !== null){
+    if(last > resTarget){ zone = 'over'; label = '已突破壓力'; }
+    else if(last < supTarget){ zone = 'under'; label = '已跌破支撐'; }
+    else if(last > bandHi){ zone = 'short'; label = '做空區'; }
+    else if(last < bandLo){ zone = 'long'; label = '做多區'; }
+    else { zone = 'mid'; label = '平衡區'; }
+  }
+  return {res: resTarget, sup: supTarget, vwap, center: c, vwapOut, bandLo, bandHi, zone, label, mid: midVal};
+}
+const ZONE_COLOR = {short: '#d1403f', long: '#188f63', mid: '#8a5cc7', over: '#d1403f', under: '#188f63'};
+function zoneStrip(q){
+  // 多空判斷列用的小縮圖:左綠(做多區)、中紫(平衡區)、右紅(做空區),圓點=現價
+  const z = zoneInfo(q);
+  if(!z) return '';
+  const span = z.res - z.sup, pos = v => Math.max(0, Math.min(100, (v - z.sup) / span * 100));
+  const a = pos(z.bandLo), b = pos(z.bandHi), dot = pos(q.last);
+  const out = z.zone === 'over' || z.zone === 'under';
+  return `<div class="zstrip"><div class="zbar"><i style="left:0;width:${a}%;background:var(--down-fill);border-color:var(--down)"></i><i style="left:${a}%;width:${Math.max(1.5, b - a)}%;background:rgba(138,92,199,.22);border-color:#8a5cc7"></i><i style="left:${b}%;width:${100 - b}%;background:var(--up-fill);border-color:var(--up)"></i><em style="left:${dot}%;${out ? 'background:var(--card);' : ''}border-color:${ZONE_COLOR[z.zone] || 'var(--text)'}"></em></div>
+    <div class="zft"><span class="down">支撐 ${fmtNum(z.sup)}</span><span style="color:${ZONE_COLOR[z.zone]};font-weight:700">現價在${z.label}</span><span class="up">壓力 ${fmtNum(z.res)}</span></div></div>`;
+}
+
 function candleChart(code, q){
   const bars = buildCandleBars(code);
   if(bars.length < 2){
@@ -563,8 +620,9 @@ function candleChart(code, q){
   const plotW = baseW - axisW;
   const plotH = h - volH - gap - topPad;
 
-  const {resTarget, resLabel, supTarget, supLabel, midVal, midLabel} = keyLevels(q);
-  const refLevels = [resTarget, supTarget, midVal, q.last].filter(v => v != null);
+  const {resTarget, resLabel, supTarget, supLabel, midVal, midLabel} = effectiveLevels(q, false);
+  const zi = zoneInfo(q);
+  const refLevels = [resTarget, supTarget, midVal, q.last, zi && zi.vwap].filter(v => v != null);
   let min = Math.min(...bars.flatMap(b => [b.high, b.low]).concat(refLevels));
   let max = Math.max(...bars.flatMap(b => [b.high, b.low]).concat(refLevels));
   if(min === max){ min -= 1; max += 1; }
@@ -600,6 +658,43 @@ function candleChart(code, q){
       <text x="${plotW + 2 + (axisW - 2) / 2}" y="${(y + 4).toFixed(1)}" font-size="9.5" fill="#fff" text-anchor="middle">${fmtNum(val)}</text>`;
   }
   const levelsSvg = levelLine(resTarget, '#d1403f', false) + levelLine(midVal, '#9a8a2a', true) + levelLine(supTarget, '#188f63', false);
+  let zonesSvg = '', zoneTextSvg = '', priceSvg = '', markSvg = '';
+  if(zi){
+    const yr = Math.max(topPad, yOf(zi.res)), yhi = yOf(zi.bandHi), ylo = yOf(zi.bandLo), ys = Math.min(topPad + plotH, yOf(zi.sup));
+    const box = (y1, y2, fill, stroke) => y2 - y1 > 0.5 ? `<rect x="0" y="${y1.toFixed(1)}" width="${plotW}" height="${(y2 - y1).toFixed(1)}" fill="${fill}" stroke="${stroke}" stroke-width="0.6"/>` : '';
+    zonesSvg = box(yr, yhi, 'rgba(209,64,63,0.10)', 'rgba(209,64,63,0.45)') + box(yhi, ylo, 'rgba(138,92,199,0.20)', 'rgba(138,92,199,0.6)') + box(ylo, ys, 'rgba(24,143,99,0.10)', 'rgba(24,143,99,0.45)');
+    const yv = yOf(zi.vwap);
+    zonesSvg += `<line x1="0" y1="${yv.toFixed(1)}" x2="${plotW}" y2="${yv.toFixed(1)}" stroke="#8a5cc7" stroke-width="1" stroke-dasharray="2,2"/>`;
+    const tx = (y, t, c) => (y > topPad + 8 && y < topPad + plotH - 2) ? `<text x="${(plotW / 2).toFixed(1)}" y="${y.toFixed(1)}" font-size="10" font-weight="700" fill="${c}" text-anchor="middle" opacity="0.75">${t}</text>` : '';
+    zoneTextSvg = tx(yr + 12, '做空區', '#d1403f') + tx(ys - 4, '做多區', '#188f63');
+    if(num(q.last) !== null){
+      const yp = Math.max(topPad + 6, Math.min(topPad + plotH - 6, yOf(q.last))), zc = ZONE_COLOR[zi.zone] || 'var(--text)';
+      priceSvg = `<line x1="0" y1="${yp.toFixed(1)}" x2="${plotW}" y2="${yp.toFixed(1)}" stroke="${zc}" stroke-width="0.8" stroke-dasharray="1,2"/>
+        <rect x="${plotW - 58}" y="${(yp - 8).toFixed(1)}" width="56" height="16" rx="3" fill="${zc}"/>
+        <text x="${plotW - 30}" y="${(yp + 4).toFixed(1)}" font-size="9.5" fill="#fff" text-anchor="middle">${zi.label}</text>`;
+    }
+  }
+  // 觸發標記:多空判斷每條規則第一次觸發的位置;回測站得住=彩色,其餘灰色(只是紀錄,不是可下單訊號)
+  const hhmm = iso => { try { return new Date(iso).toLocaleTimeString('en-GB', {timeZone: 'Asia/Taipei', hour: '2-digit', minute: '2-digit'}); } catch(e){ return ''; } };
+  const bt = bars.map(b => hhmm(b.t));
+  // 同一時間、同方向只畫一個;其中任一條規則站得住就用彩色
+  const trigMap = {};
+  ((INTRADAY && INTRADAY.bias && INTRADAY.bias.items) || []).filter(x => x.code === code && x.trig_t && num(x.trig_price) !== null).forEach(x => {
+    const k = x.trig_t + x.side, o = trigMap[k];
+    if(!o) trigMap[k] = {...x, names: [x.rule_name || x.rule]};
+    else { o.names.push(x.rule_name || x.rule); o.holds = o.holds || x.holds; }
+  });
+  const trig = Object.values(trigMap);
+  markSvg = trig.map(x => {
+    let i = bt.findIndex(t => t >= x.trig_t);
+    if(i < 0) i = bars.length - 1;
+    const cx = i * slot + slot / 2, y = yOf(x.trig_price), lg = x.side === 'long';
+    const c = x.holds ? (lg ? '#d1403f' : '#188f63') : '#98968f';
+    const tip = lg ? `${cx},${(y + 3).toFixed(1)} ${cx - 5},${(y + 11).toFixed(1)} ${cx + 5},${(y + 11).toFixed(1)}` : `${cx},${(y - 3).toFixed(1)} ${cx - 5},${(y - 11).toFixed(1)} ${cx + 5},${(y - 11).toFixed(1)}`;
+    const ty = lg ? y + 21 : y - 14;
+    return `<polygon points="${tip}" fill="${c}"><title>${x.trig_t} ${bearEsc(x.names.join('、'))} @ ${fmtNum(x.trig_price)}${x.holds ? '' : '(未通過回測)'}</title></polygon>
+      <text x="${cx}" y="${ty.toFixed(1)}" font-size="8.5" fill="${c}" text-anchor="middle">${lg ? '多' : '空'}</text>`;
+  }).join('');
 
   const vols = bars.map(b => b.vol).filter(v => v != null);
   const maxVol = vols.length ? Math.max(...vols) : 0;
@@ -615,12 +710,18 @@ function candleChart(code, q){
   return `
     <svg width="100%" height="${h}" viewBox="0 0 ${baseW} ${h}" preserveAspectRatio="xMidYMid meet">
       ${gridSvg}
+      ${zonesSvg}
+      ${zoneTextSvg}
       ${candleSvg}
       ${levelsSvg}
+      ${priceSvg}
+      ${markSvg}
       <line x1="0" y1="${volY0.toFixed(1)}" x2="${plotW}" y2="${volY0.toFixed(1)}" stroke="var(--grid)" stroke-width="1"/>
       ${volSvg}
     </svg>
     <div class="candletime"><span>${fmtTime(bars[0].t)}</span><span>量能(區間實際成交量)</span><span>${fmtTime(bars[bars.length - 1].t)}</span></div>
+    ${zi ? `<div class="zlegend"><span><i style="background:rgba(209,64,63,.25)"></i>做空區(平衡區上緣~壓力 ${fmtNum(zi.res)})</span><span><i style="background:rgba(138,92,199,.35)"></i>平衡區(${zi.vwapOut ? `均價 ${fmtNum(zi.vwap)} 在區間外,改用區間中點 ${fmtNum(zi.center)}` : `均價 ${fmtNum(zi.vwap)}`} ±${ZONE_BAND_PCT}%)</span><span><i style="background:rgba(24,143,99,.25)"></i>做多區(支撐 ${fmtNum(zi.sup)}~平衡區下緣)</span><span><b style="color:#d1403f">▲</b><b style="color:#188f63">▼</b> 多空判斷觸發(灰色=未通過回測)</span></div>
+    <div class="meta" style="margin-top:2px">分區只是「現在在哪個位置」的參考,不是買賣訊號:觸及回測顯示碰到支撐壓力後的反彈和隨機價位差不多。</div>` : ''}
     <div class="meta" style="margin-top:2px">近似K線:每約5分鐘一格,用當時成交價堆疊(非逐筆真實高低,沒有影線);下方量能是真實區間成交量,不是估的</div>`;
 }
 
@@ -825,7 +926,8 @@ function keyLevels(q){
 }
 
 // ---- 關鍵價位 chips:壓力(CDP近高,沒資料時退回今日高) / 交界(CDP樞紐價,沒資料時退回昨收) / 支撐(CDP近低,沒資料時退回今日低) ----
-function levelChips(q, isIndex){
+// 卡片、K線圖、分區都用這一份:已突破壓力或跌破支撐時,換成「現價上方、下方最近的一條線」
+function effectiveLevels(q, isIndex){
   const distPct = (target, base) => (target != null && base) ? (((target - base) / base) * 100) : null;
   let {resTarget, resLabel, supTarget, supLabel, midVal, midLabel, usingCdp} = keyLevels(q);
   let dRes = distPct(resTarget, q.last);
@@ -841,6 +943,10 @@ function levelChips(q, isIndex){
     if(nr){ resTarget = toTick(nr.price, q.code); resLabel = nm(nr); dRes = distPct(resTarget, q.last); }
     if(ns){ supTarget = toTick(ns.price, q.code); supLabel = nm(ns); dSup = distPct(q.last, supTarget); }
   }
+  return {resTarget, resLabel, supTarget, supLabel, midVal, midLabel, usingCdp, dRes, dSup, brokeNote};
+}
+function levelChips(q, isIndex){
+  const {resTarget, resLabel, supTarget, supLabel, midVal, midLabel, usingCdp, dRes, dSup, brokeNote} = effectiveLevels(q, isIndex);
 
   return `
     <div class="levelchips">
@@ -1808,6 +1914,7 @@ function renderBias(intraday){
     const lg = x.side === 'long', cls = lg ? 'up' : 'down';
     return `<div class="bsig" style="cursor:pointer" onclick="searchAndOpen('${x.code}')"><div class="l1"><span><b>${bearEsc(x.name)}</b> <small style="color:var(--muted)">${x.code}</small> <span class="bchip" style="background:var(--${lg ? 'up' : 'down'}-fill);color:var(--${cls});font-weight:700">${lg ? '做多' : '放空'}</span></span><span class="${cls}"><b>${x.score > 0 ? '+' : ''}${x.score}</b></span></div>
       <div class="l2"><span>${x.trig_t} 觸發 @ <b>${fmtNum(x.trig_price)}</b>(${Math.round(x.age_min)} 分鐘前)</span><span>現價 ${fmtNum(x.last)}(部位 <b class="${x.move_pct > 0 ? 'up' : (x.move_pct < 0 ? 'down' : '')}">${x.move_pct > 0 ? '+' : ''}${x.move_pct}%</b>)</span>${lvl(x).map(t => `<span>${t}</span>`).join('')}</div>
+      ${(() => { const q = ((INTRADAY && INTRADAY.watchlist_quotes) || []).find(w => w.code === x.code); return q ? zoneStrip(q) : ''; })()}
       <div class="onote" style="margin-top:2px">${bearEsc(x.rule_name)}・理由:${(x.reasons || []).join('、') || '-'}${x.vwap != null ? '・均價 ' + fmtNum(x.vwap) : ''}</div></div>`;
   };
   const staleRow = x => `<div class="rvrow" style="font-size:12px;color:var(--muted)"><span>${bearEsc(x.name)} ${x.side === 'long' ? '做多' : '放空'}・${x.trig_t} @ ${fmtNum(x.trig_price)}</span><span class="${x.move_pct > 0 ? 'up' : 'down'}">${x.move_pct > 0 ? '+' : ''}${x.move_pct}%</span></div>`;
