@@ -280,6 +280,27 @@
   .sigrow .l2{font-size:12px;color:var(--muted);margin-top:2px;line-height:1.5}
   .sigv{font-size:11px;font-weight:700;border-radius:6px;padding:1px 7px;background:#f1f0ea;color:var(--sec)}
   .sigv.good{background:rgba(209,64,63,.14);color:var(--up)} .sigv.bad{background:rgba(24,143,99,.14);color:var(--down)}
+  /* 收盤後利空雷達(data/bear_scorecard.json) */
+  .bwin{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin:6px 0 2px}
+  .bwin div{border-radius:8px;padding:6px 2px;text-align:center;background:#f1f0ea;font-variant-numeric:tabular-nums}
+  .bwin div b{display:block;font-size:12px;color:var(--sec)} .bwin div span{font-size:11px;color:var(--muted)}
+  .bwin div.best{background:var(--down-fill);outline:2px solid var(--down)} .bwin div.best b{color:var(--down)}
+  .bwin div.avoid{background:var(--up-fill)} .bwin div.avoid b{color:var(--up)}
+  .bwin div i{display:block;font-style:normal;font-size:10px;font-weight:700;margin-top:1px}
+  .bwin div.best i{color:var(--down)} .bwin div.avoid i{color:var(--up)}
+  .blvl{font-weight:800;letter-spacing:-1px;color:var(--down);margin-right:4px}
+  .bchip{display:inline-block;font-size:11px;padding:1px 7px;border-radius:10px;margin:2px 4px 0 0;background:#f1f0ea;color:var(--muted)}
+  .bchip.active{background:var(--down-fill);color:var(--down);font-weight:700} .bchip.watch{background:#fff3dc;color:#9a6200}
+  .bst{font-size:11px;font-weight:700;padding:1px 7px;border-radius:6px;white-space:nowrap}
+  .bst.active{background:var(--down-fill);color:var(--down)} .bst.watch{background:#fff3dc;color:#9a6200} .bst.inactive{background:#f1f0ea;color:var(--muted)}
+  .bbar{position:relative;height:8px;border-radius:4px;background:#ecebe6;margin-top:4px}
+  .bbar i{position:absolute;top:0;bottom:0;border-radius:4px;background:var(--down)} .bbar i.pos{background:var(--muted)}
+  .bbar em{position:absolute;top:-2px;bottom:-2px;left:50%;width:1px;background:var(--sec)}
+  .bsig{padding:8px 0;border-top:1px solid var(--border);font-size:13px}
+  .bsig .l1{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .bsig .l2{display:flex;flex-wrap:wrap;gap:2px 14px;font-size:11.5px;color:var(--muted);margin-top:3px;font-variant-numeric:tabular-nums}
+  .bsig .l2 span{white-space:nowrap}
+  .bmore{margin-top:8px;font-size:12.5px;color:var(--accent);cursor:pointer;background:none;border:0;padding:4px 0;font-family:inherit}
   .stt{display:inline-block;font-size:11px;font-weight:700;border-radius:6px;padding:1px 7px;background:#f1f0ea;color:var(--sec)}
   .stt.hold{background:#fff1d6;color:#8a5a00} .stt.str{background:rgba(209,64,63,.14);color:var(--up)} .stt.wk{background:rgba(24,143,99,.14);color:var(--down)}
   .newslk{font-size:11px;font-weight:600;color:var(--accent);border:1px solid var(--accent);border-radius:6px;padding:0 6px;text-decoration:none;white-space:nowrap}
@@ -341,6 +362,7 @@
 <div data-pane="today">
 <div id="reviewTop" style="display:none"></div>
 <div id="focusBox" style="display:none"></div>
+<div id="bearBox" style="display:none"></div>
 <div id="openingBox" style="display:none"></div>
 <div id="marketBox" style="display:none"></div>
 <div class="idxgrid" id="indicesGrid"></div>
@@ -370,6 +392,7 @@
 </div>
 
 <div data-pane="more">
+<div id="bearCardBox" style="display:none"></div>
 <div id="signalBox" style="display:none"></div>
 <div id="labBox" style="display:none"></div>
 <details class="more" id="reviewPastWrap" style="display:none">
@@ -418,6 +441,7 @@
 <script>
 let INTRADAY = null, HISTORY = null, CHIP = null, CURRENT_DETAIL = null, MARKET = null;
 let REVIEW = null, LAB = null, SLOW_AT = 0, REVIEW_PICK = null;
+let BEAR = null, BEAR_ALL = false;
 
 const num = n => { if(n === null || n === undefined || n === '') return null; const v = Number(n); return Number.isFinite(v) ? v : null; };
 const PCT_CLASS = p => { const v = num(p); return v > 0 ? 'up' : (v < 0 ? 'down' : 'flat'); };
@@ -1086,6 +1110,7 @@ async function loadAll(opts){
     SLOW_AT = Date.now();
     try{ const r = await fetch('data/review.json', {cache:'no-store'}); if(r.ok) REVIEW = await r.json(); }catch(e){ /* 還沒有復盤資料 */ }
     try{ const r = await fetch('data/lab.json', {cache:'no-store'}); if(r.ok) LAB = await r.json(); }catch(e){ /* 還沒有驗證資料 */ }
+    try{ const r = await fetch('data/bear_scorecard.json', {cache:'no-store'}); if(r.ok) BEAR = await r.json(); }catch(e){ /* 還沒有利空成績單 */ }
   }
   try{ const r = await fetch('data/health.json', {cache:'no-store'}); if(r.ok) HEALTH = await r.json(); }catch(e){ /* 沒有健康檢查就不顯示 */ }
 
@@ -1101,6 +1126,7 @@ async function loadAll(opts){
   safe('signals', () => renderSignals(intraday));
   safe('review', () => renderReview(REVIEW));
   safe('lab', () => renderLab(LAB));
+  safe('bear', () => renderBear(BEAR));
   safe('touchnote', () => renderTouchNote(intraday));
   safe('srcnote', () => { const sn = document.getElementById('srcNote'); if(sn) sn.textContent = (intraday && intraday.official_bars_status) ? ' 日K資料狀態:' + intraday.official_bars_status + '。' : ''; });
   safe('indices', () => renderIndices(intraday));
@@ -1661,6 +1687,90 @@ function renderLab(lab){
       <div class="onote">把四種策略的門檻全部組合試一遍,用前 60% 的交易日挑最好的參數,再看後 40% 沒用過的日子是不是還有效。「站得住」=驗證段至少 20 筆,訓練段和驗證段的差距都大於成本,而且以「天」為單位都至少是標準誤的 2 倍(用亂數資料測過,沒有這條會把運氣當優勢)。試的組合越多,越容易有一組剛好好看,所以只看「站得住」的。</div>${swHtml}</details>
     <div class="onote">歷史統計,不是預測、也不是買賣建議。</div>`;
   el.style.display = '';
+}
+
+// ================= 收盤後利空雷達(data/bear_scorecard.json,每個交易日 14:30 由 bear_signals.py 產生) =================
+const BEAR_ST = {active: '有效', watch: '觀察', inactive: '無效'};
+function bearEsc(t){ return String(t == null ? '' : t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function bearPct(v, d){ return v == null ? '-' : (v > 0 ? '+' : '') + Number(v).toFixed(d == null ? 2 : d) + '%'; }
+function bearWindows(w, cond){
+  const c = w && w[cond];
+  if(!c || !c.by_window) return '';
+  const cells = (w.windows || []).map(x => {
+    const b = c.by_window[x.key]; if(!b) return '<div>-</div>';
+    const cls = x.key === c.best ? 'best' : (x.key === c.avoid ? 'avoid' : '');
+    const mark = x.key === c.best ? '建議' : (x.key === c.avoid ? '避開' : '&nbsp;');
+    return `<div class="${cls}"><b>${x.key}:00</b><span>${bearPct(b.cheap)}</span><i>${mark}</i></div>`;
+  }).join('');
+  let msg;
+  if(!c.ready) msg = `樣本 ${c.days} 天,至少 60 天才下結論。`;
+  else if(!c.clear) msg = `各時段和收盤價差不多(差距在統計誤差內),沒有明確較好的進場時段。`;
+  else {
+    const bw = c.by_window, best = (w.windows.find(x => x.key === c.best) || {}).label, avoid = (w.windows.find(x => x.key === c.avoid) || {}).label;
+    msg = `${avoid} 買平均比收盤貴 ${bw[c.avoid].cheap.toFixed(2)}%,${best} 最接近收盤價(${bearPct(bw[c.best].cheap)})。越晚買越便宜。`;
+  }
+  return `<div class="bwin">${cells}</div><div class="onote" style="margin-top:2px">${msg}(${c.days} 個交易日)</div>`;
+}
+function bearRR(rr){
+  if(!rr) return '';
+  if(rr.note) return `<div class="onote" style="color:var(--down)">${bearEsc(rr.note)}(近20日低 ${rr.stop})</div>`;
+  const tot = (rr.risk || 0) + (rr.reward || 0);
+  if(!(tot > 0)) return '';
+  // 停損太近時比值會很誇張(例如 18:1),實際上很容易被正常震盪洗掉,顯示上限 5:1 並提醒
+  const rrTxt = rr.rr >= 5 ? '5+:1' : rr.rr.toFixed(1) + ':1';
+  const tight = rr.risk < 2 ? `<div class="onote" style="margin-top:2px">停損只差 ${rr.risk.toFixed(1)}%,很容易被正常震盪碰到,損益比參考性低。</div>` : '';
+  return `<div class="lvrr"><div class="rrbar"><i class="rrdn" style="width:${rr.risk / tot * 100}%"></i><i class="rrup" style="width:${rr.reward / tot * 100}%"></i></div>
+    <div class="rrft"><span class="down">停損 ${rr.stop}(-${rr.risk.toFixed(1)}%)</span><span><b style="color:var(--text)">損益比 ${rrTxt}</b></span><span class="up">目標 ${rr.target}(+${rr.reward.toFixed(1)}%)</span></div></div>${tight}`;
+}
+function renderBear(sc){
+  const el = document.getElementById('bearBox'), card = document.getElementById('bearCardBox');
+  if(!el || !card) return;
+  if(!sc || !sc.signals){ el.style.display = 'none'; card.style.display = 'none'; return; }
+  const sig = sc.signals, base = sc.baseline || {}, brr = (base.rr5 || {}).rr;
+  const d = (sc.latest_bar || '').slice(5).replace('-', '/');
+  // 今日重點:今天收盤出現利空訊號的股票(只列有效/觀察),加上進場時段
+  const items = (sc.today || []).filter(x => x.level !== 'low');
+  const shown = BEAR_ALL ? items : items.slice(0, 6);
+  const rows = shown.map(x => {
+    const lv = x.level === 'high' ? '▼▼' : '▼';
+    const chips = x.signals.filter(s => s.status !== 'inactive').map(s => `<span class="bchip ${s.status}">${bearEsc(s.name)}</span>`).join('');
+    return `<div class="bsig" onclick="openDetail('${bearEsc(x.code)}', false)" style="cursor:pointer">
+      <div class="l1"><span><span class="blvl">${lv}</span><b>${bearEsc(x.name)}</b> <small style="color:var(--muted)">${bearEsc(x.code)}</small></span>
+      <span class="${x.pct < 0 ? 'down' : (x.pct > 0 ? 'up' : 'flat')}" style="font-variant-numeric:tabular-nums">${x.close} ${bearPct(x.pct)}</span></div>
+      <div>${chips}</div>${bearRR(x.rr)}</div>`;
+  }).join('');
+  const nHigh = items.filter(x => x.level === 'high').length;
+  const moreBtn = items.length > 6 ? `<button class="bmore" onclick="BEAR_ALL=!BEAR_ALL;renderBear(BEAR)">${BEAR_ALL ? '收起' : `顯示全部 ${items.length} 檔`}</button>` : '';
+  el.className = 'sigbox';
+  el.innerHTML = `<div class="sh"><b>收盤後利空雷達</b><small>${d} 收盤・每個交易日 14:30 更新</small></div>
+    <div class="rvsub" style="font-size:12px;color:var(--muted);margin:2px 0">建議進場時段(一般日子,平均比收盤貴/便宜多少)</div>
+    ${bearWindows(sc.entry_windows, 'all')}
+    <div class="rvsub" style="font-size:12px;color:var(--muted);margin:8px 0 2px">利空訊號隔天(前一天收盤出現有效或觀察中的訊號)</div>
+    ${bearWindows(sc.entry_windows, 'after_bear')}
+    <div class="rvsub" style="font-size:12px;color:var(--muted);margin:10px 0 0">今天收盤出現利空:<b style="color:var(--down)">▼▼ ${nHigh} 檔</b>(有效訊號)・▼ ${items.length - nHigh} 檔(觀察中)</div>
+    ${rows || '<div class="onote">今天沒有出現有效或觀察中的利空訊號。</div>'}${moreBtn}
+    <div class="onote">▼▼=出現「有效」訊號(回測明顯跑輸大盤);▼=只有「觀察」訊號。損益比用近20日最低當停損、近20日最高當目標,從今天收盤價算。點任一檔看K線。完整成績單在「更多」。歷史統計,不是預測,不構成買賣建議。</div>`;
+  el.style.display = '';
+
+  // 更多:每個訊號的回測成績單
+  const keys = Object.keys(sig).sort((a, b) => ({active: 0, watch: 1, inactive: 2}[sig[a].status] - {active: 0, watch: 1, inactive: 2}[sig[b].status]) || ((sig[a].t5 || {}).ex - (sig[b].t5 || {}).ex));
+  const maxAbs = Math.max(1, ...keys.map(k => Math.abs((sig[k].t5 || {}).ex || 0)));
+  const srows = keys.map(k => {
+    const s = sig[k], t5 = s.t5 || {}, rr = s.rr5 || {};
+    const w = Math.abs(t5.ex || 0) / maxAbs * 50;
+    const bar = t5.ex < 0 ? `<i style="right:50%;width:${w}%"></i>` : `<i class="pos" style="left:50%;width:${w}%"></i>`;
+    return `<div class="bsig"><div class="l1"><span><b>${bearEsc(s.name)}</b></span><span class="bst ${s.status}">${BEAR_ST[s.status]}</span></div>
+      <div class="bbar">${bar}<em></em></div>
+      <div class="l2"><span>5天後 <b class="${t5.ex < 0 ? 'down' : ''}">${bearPct(t5.ex)}</b></span><span>跑輸 ${t5.lose == null ? '-' : t5.lose + '%'}</span><span>損益比 ${rr.rr == null ? '-' : rr.rr.toFixed(2)}${brr ? ` / 一般 ${brr.toFixed(2)}` : ''}</span><span>驗證段 ${bearPct((s.test || {}).ex)}</span><span>${t5.n || 0} 次</span></div>
+      <div class="onote" style="margin-top:2px">${bearEsc(s.desc)}</div></div>`;
+  }).join('');
+  const dq = sc.data_quality || {};
+  card.className = 'sigbox';
+  card.innerHTML = `<div class="sh"><b>利空訊號成績單</b><small>回測 ${(sc.period || [])[0] || ''} ~ ${(sc.period || [])[1] || ''}・${sc.stocks} 檔</small></div>
+    <div class="onote" style="margin:0 0 4px">每個訊號出現後 5 天,相對自選股平均的超額報酬(綠色往左=跑輸大盤)。一般日子跑輸機率約 ${(base.t5 || {}).lose || '-'}%。<span class="bst active">有效</span>=全期間和最後 1/3 驗證段都明顯跑輸;<span class="bst watch">觀察</span>=有跑輸傾向但未全部過關;<span class="bst inactive">無效</span>=和一般日子差不多,不要當利空。損益比=5 天內平均最多反彈 ÷ 最多再跌(以抱著股票的人看),比一般日子低代表抱著不划算。</div>
+    ${srows}
+    <div class="onote">資料處理:價格已還原除權息與分割(${dq.adjusted_stocks || 0} 檔、${dq.adjusted_events || 0} 次事件),事件當天不判斷訊號;ETF 不納入。${bearEsc(sc.note || '')}</div>`;
+  card.style.display = '';
 }
 
 // ================= 資金流向(自選股估算) =================

@@ -12,6 +12,7 @@ import pytest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
+import bear_signals  # noqa: E402
 import health  # noqa: E402
 import intraday  # noqa: E402
 import lab  # noqa: E402
@@ -94,6 +95,84 @@ def test_rsi_fills_gaps():
     r = lab.rsi([1, 2, None, 4, 5, 6, 7, 8, 9], 3)
     assert r[-1] == 100.0
 
+
+
+# ---------- bear_signals.py ----------
+
+def _flat_bars(n=80, px=100.0, vol=1000):
+    return [{"d": f"d{i:03d}", "o": px, "h": px * 1.01, "l": px * 0.99, "c": px, "v": vol} for i in range(n)]
+
+
+def test_bear_big_black_fires():
+    b = _flat_bars()
+    b[-1] = {"d": "d079", "o": 100.0, "h": 100.5, "l": 95.0, "c": 95.5, "v": 3000}
+    sig = bear_signals.signals_on(b, len(b) - 1)
+    assert "big_black" in sig and "vol_down" in sig
+    assert "big_black" not in bear_signals.signals_on(b, len(b) - 2)
+
+
+def test_bear_signals_ignore_future_bars():
+    rnd = random.Random(7)
+    b, px = [], 100.0
+    for i in range(120):
+        nxt = px * (1 + rnd.uniform(-0.04, 0.04))
+        b.append({"d": f"d{i:03d}", "o": px, "h": max(px, nxt) * 1.01, "l": min(px, nxt) * 0.99,
+                  "c": nxt, "v": rnd.randint(500, 5000)})
+        px = nxt
+    before = [bear_signals.signals_on(b, i) for i in range(100)]
+    for x in b[100:]:
+        x["c"] *= 0.5
+        x["l"] *= 0.5
+    assert [bear_signals.signals_on(b, i) for i in range(100)] == before
+
+
+def test_bear_grade_rules():
+    good = {"n": 300, "ex": -1.5, "t": -2.5, "lose_gap": 5.0}
+    assert bear_signals.grade(good, {"n": 50, "ex": -1.0})[0] == "active"
+    assert bear_signals.grade(good, {"n": 50, "ex": 0.3})[0] == "watch"
+    assert bear_signals.grade({**good, "ex": 0.4, "t": 1.0}, {"n": 50, "ex": 0.3})[0] == "inactive"
+    assert bear_signals.grade({**good, "n": 10}, {"n": 5, "ex": -1})[0] == "inactive"
+
+
+
+def test_bear_adjust_bars_dividend_split_and_self_detect():
+    b = [{"d": "d0", "o": 100, "h": 101, "l": 99, "c": 100, "v": 1000},
+         {"d": "d1", "o": 95, "h": 96, "l": 94, "c": 95, "v": 1000},      # 除息 5 元
+         {"d": "d2", "o": 47.5, "h": 48, "l": 47, "c": 47.5, "v": 2000},  # 1 股變 2 股
+         {"d": "d3", "o": 4.75, "h": 4.8, "l": 4.7, "c": 4.75, "v": 20000}]  # 沒有事件紀錄的 1 拆 10
+    applied = bear_signals.adjust_bars(b, {"div": {"d1": 5.0}, "split": {"d2": 2.0}})
+    assert [a["d"] for a in applied] == ["d1", "d2", "d3"]
+    assert [round(x["c"], 4) for x in b] == [4.75] * 4
+    assert round(b[0]["v"]) == 20000 and round(b[1]["v"]) == 20000
+    assert all(x.get("event") for x in b[1:]) and not b[0].get("event")
+    assert bear_signals.signals_on(b, 3) == []
+
+
+def test_bear_entry_windows_finds_expensive_open():
+    hourly, flagged = {}, {}
+    for k in range(30):
+        days = {}
+        for j in range(80):
+            d = f"2026-{1 + j // 28:02d}-{1 + j % 28:02d}"
+            days[d] = {"09": 101.0 + (j % 3) * 0.1, "10": 100.6, "11": 100.3, "12": 100.1, "13": 100.0, "close": 100.0}
+        hourly[f"{1000 + k}"] = days
+    sig = {"big_black": {"status": "active"}}
+    w = bear_signals.entry_windows(hourly, flagged, sig, {})
+    a = w["all"]
+    assert a["ready"] and a["avoid"] == "09" and a["best"] == "13"
+    assert a["by_window"]["09"]["cheap"] > a["by_window"]["13"]["cheap"]
+    assert w["after_bear"]["days"] == 0 and w["after_bear"]["best"] is None
+
+
+def test_bear_level_rr():
+    b = _flat_bars(30)
+    for x in b[-21:-1]:
+        x["h"], x["l"] = 110.0, 95.0
+    b[-1]["c"] = 100.0
+    rr = bear_signals.level_rr(b, len(b) - 1)
+    assert rr["stop"] == 95.0 and rr["target"] == 110.0 and rr["rr"] == 2.0
+    b[-1]["c"] = 94.0
+    assert "note" in bear_signals.level_rr(b, len(b) - 1)
 
 # ---------- rebuild_track.py ----------
 
