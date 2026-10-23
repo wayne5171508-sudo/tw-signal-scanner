@@ -55,8 +55,8 @@ MOM_PCT = 3.0
 LAST_BAR = "13:20"         # 當沖要在 13:30 前了結,用 13:20 那根收盤出場
 SCORE_FROM, SCORE_TO = "09:15", "12:30"   # 多空分數只在這段時間找進場點
 PACE_DAYS, PACE_MIN_DAYS = 20, 5
-PB_TOL_PCT = 0.2                          # 拉回均價線:最低價回到均價線多少 % 內
-FADE_PCT = 2.0                            # 偏離反向:離均價線至少多少 %
+PB_TOL_PCT = bias.PB_TOL_PCT              # 拉回均價線、偏離反向的門檻都定義在 bias.py,盤中共用
+FADE_PCT = bias.FADE_PCT
 
 RULES = {
     "orb_long": ("開盤區間突破做多", "long", "09:15 後收盤站上 09:00-09:15 最高價"),
@@ -77,8 +77,6 @@ RULES = {
     "fade_long": ("超跌反向做多", "long", f"分數 <= -{bias.STRONG} 且低於均價線 {FADE_PCT:g}% 以上"),
     "fade_short": ("超漲反向放空", "short", f"分數 >= {bias.STRONG} 且高於均價線 {FADE_PCT:g}% 以上"),
 }
-SCORE_RULES = {"score_long": ("long", bias.THRESHOLD), "score_short": ("short", bias.THRESHOLD),
-               "score_long_80": ("long", bias.STRONG), "score_short_80": ("short", bias.STRONG)}
 
 
 def fetch_5m(codes, ev):
@@ -206,30 +204,11 @@ def entry_index(rule, bars, prev_close, bear_prev, series=None):
     series 是 score_series() 的結果,只有 score_* 規則用得到。"""
     if not prev_close:
         return None
-    if rule in SCORE_RULES:
-        side, th = SCORE_RULES[rule]
+    if rule in bias.RULE_SIDE:
+        armed = {}
         for i, f in series or ():
-            if bias.score(f, th)["side"] == side:
-                return i + 1
-        return None
-    if rule in ("pb_long", "pb_short"):
-        sg, armed = (1 if rule == "pb_long" else -1), False
-        for i, f in series or ():
-            sc = bias.score(f)["score"]
-            if armed and sc * sg > 0 and f["vwap"]:
-                vw = f["vwap"]
-                if sg > 0 and f["bar_lo"] <= vw * (1 + PB_TOL_PCT / 100) and f["last"] > vw:
-                    return i + 1
-                if sg < 0 and f["bar_hi"] >= vw * (1 - PB_TOL_PCT / 100) and f["last"] < vw:
-                    return i + 1
-            if sc * sg >= bias.THRESHOLD:
-                armed = True
-        return None
-    if rule in ("fade_long", "fade_short"):
-        sg = 1 if rule == "fade_long" else -1
-        for i, f in series or ():
-            sc, vw = bias.score(f)["score"], f["vwap"]
-            if vw and sc * sg <= -bias.STRONG and sg * (vw / f["last"] - 1) * 100 >= FADE_PCT:
+            hits, armed = bias.rule_hits(f, armed)
+            if rule in hits:
                 return i + 1
         return None
     ts = [b["t"] for b in bars]

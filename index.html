@@ -1789,31 +1789,34 @@ function renderBias(intraday){
   const b = intraday && intraday.bias;
   if(!b){ el.style.display = 'none'; return; }
   const rules = b.rules || {};
-  // 只顯示回測站得住的規則觸發的標的;全部沒站得住就整塊不顯示(看「更多 > 當沖規則實驗室」的多空分數成績)
-  const items = (b.items || []).filter(x => rules[x.rule] && rules[x.rule].holds);
-  if(!items.length){ el.style.display = 'none'; return; }
-  const tested = Object.values(rules).some(r => r.stop != null);
-  const holds = Object.values(rules).some(r => r.holds);
-  const status = holds ? '<span class="bst active">回測站得住</span>'
-    : `<span class="bst watch">${tested ? '實驗中:回測未通過' : '實驗中:等收盤後回測'}</span>`;
+  const nHolds = Object.values(rules).filter(r => r.holds).length;
+  const all = b.items || [];
+  const items = all.filter(x => x.holds);
+  el.className = 'sigbox';
+  const head = `<div class="sh"><b>多空判斷(當沖)</b><small>${b.as_of} 資料・約延遲 1~7 分鐘</small></div>`;
+  // 沒有任何規則通過回測:不列訊號,只顯示一行狀態,讓人知道系統有在跑
+  if(!nHolds){
+    const nt = all.length, nc = new Set(all.map(x => x.code)).size;
+    el.innerHTML = head + `<div class="onote" style="margin:0"><span class="bst inactive">沒有規則通過回測</span> 分數類 ${Object.keys(rules).length} 條規則扣成本後都沒有站得住,所以不列進出場訊號(今天已有 ${nc} 檔觸發 ${nt} 次,僅記錄)。成績在「更多 > 當沖規則實驗室」,每天收盤後重算。</div>`;
+    el.style.display = '';
+    return;
+  }
+  const fresh = items.filter(x => x.fresh), stale = items.filter(x => !x.fresh);
+  const lvl = x => [x.stop != null ? `停損 ${fmtNum(x.stop)}(${x.stop_pct}%)` : '',
+    x.target != null ? `停利 ${fmtNum(x.target)}(${x.target_pct}%)` : (x.stop != null ? '停利 抱到13:20' : '')].filter(Boolean);
   const row = x => {
     const lg = x.side === 'long', cls = lg ? 'up' : 'down';
-    const lv = [x.vwap != null ? `均價 ${fmtNum(x.vwap)}` : '',
-      x.stop != null ? `停損 ${fmtNum(x.stop)}(${x.stop_pct}%)` : '',
-      x.target != null ? `停利 ${fmtNum(x.target)}(${x.target_pct}%)` : (x.stop != null ? '停利 抱到13:20' : '')].filter(Boolean);
-    return `<div class="bsig" style="cursor:pointer" onclick="searchAndOpen('${x.code}')"><div class="l1"><span><b>${bearEsc(x.name)}</b> <small style="color:var(--muted)">${x.code}</small> <span class="bchip" style="background:var(--${lg ? 'up' : 'down'}-fill);color:var(--${cls});font-weight:700">${lg ? '做多' : '放空'}${(x.rule || '').startsWith('fade_') ? '・反向' : (x.strong ? '・強' : '')}</span>${rules[x.rule] && rules[x.rule].holds ? '' : '<small style="color:var(--muted)">未驗證</small>'}</span><span class="${cls}"><b>${x.score > 0 ? '+' : ''}${x.score}</b></span></div>
-      <div class="l2"><span>現價 <b>${fmtNum(x.last)}</b> <span class="${num(x.pct) > 0 ? 'up' : 'down'}">${x.pct == null ? '' : fmtPct(x.pct)}</span></span>${lv.map(t => `<span>${t}</span>`).join('')}</div>
-      <div class="onote" style="margin-top:2px">理由:${(x.reasons || []).join('、') || '-'}</div></div>`;
+    return `<div class="bsig" style="cursor:pointer" onclick="searchAndOpen('${x.code}')"><div class="l1"><span><b>${bearEsc(x.name)}</b> <small style="color:var(--muted)">${x.code}</small> <span class="bchip" style="background:var(--${lg ? 'up' : 'down'}-fill);color:var(--${cls});font-weight:700">${lg ? '做多' : '放空'}</span></span><span class="${cls}"><b>${x.score > 0 ? '+' : ''}${x.score}</b></span></div>
+      <div class="l2"><span>${x.trig_t} 觸發 @ <b>${fmtNum(x.trig_price)}</b>(${Math.round(x.age_min)} 分鐘前)</span><span>現價 ${fmtNum(x.last)}(部位 <b class="${x.move_pct > 0 ? 'up' : (x.move_pct < 0 ? 'down' : '')}">${x.move_pct > 0 ? '+' : ''}${x.move_pct}%</b>)</span>${lvl(x).map(t => `<span>${t}</span>`).join('')}</div>
+      <div class="onote" style="margin-top:2px">${bearEsc(x.rule_name)}・理由:${(x.reasons || []).join('、') || '-'}${x.vwap != null ? '・均價 ' + fmtNum(x.vwap) : ''}</div></div>`;
   };
-  const longs = items.filter(x => x.side === 'long').slice(0, 6), shorts = items.filter(x => x.side === 'short').slice(0, 6);
-  const nl = items.filter(x => x.side === 'long').length, ns = items.length - nl;
-  const when = b.active ? '' : `<div class="onote" style="margin:0 0 4px"><b>${b.as_of < '09:15' ? '09:15 後才開始判斷(要先有開盤區間)' : '12:30 之後不建議新進場,以下是最後一次的分數'}</b></div>`;
-  const w = b.weights || {};
-  el.className = 'sigbox';
-  el.innerHTML = `<div class="sh"><b>多空判斷</b><small>${b.as_of} 更新・${status}</small></div>${when}
-    ${items.length ? `<div class="onote" style="margin:0 0 4px">做多 ${nl} 檔、放空 ${ns} 檔,其餘觀望。${nl + ns > 30 ? '多數股票同方向,通常是大盤整體在走,個股本身的訊號參考性較低。' : ''}</div>` : `<div class="fempty">目前沒有分數達到 ±${b.threshold} 的標的,全部觀望</div>`}
-    ${longs.map(row).join('')}${shorts.map(row).join('')}
-    <details class="howto"><summary>分數怎麼算</summary><div class="onote">每檔每一輪算一個 -100 ~ +100 的分數:大盤 ${w.mkt}、均價線 ${w.vwap}、開盤區間(09:00-09:15 高低${b.orb_t ? ',' + b.orb_t + ' 記錄' : ''})${w.orb}、量能 ${w.vol}、當日高低位置 ${w.pos}、族群同步 ${w.grp}。≥ +${b.threshold} 做多、≤ -${b.threshold} 放空,≥ ${b.strong} 標「強」;大盤方向相反或離漲跌停不到 1% 改成觀望。停損停利用「當沖規則實驗室」裡同一條規則回測出來的最佳參數,以現價計。均價線在報價沒有成交金額時,用每 5 分鐘快照估算。只算自選股、不含 ETF。資料約延遲 5 分鐘。「未驗證」代表這條規則回測還沒站得住,只能當觀察。這是機械式分數,不是預測,不構成買賣建議。</div></details>`;
+  const staleRow = x => `<div class="rvrow" style="font-size:12px;color:var(--muted)"><span>${bearEsc(x.name)} ${x.side === 'long' ? '做多' : '放空'}・${x.trig_t} @ ${fmtNum(x.trig_price)}</span><span class="${x.move_pct > 0 ? 'up' : 'down'}">${x.move_pct > 0 ? '+' : ''}${x.move_pct}%</span></div>`;
+  const when = !b.active ? `<div class="onote" style="margin:0 0 4px"><b>${b.as_of < '09:15' ? '09:15 後才開始判斷(要先有開盤區間)' : '12:30 之後不再出新訊號,以下是今天的觸發紀錄'}</b></div>` : '';
+  el.innerHTML = head + when +
+    `<div class="onote" style="margin:0 0 4px"><span class="bst active">回測站得住 ${nHolds} 條</span> 只列這些規則的觸發。觸發 ${b.fresh_min} 分鐘內算「剛觸發」;回測是觸發後下一根(5 分鐘)進場,停損停利都以觸發價計。</div>` +
+    (fresh.length ? `<div class="rvsub" style="font-size:12px;color:var(--muted);margin:6px 0 0">剛觸發</div>${fresh.map(row).join('')}` : `<div class="fempty">目前沒有 ${b.fresh_min} 分鐘內的新觸發</div>`) +
+    (stale.length ? `<details style="margin-top:6px"><summary style="cursor:pointer;color:var(--muted);font-size:12px">已觸發,不追(${stale.length})・右邊是從觸發價算的部位損益(做空時價格下跌為正)</summary><div class="rvbox">${stale.map(staleRow).join('')}</div></details>` : '') +
+    `<details class="howto"><summary>分數怎麼算</summary><div class="onote">每檔每一輪算 -100 ~ +100 分:大盤 ${(b.weights || {}).mkt}、均價線 ${(b.weights || {}).vwap}、開盤區間 ${(b.weights || {}).orb}、量能 ${(b.weights || {}).vol}、當日位置 ${(b.weights || {}).pos}、族群 ${(b.weights || {}).grp}。規則條件和回測共用同一份程式(bias.py),每條規則每天只記第一次觸發。量能倍數和回測一樣用「前 20 天同一時間的累積量」(資料累積到 5 天前先用全天均量估計${b.pace_src ? ',這一輪 ' + b.pace_src.same_time + ' 檔用同時間算法' : ''})。均價線在報價沒有成交金額時用 5 分鐘快照估算。這是機械式規則,不是預測,不構成買賣建議。</div></details>`;
   el.style.display = '';
 }
 
