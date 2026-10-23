@@ -422,3 +422,36 @@ def test_same_time_pace_matches_backtest_definition():
     bars = {"A": [{"d": f"2026-10-{d:02d}", "v": 2700} for d in range(10, 16)]}
     assert intraday.same_time_pace("A", 30, "2026-10-20", 600, curves, bars) == pytest.approx(2.0)
     assert intraday.same_time_pace("A", 30, "2026-10-20", 600, dict(list(curves.items())[:4]), bars) is None
+
+
+def test_bars5m_archive_roundtrip_and_merge(tmp_path, monkeypatch):
+    monkeypatch.setattr(daytrade_lab, "BARS_DIR", str(tmp_path / "bars5m"))
+    day = _5m_day([100.0] * 54)
+    data = {f"{1000 + k}": {"2026-10-26": [dict(b) for b in day]} for k in range(25)}
+    closes = {c: {"2026-10-23": 99.0} for c in data}
+    assert daytrade_lab.save_bars_day("2026-10-26", data, closes, {"2026-10-26": [{"t": "09:00", "o": 1, "h": 1, "l": 1, "c": 1}]})
+    assert not daytrade_lab.save_bars_day("2026-10-26", data, closes, {})         # 已存在不覆蓋
+    arc = daytrade_lab.load_bars_archive()
+    new_data, new_closes, idx = {"1000": {}}, {"1000": {"2026-10-23": 50.0}}, {}
+    assert daytrade_lab.merge_archive(new_data, new_closes, idx, arc) == 25          # Yahoo 已經沒有這天,靠存檔補回
+    assert new_data["1000"]["2026-10-26"][3]["c"] == 100.0 and new_closes["1000"]["2026-10-23"] == 99.0
+    assert idx["2026-10-26"][0]["t"] == "09:00"
+
+
+def test_bias_log_and_live_evaluation(tmp_path, monkeypatch):
+    monkeypatch.setattr(intraday, "BIAS_LOG_FILE", str(tmp_path / "log.json"))
+    hist = {"date": "2026-10-26", "bias_rules": {"score_short": {"holds": False, "stop": 1.0, "target": 2.0}},
+            "bias_state": {"1111": {"armed": {}, "trig": {"score_short": {"t": "10:16", "m": 76, "price": 100.0, "score": -70}}}}}
+    assert intraday.log_bias_day(hist) and not intraday.log_bias_day(hist)
+    log = json.loads((tmp_path / "log.json").read_text())
+    px = [100.0] * 54
+    for k in range(25, 54):
+        px[k] = 97.5                                                                  # 10:20 進場後一路下跌
+    data = {"1111": {"2026-10-26": _5m_day(px)}}
+    data["1111"]["2026-10-26"][16]["o"] = 100.2                                       # 10:20 那根(第 16 根)開盤
+    assert daytrade_lab.evaluate_live(log, data, {}) == 1
+    r = log["days"]["2026-10-26"]["trig"][0]["result"]
+    assert r["entry_t"] == "10:20" and r["exit"] == "target" and r["net"] == pytest.approx(2.0 - daytrade_lab.COST_PCT)
+    assert r["slip"] == pytest.approx(-(100 / 100.2 - 1) * 100, abs=1e-3)
+    st = daytrade_lab.live_stats(log, {"score_short": {"name": "多空分數放空", "best": {"test": {"avg": -0.2}}}})
+    assert st["n"] == 1 and st["rules"]["score_short"]["avg"] == pytest.approx(1.7) and st["rules"]["score_short"]["backtest_test_avg"] == -0.2

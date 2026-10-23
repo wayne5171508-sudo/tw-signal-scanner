@@ -1019,6 +1019,7 @@ BIAS_FRESH_MIN = 10        # 觸發後幾分鐘內算「剛觸發」;回測是�
 BIAS_PACE_DAYS, BIAS_PACE_MIN_DAYS = 20, 5   # 和 daytrade_lab.PACE_DAYS / PACE_MIN_DAYS 一致
 BIAS_VWAP_LAG = 14         # 均價線方向:跟大約 15 分鐘前比
 DAYTRADE_FILE = os.path.join(DATA_DIR, "daytrade.json")
+BIAS_LOG_FILE = os.path.join(DATA_DIR, "bias_log.json")   # 每天盤中觸發紀錄,永久保存,收盤後由 daytrade_lab.py 算實際成績
 
 
 def _vwap_of(amt, vol):
@@ -1075,6 +1076,26 @@ def same_time_pace(code, m, today, vol, curves, official_bars):
     return vol / base[len(base) // 2]
 
 
+def log_bias_day(hist):
+    """把一天的觸發紀錄(intraday_history.json 的 bias_state)存進 data/bias_log.json。已經存過的那天不覆蓋。
+    收盤後 daytrade_lab.py 會呼叫;隔天盤中換日時 update_history 也會呼叫一次,收盤後排程沒跑也不會漏掉。
+    回傳是否新寫入。"""
+    d, state = (hist or {}).get("date"), (hist or {}).get("bias_state") or {}
+    trig = [{"code": code, "rule": rk, "side": bias.RULE_SIDE.get(rk) if bias else None, "t": tg.get("t"), "m": tg.get("m"),
+             "price": tg.get("price"), "score": tg.get("score")}
+            for code, st in state.items() for rk, tg in (st.get("trig") or {}).items()]
+    if not d or not trig:
+        return False
+    log = load_json_safe(BIAS_LOG_FILE, {}) or {}
+    days = log.setdefault("days", {})
+    if d in days:
+        return False
+    days[d] = {"rules": hist.get("bias_rules") or {}, "trig": sorted(trig, key=lambda x: (x["t"] or "", x["code"], x["rule"])),
+               "evaluated": False}
+    write_json_atomic(BIAS_LOG_FILE, log, separators=(",", ":"))
+    return True
+
+
 def compute_bias(run_time, indices_out, watchlist_out, official=None):
     """每檔自選股(不含ETF)的多空分數與規則觸發,給網頁「多空判斷」區塊。要在 update_history 之後呼叫。
     規則條件和回測共用 bias.rule_hits();每條規則每天只記「第一次觸發」的時間和價格(存在 intraday_history.json
@@ -1109,6 +1130,7 @@ def compute_bias(run_time, indices_out, watchlist_out, official=None):
     curves = (load_json_safe(CURVE_FILE, {}) or {}).get("days") or {}
     off_bars = (official or {}).get("bars") or {}
     rules = bias_rules()
+    hist.setdefault("bias_rules", {k: {x: v[x] for x in ("holds", "stop", "target")} for k, v in rules.items()})   # 當天用的參數,算實際成績時用
     items, pace_src = [], {"same_time": 0, "fallback": 0}
     for q in watchlist_out:
         code = q["code"]
@@ -1180,7 +1202,12 @@ def update_history(run_time, indices_out, watchlist_out, opening_state=None):
                 existing = json.load(f)
             if existing.get("date") == today_str:
                 history = existing
-            elif review is not None:
+            else:
+                try:
+                    log_bias_day(existing)   # 換日了:前一天的盤中觸發紀錄先存起來(收盤後通常已經存過)
+                except Exception as e:  # noqa: BLE001  存檔是加分功能
+                    print(f"[警告] 觸發紀錄存檔失敗: {e}")
+            if existing.get("date") != today_str and review is not None:
                 # 換日了:舊的一天要被清掉之前,先確認它有存進 data/intraday_archive/(收盤後通常已經存過)
                 try:
                     if not os.path.exists(os.path.join(review.ARCHIVE_DIR, f"{existing.get('date')}.json")):

@@ -2,7 +2,8 @@
 """
 爆量雷達 - 當沖規則回測(收盤後由 bear.yml 在 bear_signals.py 之後執行;也可以自己跑:python daytrade_lab.py)
 
-資料:Yahoo 約 60 個交易日的 5 分K(自選股個股,不含 ETF)。一天少於 45 根的(冷門股缺 K)不算。
+資料:Yahoo 約 60 個交易日的 5 分K(自選股個股,不含 ETF),每天存進 data/bars5m/ 永久保存,
+回測用「存檔 + Yahoo 最新」,樣本會一天一天變多。一天少於 45 根的(冷門股缺 K)不算。
 前一天收盤用 Yahoo 日收盤(含 13:30 集合競價)。
 
 規則(都只用「當下已經收完的 K 棒」判斷,下一根開盤價成交):
@@ -30,6 +31,8 @@
 產出:data/daytrade.json。這是歷史統計,不是預測,也不是買賣建議。
 """
 
+import gzip
+import json
 import os
 import statistics as stx
 import sys
@@ -40,9 +43,11 @@ import requests
 
 import bear_signals as bs
 import bias
-from intraday import DATA_DIR, GROUP_OF, TAIPEI, load_json_safe, write_json_atomic
+from intraday import BIAS_LOG_FILE, DATA_DIR, GROUP_OF, HISTORY_FILE, TAIPEI, load_json_safe, log_bias_day, write_json_atomic
 
 OUT_FILE = os.path.join(DATA_DIR, "daytrade.json")
+BARS_DIR = os.path.join(DATA_DIR, "bars5m")   # 每天一個 .json.gz,永久保存;Yahoo 只給最近 60 天,靠這裡讓樣本越累積越多
+INDEX_KEY = "^TWII"
 COST_PCT = 0.30
 TRAIN_FRAC = 2 / 3
 T_MIN = 2.0
@@ -186,6 +191,130 @@ def score_series(code, d, bars, prev_close, ctx):
             "mkt_open": ix.get("open"), "grp_pct": _grp_pct(ctx, code, d, b["t"]),
             "up_lim": prev_close * 1.1, "lo_lim": prev_close * 0.9, "bar_hi": b["h"], "bar_lo": b["l"],
         }))
+    return out
+
+
+# ---------- 5 分K 永久存檔 ----------
+
+def _round_bar(b):
+    return [b["t"], round(b["o"], 4), round(b["h"], 4), round(b["l"], 4), round(b["c"], 4)] + ([int(b["v"] or 0)] if "v" in b else [])
+
+
+def _unpack(rows, with_vol=True):
+    keys = ("t", "o", "h", "l", "c", "v") if with_vol else ("t", "o", "h", "l", "c")
+    return [dict(zip(keys, r)) for r in rows]
+
+
+def load_bars_archive():
+    """回傳 {日期: {"stocks": {code: {"pd","pc","b"}}, "idx": [...]}}。壞掉的檔案跳過。"""
+    out = {}
+    if not os.path.isdir(BARS_DIR):
+        return out
+    for fn in sorted(os.listdir(BARS_DIR)):
+        if not fn.endswith(".json.gz"):
+            continue
+        try:
+            with gzip.open(os.path.join(BARS_DIR, fn), "rt", encoding="utf-8") as f:
+                day = json.load(f)
+            out[day["date"]] = day
+        except (OSError, ValueError, KeyError) as e:
+            print(f"[警告] 5分K存檔 {fn} 讀不到: {e}")
+    return out
+
+
+def save_bars_day(d, data, closes, idx_days):
+    """把某一天(已收盤、K 棒完整)的 5 分K 存檔。每檔一併記下前一交易日日期與收盤(pd/pc),
+    之後就算 Yahoo 因為除權息往回調整價格,存檔的那天仍然自己一致。已存在就不覆蓋。"""
+    path = os.path.join(BARS_DIR, f"{d}.json.gz")
+    if os.path.exists(path):
+        return False
+    stocks = {}
+    for code, days in data.items():
+        bars = days.get(d)
+        pc = closes.get(code) or {}
+        pd = max((x for x in pc if x < d), default=None)
+        if bars and pd and pc.get(pd) and bars[-1]["t"] >= LAST_BAR:
+            stocks[code] = {"pd": pd, "pc": pc[pd], "b": [_round_bar(b) for b in bars]}
+    if len(stocks) < bs.MIN_UNIVERSE:
+        return False
+    os.makedirs(BARS_DIR, exist_ok=True)
+    body = {"date": d, "source": "Yahoo Finance 5m", "stocks": stocks,
+            "idx": [_round_bar({k: v for k, v in b.items() if k != "v"}) for b in idx_days.get(d) or []]}
+    tmp = path + ".tmp"
+    with gzip.open(tmp, "wt", encoding="utf-8") as f:
+        json.dump(body, f, separators=(",", ":"))
+    os.replace(tmp, path)
+    return True
+
+
+def merge_archive(data, closes, idx_days, archive):
+    """把存檔合併進 Yahoo 抓到的資料(原地修改)。同一天以存檔為準(存檔不會再變),
+    前一天收盤也改用存檔記下的值。回傳合併後多出來的天數。"""
+    added = 0
+    for d, day in archive.items():
+        for code, x in (day.get("stocks") or {}).items():
+            if d not in data.setdefault(code, {}):
+                added += 1
+            data[code][d] = _unpack(x["b"])
+            closes.setdefault(code, {})[x["pd"]] = x["pc"]
+        if day.get("idx") and d not in idx_days:
+            idx_days[d] = _unpack(day["idx"], with_vol=False)
+    return added
+
+
+# ---------- 盤中觸發的實際成績 ----------
+
+def evaluate_live(log, data, rules_now):
+    """bias_log.json 裡還沒算過的日子:每筆觸發用當天 5 分K 模擬,和回測同樣規則
+    (觸發時間之後的下一根開盤進場、同根碰停損停利算停損、13:20 出場、扣成本)。
+    停損停利用當天記下的參數,沒有就用現在的最佳參數。原地修改 log,回傳這次算了幾天。"""
+    n = 0
+    for d, day in (log.get("days") or {}).items():
+        if day.get("evaluated"):
+            continue
+        if not any(d in (data.get(t["code"]) or {}) for t in day.get("trig") or []):
+            continue
+        for t in day.get("trig") or []:
+            bars = (data.get(t["code"]) or {}).get(d)
+            snap = (day.get("rules") or {}).get(t["rule"]) or {}
+            now = ((rules_now.get(t["rule"]) or {}).get("best") or {})
+            stop, target = snap.get("stop") or now.get("stop"), snap.get("target") if snap.get("stop") else now.get("target")
+            t["holds"] = bool(snap.get("holds"))
+            if not bars or not stop or not t.get("side") or not t.get("t"):
+                t["result"] = None
+                continue
+            i = next((k for k, b in enumerate(bars) if b["t"] > t["t"]), None)
+            if i is None or bars[i]["t"] > LAST_BAR:
+                t["result"] = None
+                continue
+            r, why = simulate(bars, i, t["side"], stop, target)
+            sg = 1 if t["side"] == "long" else -1
+            t["result"] = {"entry_t": bars[i]["t"], "entry": round(bars[i]["o"], 4), "stop": stop, "target": target,
+                           "exit": why, "gross": round(r, 3), "net": round(r - COST_PCT, 3),
+                           "slip": round(sg * (t["price"] / bars[i]["o"] - 1) * 100, 3) if t.get("price") else None}
+        day["evaluated"] = True
+        n += 1
+    return n
+
+
+def live_stats(log, rules_now):
+    """依規則彙總盤中觸發的實際成績,並列出回測驗證段的預期,方便對照。"""
+    rows = [(d, t) for d, day in (log.get("days") or {}).items() if day.get("evaluated")
+            for t in day.get("trig") or [] if t.get("result")]
+    out = {"days": len({d for d, _ in rows}), "n": len(rows),
+           "first": min((d for d, _ in rows), default=None), "last": max((d for d, _ in rows), default=None), "rules": {}}
+    for rk in sorted({t["rule"] for _, t in rows}):
+        xs = [(d, t) for d, t in rows if t["rule"] == rk]
+        nets = [t["result"]["net"] for _, t in xs]
+        tt, nd = bs.day_t([(d, t["result"]["net"]) for d, t in xs])
+        slips = [t["result"]["slip"] for _, t in xs if t["result"].get("slip") is not None]
+        best = (rules_now.get(rk) or {}).get("best") or {}
+        out["rules"][rk] = {"name": (rules_now.get(rk) or {}).get("name") or rk, "n": len(xs), "days": nd,
+                            "avg": round(stx.mean(nets), 3), "win": round(sum(1 for x in nets if x > 0) / len(nets) * 100, 1),
+                            "t": round(tt, 2) if tt is not None else None,
+                            "slip": round(stx.mean(slips), 3) if slips else None,
+                            "n_holds": sum(1 for _, t in xs if t.get("holds")),
+                            "backtest_test_avg": (best.get("test") or {}).get("avg")}
     return out
 
 
@@ -355,8 +484,16 @@ def main():
     codes = [c for c in bs.WATCHLIST_NAMES if not bs.is_etf(c)]
     ev, _, closes = bs.fetch_corp_actions(codes, run_time)
     data = fetch_5m(codes, ev)
+    idx_days = fetch_index_5m()
     if len(data) < bs.MIN_UNIVERSE:
         raise RuntimeError(f"5分K只抓到 {len(data)} 檔,不更新")
+    # 先把 Yahoo 這次抓到、還沒存過的完整交易日存檔(第一次執行會把約 60 天全部補存),再合併所有存檔
+    today = run_time.strftime("%Y-%m-%d")
+    after_close = run_time.hour * 60 + run_time.minute >= 13 * 60 + 35
+    yahoo_days = sorted({d for days in data.values() for d in days if d < today or after_close})
+    saved = sum(1 for d in yahoo_days if save_bars_day(d, data, closes, idx_days))
+    archive = load_bars_archive()
+    added = merge_archive(data, closes, idx_days, archive)
     # 前一天是否出現有效/觀察利空訊號(直接讀 bear_signals.py 剛寫好的成績單,只用來決定 bear_bounce_s 能不能進場)
     sc = load_json_safe(bs.OUT_FILE, {}) or {}
     strong = {k for k, s in (sc.get("signals") or {}).items() if s.get("status") in ("active", "watch")}
@@ -369,7 +506,7 @@ def main():
             if strong & set(bs.signals_on(b, i)):
                 bear_prev.setdefault(code, set()).add(b[i]["d"])
 
-    ctx = score_context(data, closes, fetch_index_5m())
+    ctx = score_context(data, closes, idx_days)
     trades = trades_for(data, closes, bear_prev, ctx)
     res, all_days, split = evaluate(trades)
     out = {
@@ -384,8 +521,19 @@ def main():
         "method": "5分K,觸發後下一根開盤成交;同根同時碰停損停利算停損;13:20 那根收盤強制出場;前 2/3 交易日挑參數,後 1/3 驗證",
         "note": "歷史統計,不是預測,不構成買賣建議。當沖風險高,實際成交會有滑價。",
     }
+    # 盤中觸發的實際成績:今天的觸發紀錄先存進 bias_log.json(盤中換日時也會補存),再把還沒算過的日子算掉
+    rules_prev = (load_json_safe(OUT_FILE, {}) or {}).get("rules") or {}
+    log_bias_day(load_json_safe(HISTORY_FILE, {}) or {})
+    log = load_json_safe(BIAS_LOG_FILE, {}) or {}
+    n_eval = evaluate_live(log, data, rules_prev or res or {})
+    if n_eval:
+        write_json_atomic(BIAS_LOG_FILE, log, separators=(",", ":"))
+    out["live"] = live_stats(log, res or {})
+    out["archive"] = {"days": len(archive), "first": min(archive, default=None), "last": max(archive, default=None),
+                      "saved_now": saved, "added_beyond_yahoo": added}
     write_json_atomic(OUT_FILE, out, indent=1)
     print(f"[完成] 當沖回測 {len(data)} 檔、{len(all_days)} 天({out['first']}~{out['last']}),訓練到 {split}")
+    print(f"  5分K存檔 {len(archive)} 天(這次新存 {saved} 天,比 Yahoo 多 {added} 檔日);盤中觸發成績 {out['live']['n']} 筆 / {out['live']['days']} 天(這次新算 {n_eval} 天)")
     for k, r in (res or {}).items():
         b = r["best"] or {}
         tr, te = b.get("train") or {}, b.get("test") or {}
