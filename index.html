@@ -1788,8 +1788,10 @@ function renderBias(intraday){
   if(!el) return;
   const b = intraday && intraday.bias;
   if(!b){ el.style.display = 'none'; return; }
-  const items = b.items || [];
   const rules = b.rules || {};
+  // 只顯示回測站得住的規則觸發的標的;全部沒站得住就整塊不顯示(看「更多 > 當沖規則實驗室」的多空分數成績)
+  const items = (b.items || []).filter(x => rules[x.rule] && rules[x.rule].holds);
+  if(!items.length){ el.style.display = 'none'; return; }
   const tested = Object.values(rules).some(r => r.stop != null);
   const holds = Object.values(rules).some(r => r.holds);
   const status = holds ? '<span class="bst active">回測站得住</span>'
