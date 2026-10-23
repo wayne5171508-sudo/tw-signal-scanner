@@ -1801,7 +1801,7 @@ function renderBias(intraday){
     const lv = [x.vwap != null ? `均價 ${fmtNum(x.vwap)}` : '',
       x.stop != null ? `停損 ${fmtNum(x.stop)}(${x.stop_pct}%)` : '',
       x.target != null ? `停利 ${fmtNum(x.target)}(${x.target_pct}%)` : (x.stop != null ? '停利 抱到13:20' : '')].filter(Boolean);
-    return `<div class="bsig" style="cursor:pointer" onclick="searchAndOpen('${x.code}')"><div class="l1"><span><b>${bearEsc(x.name)}</b> <small style="color:var(--muted)">${x.code}</small> <span class="bchip" style="background:var(--${lg ? 'up' : 'down'}-fill);color:var(--${cls});font-weight:700">${lg ? '做多' : '放空'}${x.strong ? '・強' : ''}</span>${rules[x.rule] && rules[x.rule].holds ? '' : '<small style="color:var(--muted)">未驗證</small>'}</span><span class="${cls}"><b>${x.score > 0 ? '+' : ''}${x.score}</b></span></div>
+    return `<div class="bsig" style="cursor:pointer" onclick="searchAndOpen('${x.code}')"><div class="l1"><span><b>${bearEsc(x.name)}</b> <small style="color:var(--muted)">${x.code}</small> <span class="bchip" style="background:var(--${lg ? 'up' : 'down'}-fill);color:var(--${cls});font-weight:700">${lg ? '做多' : '放空'}${(x.rule || '').startsWith('fade_') ? '・反向' : (x.strong ? '・強' : '')}</span>${rules[x.rule] && rules[x.rule].holds ? '' : '<small style="color:var(--muted)">未驗證</small>'}</span><span class="${cls}"><b>${x.score > 0 ? '+' : ''}${x.score}</b></span></div>
       <div class="l2"><span>現價 <b>${fmtNum(x.last)}</b> <span class="${num(x.pct) > 0 ? 'up' : 'down'}">${x.pct == null ? '' : fmtPct(x.pct)}</span></span>${lv.map(t => `<span>${t}</span>`).join('')}</div>
       <div class="onote" style="margin-top:2px">理由:${(x.reasons || []).join('、') || '-'}</div></div>`;
   };

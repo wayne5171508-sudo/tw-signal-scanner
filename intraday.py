@@ -1015,6 +1015,7 @@ def compute_opening_alerts(run_time, watchlist_out, official):
 BIAS_ORB_MIN = 15          # 09:15 後才有開盤區間
 BIAS_ORB_LATE = 25         # 09:25 之後才第一次抓到就不記開盤區間
 BIAS_FROM, BIAS_TO = 15, 210   # 09:15 ~ 12:30 才給新進場方向(跟回測一致)
+BIAS_FADE_PCT = 2.0        # 跟 daytrade_lab.FADE_PCT 一致
 BIAS_VWAP_LAG = 14         # 均價線方向:跟大約 15 分鐘前比
 DAYTRADE_FILE = os.path.join(DATA_DIR, "daytrade.json")
 
@@ -1044,7 +1045,7 @@ def bias_rules():
     """回測結果:每條 score_* 規則的停損停利與是否站得住。"""
     rules = ((load_json_safe(DAYTRADE_FILE, {}) or {}).get("rules") or {})
     out = {}
-    for k in ("score_long", "score_short", "score_long_80", "score_short_80"):
+    for k in ("score_long", "score_short", "score_long_80", "score_short_80", "fade_long", "fade_short"):
         r = rules.get(k) or {}
         b = r.get("best") or {}
         out[k] = {"holds": bool(r.get("holds")), "stop": b.get("stop"), "target": b.get("target"),
@@ -1097,15 +1098,22 @@ def compute_bias(run_time, indices_out, watchlist_out):
              "grp_pct": sum(others) / len(others) if others else None,
              "up_lim": q.get("upper_limit"), "lo_lim": q.get("lower_limit")}
         r = bias.score(f)
-        if not r["side"]:
-            continue
         strong = abs(r["score"]) >= bias.STRONG
-        rk = ("score_long" if r["side"] == "long" else "score_short") + ("_80" if strong else "")
+        # 偏離反向(回測第二版):分數極端且離均價線 2% 以上時反著做,優先於順勢分數
+        dev = (q["last"] / vw - 1) * 100 if vw else 0
+        if strong and abs(dev) >= BIAS_FADE_PCT and dev * r["score"] > 0:
+            r["side"] = "short" if r["score"] > 0 else "long"
+            rk = "fade_" + r["side"]
+        elif r["side"]:
+            rk = ("score_long" if r["side"] == "long" else "score_short") + ("_80" if strong else "")
+        else:
+            continue
         rule = rules.get(rk) or {}
         sg = 1 if r["side"] == "long" else -1
         stop_pct, tgt_pct = rule.get("stop"), rule.get("target")
         items.append({"code": code, "name": q["name"], "side": r["side"], "score": r["score"], "strong": strong,
-                      "parts": r["parts"], "reasons": bias.reasons(r["parts"], r["side"]), "last": q["last"], "pct": q.get("pct"),
+                      "parts": r["parts"], "reasons": ([f"分數 {r['score']:+d} 極端", f"{'高' if dev > 0 else '低'}於均價線 {abs(dev):.1f}%,反向"] if rk.startswith("fade_")
+                                  else bias.reasons(r["parts"], r["side"])), "last": q["last"], "pct": q.get("pct"),
                       "vwap": round(vw, 2) if vw else None,
                       "stop": round(q["last"] * (1 - sg * stop_pct / 100), 2) if stop_pct else None,
                       "target": round(q["last"] * (1 + sg * tgt_pct / 100), 2) if tgt_pct else None,
