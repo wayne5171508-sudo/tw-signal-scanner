@@ -271,7 +271,16 @@
   .tabbar{position:sticky;top:0;z-index:20;display:flex;gap:6px;margin:8px -16px 10px;padding:8px 16px;background:var(--bg);border-bottom:1px solid var(--border)}
   .tabbar button{flex:1;padding:9px 0;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--sec);font-size:14px;font-weight:600;font-family:inherit;cursor:pointer}
   .tabbar button.on{background:var(--text);color:#fff;border-color:var(--text)}
-  body[data-tab="today"] [data-pane]:not([data-pane="today"]),body[data-tab="flow"] [data-pane]:not([data-pane="flow"]),body[data-tab="stocks"] [data-pane]:not([data-pane="stocks"]),body[data-tab="more"] [data-pane]:not([data-pane="more"]){display:none}
+  body[data-tab="today"] [data-pane]:not([data-pane="today"]),body[data-tab="flow"] [data-pane]:not([data-pane="flow"]),body[data-tab="stocks"] [data-pane]:not([data-pane="stocks"]),body[data-tab="replay"] [data-pane]:not([data-pane="replay"]),body[data-tab="more"] [data-pane]:not([data-pane="more"]){display:none}
+  /* 回放 */
+  .rpbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:4px 0 8px}
+  .rpbar select{font:inherit;font-size:13px;padding:6px 8px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);max-width:100%}
+  .rpctl{display:flex;gap:6px;align-items:center;margin:6px 0}
+  .rpctl button{font:inherit;font-size:14px;min-width:40px;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);cursor:pointer}
+  .rpctl button.on{background:var(--text);color:#fff;border-color:var(--text)}
+  .rpctl input[type=range]{flex:1;min-width:0}
+  .rpinfo{display:flex;flex-wrap:wrap;gap:2px 12px;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .rptr{display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:5px 0;border-top:1px solid var(--border);font-variant-numeric:tabular-nums}
   .sigbox{margin:8px 0 12px;padding:12px;border-radius:12px;background:var(--card);border:1px solid var(--border)}
   .sigbox .sh{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:6px}
   .sigbox .sh b{font-size:14px} .sigbox .sh small{font-size:11px;color:var(--muted)}
@@ -364,6 +373,7 @@
   <button data-t="today" onclick="setTab('today')">今日重點</button>
   <button data-t="flow" onclick="setTab('flow')">資金流向</button>
   <button data-t="stocks" onclick="setTab('stocks')">個股</button>
+  <button data-t="replay" onclick="setTab('replay')">回放</button>
   <button data-t="more" onclick="setTab('more')">更多</button>
 </div>
 
@@ -399,6 +409,10 @@
 <div class="note" id="touchNote" style="margin-top:0;display:none"></div>
 <div class="note" style="margin-top:0">橫條:左端=支撐(綠),右端=壓力(紅),圓點=現價位置。「依據」預設自動:用CDP樞紐點(前一交易日高低收);若昨日振幅太小(例如漲停鎖死)導致CDP失真,自動改用近5日最高最低。也可手動切換成CDP、5日、10日、20日。「接近」的距離會依各股票自己的波動調整。卡片下方小字同時列出CDP、5日、10日高低供對照。都是機械式參考線,不是股價預測,不構成買賣建議。點任一檔看K線與細節。<span id="srcNote"></span></div>
 
+</div>
+
+<div data-pane="replay">
+<div class="sigbox" id="replayBox"><div class="sh"><b>盤後回放</b><small>載入中…</small></div></div>
 </div>
 
 <div data-pane="more">
@@ -1129,12 +1143,13 @@ function searchAndOpen(code){
 }
 
 // ---- 分頁 ----
-const TABS = ['today', 'flow', 'stocks', 'more'];
+const TABS = ['today', 'flow', 'stocks', 'replay', 'more'];
 function setTab(t){
   if(!TABS.includes(t)) t = 'today';
   document.body.dataset.tab = t;
   document.querySelectorAll('#tabBar button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
   window.scrollTo(0, 0);
+  if(t === 'replay') rpInit();
 }
 function initTab(){ setTab('today'); }   // 每次打開固定從「今日重點」開始
 
@@ -1972,6 +1987,166 @@ function renderDaytrade(dt){
     ${dtLive(dt)}
     <div class="onote">「扣成本前」接近 0 或為負,代表規則本身就沒賺頭;為正但扣成本後變負,代表賺的不夠付手續費和稅。每天收盤後用最新約 60 個交易日重算。${bearEsc(dt.note || '')}</div>`;
   el.style.display = '';
+}
+
+// ================= 盤後回放(data/bars5m/ 真實 5 分K + data/replay/ 規則進出場,由 daytrade_lab.py 產生) =================
+// 每播一根,只用「到這根為止」的 K 棒畫波段折線與分區方框,不偷看後面;規則進出場也只顯示已經發生的。
+const RP = {idx: null, day: null, bars: null, trades: null, date: null, code: null, rule: 'all', zz: 1.0, cur: 0, timer: null, speed: 1};
+async function rpLoadGz(url){
+  const r = await fetch(url, {cache: 'no-store'});
+  if(!r.ok) throw new Error(url + ' ' + r.status);
+  const buf = await r.arrayBuffer(), b = new Uint8Array(buf);
+  if(b[0] === 0x1f && b[1] === 0x8b){
+    const st = new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'));
+    return JSON.parse(await new Response(st).text());
+  }
+  return JSON.parse(new TextDecoder().decode(buf));   // 伺服器已經自動解壓
+}
+async function rpInit(){
+  if(RP.idx) return;
+  const box = document.getElementById('replayBox');
+  try{
+    const r = await fetch('data/replay/index.json', {cache: 'no-store'});
+    RP.idx = await r.json();
+  }catch(e){ box.innerHTML = '<div class="sh"><b>盤後回放</b></div><div class="onote">還沒有回放資料(每天收盤後產生)。</div>'; return; }
+  if(typeof DecompressionStream === 'undefined'){ box.innerHTML = '<div class="sh"><b>盤後回放</b></div><div class="onote">這個瀏覽器不支援解壓縮,請更新到較新的 Safari / Chrome。</div>'; return; }
+  await rpLoadDay((RP.idx.dates || []).slice(-1)[0]);
+}
+async function rpLoadDay(d, keepCode){
+  if(!d) return;
+  rpStop();
+  const box = document.getElementById('replayBox');
+  box.querySelector('.sh small') && (box.querySelector('.sh small').textContent = '載入 ' + d + '…');
+  try{
+    const [day, tr] = await Promise.all([rpLoadGz(`data/bars5m/${d}.json.gz`), rpLoadGz(`data/replay/${d}.json.gz`)]);
+    RP.date = d; RP.day = day; RP.trades = tr;
+  }catch(e){ box.innerHTML = `<div class="sh"><b>盤後回放</b></div><div class="onote">${d} 的資料讀取失敗。</div>`; return; }
+  const codes = Object.keys(RP.day.stocks || {});
+  const nT = c => ((RP.trades.trades || {})[c] || []).length;
+  if(!(keepCode && codes.includes(RP.code))) RP.code = codes.sort((a, b) => nT(b) - nT(a))[0];
+  rpSetCode(RP.code);
+}
+function rpSetCode(code){
+  rpStop();
+  RP.code = code;
+  RP.bars = ((RP.day.stocks || {})[code] || {}).b || [];
+  RP.bars = RP.bars.map(r => ({t: r[0], o: r[1], h: r[2], l: r[3], c: r[4], v: r[5] || 0}));
+  RP.cur = Math.min(11, RP.bars.length - 1);   // 從 09:55 開始,前面先有一點走勢
+  rpRender();
+}
+function rpStop(){ if(RP.timer){ clearInterval(RP.timer); RP.timer = null; } }
+function rpPlay(){
+  if(RP.timer){ rpStop(); rpRender(); return; }
+  if(RP.cur >= RP.bars.length - 1) RP.cur = 0;
+  RP.timer = setInterval(() => { if(RP.cur >= RP.bars.length - 1){ rpStop(); } else RP.cur++; rpRender(); }, 700 / RP.speed);
+  rpRender();
+}
+function rpStep(n){ rpStop(); RP.cur = Math.max(0, Math.min(RP.bars.length - 1, RP.cur + n)); rpRender(); }
+function rpZigzag(bars, pct){
+  // 波段轉折:從目前極值反向走超過 pct% 才確認上一個轉折;回傳已確認的轉折與目前這段的暫定極值
+  const piv = [];
+  if(bars.length < 2) return {piv, tail: null};
+  let dir = 0, hiI = 0, loI = 0, ext = null;
+  for(let i = 0; i < bars.length; i++){
+    const b = bars[i];
+    if(dir === 0){
+      if(b.h > bars[hiI].h) hiI = i;
+      if(b.l < bars[loI].l) loI = i;
+      if(bars[hiI].h >= bars[loI].l * (1 + pct / 100)){
+        if(loI < hiI){ piv.push({i: loI, p: bars[loI].l, type: 'L'}); dir = 1; ext = {i: hiI, p: bars[hiI].h, type: 'H'}; }
+        else { piv.push({i: hiI, p: bars[hiI].h, type: 'H'}); dir = -1; ext = {i: loI, p: bars[loI].l, type: 'L'}; }
+      }
+      continue;
+    }
+    if(dir === 1){
+      if(b.h > ext.p) ext = {i, p: b.h, type: 'H'};
+      else if(b.l <= ext.p * (1 - pct / 100)){ piv.push(ext); dir = -1; ext = {i, p: b.l, type: 'L'}; }
+    } else {
+      if(b.l < ext.p) ext = {i, p: b.l, type: 'L'};
+      else if(b.h >= ext.p * (1 + pct / 100)){ piv.push(ext); dir = 1; ext = {i, p: b.h, type: 'H'}; }
+    }
+  }
+  return {piv, tail: ext};
+}
+function rpRender(){
+  const box = document.getElementById('replayBox');
+  const idx = RP.idx || {}, rules = idx.rules || {}, bars = RP.bars || [];
+  const names = {};
+  ((INTRADAY && INTRADAY.watchlist_quotes) || []).forEach(q => { names[q.code] = q.name; });
+  const allTr = ((RP.trades && RP.trades.trades) || {})[RP.code] || [];
+  const dateOpts = (idx.dates || []).slice().reverse().map(d => `<option value="${d}"${d === RP.date ? ' selected' : ''}>${d}</option>`).join('');
+  const codeOpts = Object.keys((RP.day && RP.day.stocks) || {}).sort().map(c => {
+    const n = (((RP.trades && RP.trades.trades) || {})[c] || []).length;
+    return `<option value="${c}"${c === RP.code ? ' selected' : ''}>${c} ${bearEsc(names[c] || '')}${n ? `(${n})` : ''}</option>`;
+  }).join('');
+  const ruleOpts = `<option value="all"${RP.rule === 'all' ? ' selected' : ''}>全部規則</option>` + Object.keys(rules).map(k => `<option value="${k}"${k === RP.rule ? ' selected' : ''}>${bearEsc(rules[k].name)}${rules[k].holds ? ' ✓' : ''}</option>`).join('');
+  const zzOpts = [0.5, 1, 1.5, 2].map(v => `<option value="${v}"${v === RP.zz ? ' selected' : ''}>波段 ${v}%</option>`).join('');
+  if(!bars.length){ box.innerHTML = `<div class="sh"><b>盤後回放</b></div><div class="onote">這天沒有這檔的 5 分K。</div>`; return; }
+  const cur = Math.min(RP.cur, bars.length - 1), seen = bars.slice(0, cur + 1), now = seen[seen.length - 1];
+  const tr = allTr.filter(x => (RP.rule === 'all' || x[0] === RP.rule) && x[1] <= now.t);
+
+  // ---- 圖 ----
+  const W = 360, H = 290, axisW = 46, plotW = W - axisW, volH = 34, top = 8, plotH = H - volH - top - 18;
+  const zz = rpZigzag(seen, RP.zz);
+  const pts = zz.piv.concat(zz.tail ? [zz.tail] : []);
+  let box2 = null;
+  if(zz.piv.length >= 2){
+    const a = zz.piv[zz.piv.length - 2], b = zz.piv[zz.piv.length - 1];
+    const hi = Math.max(a.p, b.p), lo = Math.min(a.p, b.p), mid = (hi + lo) / 2, band = (hi - lo) * 0.05;
+    box2 = {x0: Math.min(a.i, b.i), hi, lo, bandHi: mid + band, bandLo: mid - band};
+  }
+  const prices = seen.flatMap(b => [b.h, b.l]).concat(box2 ? [box2.hi, box2.lo] : []).concat(tr.flatMap(x => [x[2]].concat(x[3] <= now.t ? [x[4]] : [])));
+  let mn = Math.min(...prices), mx = Math.max(...prices);
+  const pad = (mx - mn) * 0.08 || mx * 0.005; mn -= pad; mx += pad;
+  const y = v => top + plotH - (v - mn) / (mx - mn) * plotH;
+  const slot = plotW / Math.max(54, bars.length), bw = Math.max(1.5, slot * 0.62), X = i => i * slot + slot / 2;
+  const iOf = t => { const k = bars.findIndex(b => b.t >= t); return k < 0 ? bars.length - 1 : k; };
+  let svg = '';
+  niceTicks(mn, mx, 4).forEach(t => { svg += `<line x1="0" y1="${y(t).toFixed(1)}" x2="${plotW}" y2="${y(t).toFixed(1)}" stroke="var(--grid)"/><text x="${plotW + 4}" y="${(y(t) + 3).toFixed(1)}" font-size="9.5" fill="var(--muted)">${fmtNum(t)}</text>`; });
+  if(box2){
+    const x0 = X(box2.x0) - slot / 2, w = plotW - x0;
+    const rect = (y1, y2, f, st) => `<rect x="${x0.toFixed(1)}" y="${y(y1).toFixed(1)}" width="${w.toFixed(1)}" height="${Math.max(0.5, y(y2) - y(y1)).toFixed(1)}" fill="${f}" stroke="${st}" stroke-width="0.7"/>`;
+    svg += rect(box2.hi, box2.bandHi, 'rgba(209,64,63,0.12)', 'rgba(209,64,63,0.5)') + rect(box2.bandHi, box2.bandLo, 'rgba(138,92,199,0.25)', 'rgba(138,92,199,0.6)') + rect(box2.bandLo, box2.lo, 'rgba(24,143,99,0.12)', 'rgba(24,143,99,0.5)');
+    svg += `<text x="${(x0 + w / 2).toFixed(1)}" y="${(y(box2.hi) + 11).toFixed(1)}" font-size="10" font-weight="700" fill="#d1403f" text-anchor="middle" opacity=".8">做空區</text><text x="${(x0 + w / 2).toFixed(1)}" y="${(y(box2.lo) - 4).toFixed(1)}" font-size="10" font-weight="700" fill="#188f63" text-anchor="middle" opacity=".8">做多區</text>`;
+  }
+  seen.forEach((b, i) => {
+    const c = b.c >= b.o ? 'var(--up)' : 'var(--down)', x = X(i);
+    svg += `<line x1="${x.toFixed(1)}" y1="${y(b.h).toFixed(1)}" x2="${x.toFixed(1)}" y2="${y(b.l).toFixed(1)}" stroke="${c}" stroke-width="1"/><rect x="${(x - bw / 2).toFixed(1)}" y="${y(Math.max(b.o, b.c)).toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(1, y(Math.min(b.o, b.c)) - y(Math.max(b.o, b.c))).toFixed(1)}" fill="${c}"/>`;
+  });
+  if(pts.length >= 2) svg += `<polyline points="${pts.map(p => X(p.i).toFixed(1) + ',' + y(p.p).toFixed(1)).join(' ')}" fill="none" stroke="#c9a227" stroke-width="1.2"/>`;
+  tr.forEach(x => {
+    const lg = (rules[x[0]] || {}).side === 'long', hold = (rules[x[0]] || {}).holds, c = hold ? (lg ? '#d1403f' : '#188f63') : '#8f8d86';
+    const i1 = iOf(x[1]), ye = y(x[2]), cx = X(i1);
+    svg += lg ? `<polygon points="${cx},${ye + 3} ${cx - 5},${ye + 11} ${cx + 5},${ye + 11}" fill="${c}"/>` : `<polygon points="${cx},${ye - 3} ${cx - 5},${ye - 11} ${cx + 5},${ye - 11}" fill="${c}"/>`;
+    if(x[3] <= now.t){
+      const i2 = iOf(x[3]), yx = y(x[4]), cx2 = X(i2), win = x[6] > 0;
+      svg += `<line x1="${cx}" y1="${ye.toFixed(1)}" x2="${cx2}" y2="${yx.toFixed(1)}" stroke="${c}" stroke-dasharray="3,2"/><circle cx="${cx2}" cy="${yx.toFixed(1)}" r="3.5" fill="var(--card)" stroke="${c}" stroke-width="1.5"/>
+        <text x="${cx2}" y="${(yx + (lg ? -7 : 13)).toFixed(1)}" font-size="9" font-weight="700" fill="${win ? 'var(--up)' : 'var(--down)'}" text-anchor="middle">${x[6] > 0 ? '+' : ''}${x[6]}%</text>`;
+    }
+  });
+  const maxV = Math.max(...seen.map(b => b.v), 1), v0 = top + plotH + 6;
+  seen.forEach((b, i) => { const hh = b.v / maxV * (volH - 2); svg += `<rect x="${(X(i) - bw / 2).toFixed(1)}" y="${(v0 + volH - hh).toFixed(1)}" width="${bw.toFixed(1)}" height="${hh.toFixed(1)}" fill="${b.c >= b.o ? 'var(--up)' : 'var(--down)'}" opacity=".5"/>`; });
+  const yc = y(now.c);
+  svg += `<line x1="0" y1="${yc.toFixed(1)}" x2="${plotW}" y2="${yc.toFixed(1)}" stroke="var(--text)" stroke-width="0.6" stroke-dasharray="1,2"/><rect x="${plotW + 1}" y="${(yc - 8).toFixed(1)}" width="${axisW - 1}" height="16" rx="3" fill="var(--text)"/><text x="${plotW + axisW / 2}" y="${(yc + 4).toFixed(1)}" font-size="9.5" fill="var(--card)" text-anchor="middle">${fmtNum(now.c)}</text>`;
+  ['09:00', '10:00', '11:00', '12:00', '13:00'].forEach(t => { const i = bars.findIndex(b => b.t === t); if(i >= 0) svg += `<text x="${X(i).toFixed(1)}" y="${H - 3}" font-size="9" fill="var(--muted)" text-anchor="${X(i) < 14 ? 'start' : 'middle'}">${t}</text>`; });
+
+  let zoneTxt = '波段還在形成(要先有一段漲跌超過 ' + RP.zz + '%)';
+  if(box2){ zoneTxt = now.c > box2.hi ? '突破方框上緣' : now.c < box2.lo ? '跌破方框下緣' : now.c > box2.bandHi ? '在做空區' : now.c < box2.bandLo ? '在做多區' : '在平衡區'; }
+  const pc = RP.day.stocks[RP.code].pc, pct = pc ? (now.c / pc - 1) * 100 : null;
+  const trList = tr.slice().sort((a, b) => a[1] < b[1] ? -1 : 1).map(x => {
+    const r = rules[x[0]] || {}, done = x[3] <= now.t;
+    return `<div class="rptr"><span>${x[1]} ${r.side === 'long' ? '▲做多' : '▼做空'} ${bearEsc(r.name || x[0])}${r.holds ? '' : '<small style="color:var(--muted)">(未通過回測)</small>'}</span><span>@${fmtNum(x[2])} → ${done ? `${x[3]} ${({stop: '停損', target: '停利', close: '收盤'})[x[5]]} <b class="${x[6] > 0 ? 'up' : 'down'}">${x[6] > 0 ? '+' : ''}${x[6]}%</b>` : '持有中'}</span></div>`;
+  }).join('');
+  const playing = !!RP.timer;
+  box.innerHTML = `<div class="sh"><b>盤後回放</b><small>${RP.date}・真實 5 分K</small></div>
+    <div class="rpbar"><select onchange="rpLoadDay(this.value, true)">${dateOpts}</select><select onchange="rpSetCode(this.value)">${codeOpts}</select><select onchange="RP.rule=this.value;rpRender()">${ruleOpts}</select><select onchange="RP.zz=+this.value;rpRender()">${zzOpts}</select></div>
+    <svg width="100%" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">${svg}</svg>
+    <div class="rpctl"><button onclick="rpStep(-1)" aria-label="上一根">◀︎</button><button class="${playing ? 'on' : ''}" onclick="rpPlay()" aria-label="播放或暫停">${playing ? '❚❚' : '▶'}</button><button onclick="rpStep(1)" aria-label="下一根">▶︎|</button>
+      <input type="range" min="0" max="${bars.length - 1}" value="${cur}" oninput="rpStop();RP.cur=+this.value;rpRender()" aria-label="時間">
+      <button class="${RP.speed === 1 ? 'on' : ''}" onclick="RP.speed=RP.speed===1?4:1;if(RP.timer){rpStop();rpPlay();}else rpRender()">${RP.speed}x</button></div>
+    <div class="rpinfo"><span><b style="color:var(--text)">${now.t}</b></span><span>開 ${fmtNum(now.o)}</span><span>高 ${fmtNum(now.h)}</span><span>低 ${fmtNum(now.l)}</span><span>收 ${fmtNum(now.c)}${pct != null ? ` <span class="${pct > 0 ? 'up' : 'down'}">${fmtPct(pct)}</span>` : ''}</span><span>${zoneTxt}</span></div>
+    <div style="margin-top:8px">${trList || `<div class="onote">到 ${now.t} 為止,${RP.rule === 'all' ? '沒有規則' : '這條規則'}在這檔觸發。</div>`}</div>
+    <div class="onote">黃線=波段折線(反向走超過 ${RP.zz}% 才確認轉折);方框=最近一段已確認的漲跌範圍,上半做空區、中間 10% 平衡區、下半做多區,和影片同一種畫法。▲▼=規則進場,○=出場與扣 ${(RP.trades || {}).cost_pct || 0.3}% 成本後報酬;灰色=未通過回測。每播一根只用到這根為止的資料,不偷看後面。股票名稱後面的數字是當天觸發筆數。歷史回放,不是預測,不構成買賣建議。</div>`;
 }
 
 // ================= 資金流向(自選股估算) =================

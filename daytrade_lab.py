@@ -328,6 +328,56 @@ def live_stats(log, rules_now):
     return out
 
 
+# ---------- 盤後回放用的每日觸發與出場紀錄 ----------
+REPLAY_DIR = os.path.join(DATA_DIR, "replay")
+
+
+def replay_day(d, data, closes, bear_prev, ctx, params):
+    """某一天每檔、每條規則的進出場(和回測同一套 entry_index / simulate)。
+    params={rule: (stop, target)},用產生當下的最佳參數。回傳 {code: [[rule, 進場時間, 進場價, 出場時間, 出場價, 原因, 扣成本後%]]}。"""
+    out = {}
+    for code, days in data.items():
+        bars = days.get(d)
+        if not bars:
+            continue
+        pc = closes.get(code) or {}
+        prev_d = max((x for x in pc if x < d), default=None)
+        prev_close = pc.get(prev_d)
+        series = score_series(code, d, bars, prev_close, ctx)
+        for rule, (_, side, _) in RULES.items():
+            i = entry_index(rule, bars, prev_close, prev_d in bear_prev.get(code, ()), series)
+            if i is None or rule not in params:
+                continue
+            stop, target = params[rule]
+            r, why, k, px = simulate_detail(bars, i, side, stop, target)
+            out.setdefault(code, []).append([rule, bars[i]["t"], round(bars[i]["o"], 4), bars[k]["t"], round(px, 4), why,
+                                             round(r - COST_PCT, 3)])
+    return out
+
+
+def write_replay(data, closes, bear_prev, ctx, res, days):
+    """每個交易日存一份 data/replay/日期.json.gz(存好就不改,參數記在檔案裡),並更新 data/replay/index.json
+    (可回放的日期與規則清單)。網頁「回放」分頁讀這兩個檔和 data/bars5m/。回傳這次新寫了幾天。"""
+    params = {k: ((r.get("best") or {}).get("stop") or 1.0, (r.get("best") or {}).get("target")) for k, r in (res or {}).items()}
+    os.makedirs(REPLAY_DIR, exist_ok=True)
+    n = 0
+    for d in days:
+        path = os.path.join(REPLAY_DIR, f"{d}.json.gz")
+        if os.path.exists(path) or not os.path.exists(os.path.join(BARS_DIR, f"{d}.json.gz")):
+            continue
+        body = {"date": d, "cost_pct": COST_PCT, "params": params, "trades": replay_day(d, data, closes, bear_prev, ctx, params)}
+        with gzip.open(path + ".tmp", "wt", encoding="utf-8") as f:
+            json.dump(body, f, separators=(",", ":"))
+        os.replace(path + ".tmp", path)
+        n += 1
+    avail = sorted(fn[:10] for fn in os.listdir(REPLAY_DIR) if fn.endswith(".json.gz"))
+    write_json_atomic(os.path.join(REPLAY_DIR, "index.json"), {
+        "dates": avail,
+        "rules": {k: {"name": v[0], "side": v[1], "desc": v[2], "holds": bool((res or {}).get(k, {}).get("holds"))} for k, v in RULES.items()},
+    }, indent=1)
+    return n
+
+
 def _vwap(bars):
     """逐根累積均價線;第一根常常沒有量,沒有量的根用前一個值。"""
     out, pv, vv = [], 0.0, 0.0
@@ -422,31 +472,40 @@ def entry_index(rule, bars, prev_close, bear_prev, series=None):
     return None
 
 
-def simulate(bars, i, side, stop, target):
-    """從第 i 根開盤進場,回傳扣成本前的報酬 %(做空已轉成正=賺)與出場原因。"""
+def simulate_detail(bars, i, side, stop, target):
+    """從第 i 根開盤進場,回傳 (扣成本前報酬 %(做空已轉成正=賺), 出場原因, 出場那根 index, 出場價)。"""
     e = bars[i]["o"]
     sgn = 1 if side == "long" else -1
     sp = e * (1 - sgn * stop / 100)
     tp = e * (1 + sgn * target / 100) if target else None
-    for b in bars[i:]:
+    k = i
+    for k in range(i, len(bars)):
+        b = bars[k]
         if b["t"] > LAST_BAR:
+            k -= 1
             break
         if side == "long":
-            if b["o"] <= sp and b is not bars[i]:
-                return (b["o"] / e - 1) * 100, "stop"
+            if b["o"] <= sp and k != i:
+                return (b["o"] / e - 1) * 100, "stop", k, b["o"]
             if b["l"] <= sp:
-                return -stop, "stop"
+                return -stop, "stop", k, sp
             if tp and b["h"] >= tp:
-                return target, "target"
+                return target, "target", k, tp
         else:
-            if b["o"] >= sp and b is not bars[i]:
-                return (e / b["o"] - 1) * 100, "stop"
+            if b["o"] >= sp and k != i:
+                return (e / b["o"] - 1) * 100, "stop", k, b["o"]
             if b["h"] >= sp:
-                return -stop, "stop"
+                return -stop, "stop", k, sp
             if tp and b["l"] <= tp:
-                return target, "target"
-        last = b
-    return sgn * (last["c"] / e - 1) * 100, "close"
+                return target, "target", k, tp
+    last = bars[k]
+    return sgn * (last["c"] / e - 1) * 100, "close", k, last["c"]
+
+
+def simulate(bars, i, side, stop, target):
+    """從第 i 根開盤進場,回傳扣成本前的報酬 %(做空已轉成正=賺)與出場原因。"""
+    r, why, _, _ = simulate_detail(bars, i, side, stop, target)
+    return r, why
 
 
 def trades_for(data, prev_closes, bear_prev, ctx=None):
@@ -583,6 +642,7 @@ def main():
     out["live"] = live_stats(log, res or {})
     out["archive"] = {"days": len(archive), "first": min(archive, default=None), "last": max(archive, default=None),
                       "saved_now": saved, "added_beyond_yahoo": added}
+    out["replay_new_days"] = write_replay(data, closes, bear_prev, ctx, res, sorted(archive))
     write_json_atomic(OUT_FILE, out, indent=1)
     print(f"[完成] 當沖回測 {len(data)} 檔、{len(all_days)} 天({out['first']}~{out['last']}),訓練到 {split}")
     print(f"  5分K存檔 {len(archive)} 天(這次新存 {saved} 天,比 Yahoo 多 {added} 檔日);盤中觸發成績 {out['live']['n']} 筆 / {out['live']['days']} 天(這次新算 {n_eval} 天)")

@@ -484,3 +484,31 @@ def test_daytrade_drawdown():
     dd = daytrade_lab.drawdown(rows)
     assert dd == {"mdd": 2.5, "worst_day": -1.5, "lose_streak": 2, "cum": 1.5}
     assert daytrade_lab.drawdown([]) == {}
+
+
+def test_simulate_detail_exit_time_and_price():
+    bars = _5m_day([100.0] * 54)
+    bars[5] = {"t": bars[5]["t"], "o": 100, "h": 102.5, "l": 99.9, "c": 102, "v": 1}
+    r, why, k, px = daytrade_lab.simulate_detail(bars, 1, "long", 1.0, 2.0)
+    assert (r, why, bars[k]["t"], px) == (2.0, "target", "09:25", 102.0)
+    r, why, k, px = daytrade_lab.simulate_detail(_5m_day([100.0] * 54), 1, "short", 5.0, None)
+    assert why == "close" and bars[k]["t"] == "13:20" and px == 100.0
+    assert daytrade_lab.simulate(bars, 1, "long", 1.0, 2.0) == (2.0, "target")
+
+
+def test_write_replay_is_append_only(tmp_path, monkeypatch):
+    monkeypatch.setattr(daytrade_lab, "BARS_DIR", str(tmp_path / "bars5m"))
+    monkeypatch.setattr(daytrade_lab, "REPLAY_DIR", str(tmp_path / "replay"))
+    day = _5m_day([100.0, 100.5, 100.2] + [100.3] * 3 + [101.0] + [101.5] * 47)
+    data = {f"{1000 + k}": {"2026-10-26": [dict(b) for b in day]} for k in range(25)}
+    closes = {c: {"2026-10-23": 99.0} for c in data}
+    assert daytrade_lab.save_bars_day("2026-10-26", data, closes, {})
+    res = {"orb_long": {"holds": False, "best": {"stop": 1.0, "target": 2.0}}}
+    assert daytrade_lab.write_replay(data, closes, {}, None, res, ["2026-10-26"]) == 1
+    assert daytrade_lab.write_replay(data, closes, {}, None, res, ["2026-10-26"]) == 0
+    import gzip as _gz
+    body = json.load(_gz.open(tmp_path / "replay" / "2026-10-26.json.gz", "rt"))
+    t = body["trades"]["1000"][0]
+    assert t[0] == "orb_long" and t[1] == "09:35" and t[2] == 101.5 and body["params"]["orb_long"] == [1.0, 2.0]
+    idx = json.loads((tmp_path / "replay" / "index.json").read_text())
+    assert idx["dates"] == ["2026-10-26"] and idx["rules"]["orb_long"]["side"] == "long"
