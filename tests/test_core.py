@@ -13,6 +13,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
 import bear_signals  # noqa: E402
+import bias  # noqa: E402
 import daytrade_lab  # noqa: E402
 import health  # noqa: E402
 import intraday  # noqa: E402
@@ -204,6 +205,48 @@ def test_daytrade_simulate_stop_target_close_and_same_bar_rule():
     gap[3] = {"t": gap[3]["t"], "o": 96, "h": 96, "l": 95, "c": 95.5, "v": 1}         # 跳空越過停損,用開盤價出
     assert daytrade_lab.simulate(gap, 1, "long", 1.0, None) == (pytest.approx(-4.0), "stop")
 
+# ---------- bias.py(多空分數)----------
+
+_BULL = {"last": 105, "prev_close": 100, "vwap": 103, "vwap_prev": 102, "orb_hi": 104, "orb_lo": 101, "pace": 2.5,
+         "day_hi": 105.5, "day_lo": 100.5, "mkt_pct": 0.8, "mkt_last": 101, "mkt_open": 100, "grp_pct": 1.2}
+
+
+def test_bias_full_long_and_mirror_short():
+    r = bias.score(_BULL)
+    assert r["score"] == 100 and r["side"] == "long" and r["veto"] is None
+    bear = dict(_BULL, last=95, vwap=97, vwap_prev=98, orb_hi=99, orb_lo=96, day_hi=99.5, day_lo=94.5,
+                mkt_pct=-0.8, mkt_last=99, grp_pct=-1.2)
+    assert bias.score(bear)["score"] == -100 and bias.score(bear)["side"] == "short"
+
+
+def test_bias_missing_data_scores_zero_and_vetoes():
+    assert bias.score({"last": 100, "prev_close": 100})["score"] == 0
+    r = bias.score(dict(_BULL, mkt_pct=-0.8, mkt_last=99))       # 大盤反向
+    assert r["side"] is None and r["veto"] == "大盤反向"
+    r = bias.score(dict(_BULL, up_lim=105.5))                    # 離漲停不到 1%
+    assert r["side"] is None and r["veto"] == "接近漲停"
+
+
+def test_approx_vwap_from_snapshots():
+    pts = [{"wl": {"A": 10}, "wlv": {"A": 100}}, {"wl": {"A": 12}, "wlv": {"A": 200}}]
+    assert intraday._approx_vwap(pts, "A", 10) == pytest.approx((100 * 10 + 100 * 11) / 200)
+
+
+def test_daytrade_score_entry_next_bar_and_no_lookahead():
+    px = [100, 100.2, 100.1] + [100.3] * 3 + [102.0] + [102.5] * 47
+    bars = [dict(b, v=300) for b in _5m_day(px)]                # 量是前幾天的 3 倍,沒有大盤和族群資料 → 均價線+開盤區間+量能+位置=70
+    days = {"2026-08-0%d" % k: _5m_day([100] * 54) for k in range(1, 7)}
+    days["2026-08-07"] = bars
+    data = {"2455": days}
+    closes = {"2455": {"2026-07-31": 100, **{d: 100 for d in days}}}
+    ctx = daytrade_lab.score_context(data, closes, {})
+    ser = daytrade_lab.score_series("2455", "2026-08-07", bars, 100, ctx)
+    assert all(bars[i]["t"] >= "09:15" for i, _ in ser)
+    i = daytrade_lab.entry_index("score_long", bars, 100, False, ser)
+    assert i is not None and bars[i - 1]["t"] >= "09:30"     # 09:30 那根收盤才站上開盤區間
+    cut = daytrade_lab.score_series("2455", "2026-08-07", bars[:7], 100, ctx)
+    assert daytrade_lab.entry_index("score_long", bars[:7], 100, False, cut) is None
+
 # ---------- rebuild_track.py ----------
 
 def _fake_days(code, ym01):
@@ -324,3 +367,12 @@ def test_health_amount_and_mkt_checks(tmp_path, monkeypatch):
     _write(d, "intraday_latest.json", {"data_as_of": "2026-10-22T13:33:00+08:00", "amount_unit": None})
     items = {i["key"]: i for i in health.run(dt.datetime(2026, 10, 22, 20, 0, tzinfo=TPE))["items"]}
     assert "amount" not in items and "mkt" not in items      # 上線前的日子不檢查
+
+
+def test_daytrade_pullback_needs_setup_first():
+    f = lambda sc_last, lo, vw: {"last": sc_last, "prev_close": 100, "vwap": vw, "vwap_prev": vw - 0.5, "orb_hi": 101, "orb_lo": 99,
+                                 "pace": 3, "day_hi": sc_last + 0.1, "day_lo": 99, "grp_pct": 1, "bar_hi": sc_last + 0.1, "bar_lo": lo}
+    touch = (7, f(102.1, 102.05, 102.0))          # 碰到均價線、收在上面
+    assert daytrade_lab.entry_index("pb_long", [None] * 20, 100, False, [touch]) is None   # 沒有先達到門檻不進場
+    setup = (5, f(104, 103.5, 102.0))
+    assert daytrade_lab.entry_index("pb_long", [None] * 20, 100, False, [setup, touch]) == 8

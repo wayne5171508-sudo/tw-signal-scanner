@@ -48,6 +48,10 @@ try:
     import health
 except ImportError:
     health = None
+try:
+    import bias
+except ImportError:
+    bias = None
 
 TAIPEI = ZoneInfo("Asia/Taipei")
 HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; personal-trading-dashboard/1.0)"}
@@ -1007,6 +1011,118 @@ def compute_opening_alerts(run_time, watchlist_out, official):
     return out, state
 
 
+# ---- 盤中多空判斷(公式在 bias.py,回測在 daytrade_lab.py 的 score_* 規則)----
+BIAS_ORB_MIN = 15          # 09:15 後才有開盤區間
+BIAS_ORB_LATE = 25         # 09:25 之後才第一次抓到就不記開盤區間
+BIAS_FROM, BIAS_TO = 15, 210   # 09:15 ~ 12:30 才給新進場方向(跟回測一致)
+BIAS_FADE_PCT = 2.0        # 跟 daytrade_lab.FADE_PCT 一致
+BIAS_VWAP_LAG = 14         # 均價線方向:跟大約 15 分鐘前比
+DAYTRADE_FILE = os.path.join(DATA_DIR, "daytrade.json")
+
+
+def _vwap_of(amt, vol):
+    """累積成交金額(億)÷ 累積量(張)= 當日均價。"""
+    return amt * 1e8 / (vol * 1000) if _num_ok(amt, vol) and amt > 0 and vol > 0 else None
+
+
+def _approx_vwap(pts, code, open_price):
+    """報價沒有成交金額時,用每輪快照估當日均價:每段新增量 × (上一輪價 + 這一輪價)/2。
+    pts 要按時間排好;第一段用開盤價當起點。5 分鐘一個點,只是近似值。"""
+    pv = vv = 0.0
+    prev_p, prev_v = open_price, 0.0
+    for p in pts:
+        last, vol = (p.get("wl") or {}).get(code), (p.get("wlv") or {}).get(code)
+        if not _num_ok(last, vol) or vol < prev_v:
+            continue
+        ref = (prev_p + last) / 2 if _num_ok(prev_p) else last
+        pv += (vol - prev_v) * ref
+        vv += vol - prev_v
+        prev_p, prev_v = last, vol
+    return pv / vv if vv > 0 else None
+
+
+def bias_rules():
+    """回測結果:每條 score_* 規則的停損停利與是否站得住。"""
+    rules = ((load_json_safe(DAYTRADE_FILE, {}) or {}).get("rules") or {})
+    out = {}
+    for k in ("score_long", "score_short", "score_long_80", "score_short_80", "fade_long", "fade_short"):
+        r = rules.get(k) or {}
+        b = r.get("best") or {}
+        out[k] = {"holds": bool(r.get("holds")), "stop": b.get("stop"), "target": b.get("target"),
+                  "test_avg": (b.get("test") or {}).get("avg"), "test_n": (b.get("test") or {}).get("n")}
+    return out
+
+
+def compute_bias(run_time, indices_out, watchlist_out):
+    """每檔自選股(不含ETF)的多空分數,給網頁「多空判斷」區塊。要在 update_history 之後呼叫。"""
+    if bias is None:
+        return None
+    m = (run_time - _day_start(run_time)).total_seconds() / 60
+    hist = load_json_safe(HISTORY_FILE, {}) or {}
+    if hist.get("date") != run_time.strftime("%Y-%m-%d"):
+        hist = {}
+    pts = hist.get("points") or []
+    cut = run_time.timestamp() - BIAS_VWAP_LAG * 60
+    prev_pt = None
+    for p in pts:
+        try:
+            if datetime.fromisoformat(p["t"]).timestamp() <= cut:
+                prev_pt = p
+        except (ValueError, KeyError, TypeError):
+            continue
+    orb = hist.get("orb") or {}
+    tse = next((q for q in indices_out if q["code"] == "TWS:TSE01:INDEX"), {})
+    tse_open = tse.get("open") or next((p["idx"].get("TWS:TSE01:INDEX") for p in pts if (p.get("idx") or {}).get("TWS:TSE01:INDEX")), None)
+    by_grp = {}
+    for q in watchlist_out:
+        g = GROUP_OF.get(q["code"])
+        if g and _num_ok(q.get("pct")):
+            by_grp.setdefault(g, []).append((q["code"], q["pct"]))
+    rules = bias_rules()
+    items = []
+    for q in watchlist_out:
+        code = q["code"]
+        if code.startswith("00") or not _num_ok(q.get("last"), q.get("prev_close")):
+            continue
+        others = [p for c, p in by_grp.get(GROUP_OF.get(code), []) if c != code]
+        vw = _vwap_of(q.get("amt"), q.get("volume"))
+        if vw:
+            vp = _vwap_of(*(((prev_pt or {}).get(k) or {}).get(code) for k in ("wla", "wlv"))) if prev_pt else None
+        else:
+            vw = _approx_vwap(pts, code, q.get("open"))
+            vp = _approx_vwap(pts[:pts.index(prev_pt) + 1], code, q.get("open")) if prev_pt else None
+        o = orb.get(code) or [None, None]
+        f = {"last": q["last"], "prev_close": q["prev_close"], "vwap": vw, "vwap_prev": vp, "orb_hi": o[0], "orb_lo": o[1],
+             "pace": q.get("pace"), "day_hi": q.get("high"), "day_lo": q.get("low"),
+             "mkt_pct": tse.get("pct"), "mkt_last": tse.get("last"), "mkt_open": tse_open,
+             "grp_pct": sum(others) / len(others) if others else None,
+             "up_lim": q.get("upper_limit"), "lo_lim": q.get("lower_limit")}
+        r = bias.score(f)
+        strong = abs(r["score"]) >= bias.STRONG
+        # 偏離反向(回測第二版):分數極端且離均價線 2% 以上時反著做,優先於順勢分數
+        dev = (q["last"] / vw - 1) * 100 if vw else 0
+        if strong and abs(dev) >= BIAS_FADE_PCT and dev * r["score"] > 0:
+            r["side"] = "short" if r["score"] > 0 else "long"
+            rk = "fade_" + r["side"]
+        elif r["side"]:
+            rk = ("score_long" if r["side"] == "long" else "score_short") + ("_80" if strong else "")
+        else:
+            continue
+        rule = rules.get(rk) or {}
+        sg = 1 if r["side"] == "long" else -1
+        stop_pct, tgt_pct = rule.get("stop"), rule.get("target")
+        items.append({"code": code, "name": q["name"], "side": r["side"], "score": r["score"], "strong": strong,
+                      "parts": r["parts"], "reasons": ([f"分數 {r['score']:+d} 極端", f"{'高' if dev > 0 else '低'}於均價線 {abs(dev):.1f}%,反向"] if rk.startswith("fade_")
+                                  else bias.reasons(r["parts"], r["side"])), "last": q["last"], "pct": q.get("pct"),
+                      "vwap": round(vw, 2) if vw else None,
+                      "stop": round(q["last"] * (1 - sg * stop_pct / 100), 2) if stop_pct else None,
+                      "target": round(q["last"] * (1 + sg * tgt_pct / 100), 2) if tgt_pct else None,
+                      "stop_pct": stop_pct, "target_pct": tgt_pct, "rule": rk, "holds": rule.get("holds", False)})
+    items.sort(key=lambda x: -abs(x["score"]))
+    return {"as_of": run_time.strftime("%H:%M"), "active": BIAS_FROM <= m <= BIAS_TO, "orb_t": hist.get("orb_t"),
+            "threshold": bias.THRESHOLD, "strong": bias.STRONG, "weights": bias.WEIGHTS, "rules": rules, "items": items}
+
+
 def update_history(run_time, indices_out, watchlist_out, opening_state=None):
     """把這次抓到的價格疊加進 data/intraday_history.json。
     只留「今天」的點(用台北日期判斷,跨到隔天自動重置),最多留 MAX_POINTS_PER_DAY 筆,
@@ -1042,6 +1158,12 @@ def update_history(run_time, indices_out, watchlist_out, opening_state=None):
         point["wla"] = wla   # 累積成交金額(億),資金流向優先用這個,比「量×價」準
     history["points"].append(point)
     history["points"] = history["points"][-MAX_POINTS_PER_DAY:]
+    # 開盤區間(09:00-09:15 高低):09:15 後第一輪記下當時的今日高低,之後不再改;
+    # 太晚才抓到(超過 BIAS_ORB_LATE 分鐘)就不記,避免把整個早盤當成開盤區間
+    m = (run_time - _day_start(run_time)).total_seconds() / 60
+    if "orb" not in history and BIAS_ORB_MIN <= m < BIAS_ORB_LATE:
+        history["orb"] = {q["code"]: [q["high"], q["low"]] for q in watchlist_out if _num_ok(q.get("high"), q.get("low"))}
+        history["orb_t"] = run_time.strftime("%H:%M")
     if opening_state is not None:
         history["opening"] = opening_state
 
@@ -1930,6 +2052,10 @@ def main():
         result["market_signal_stats"] = market_signal_stats()
     except Exception as e:  # noqa: BLE001  成績單/量能曲線是加分功能,不能影響報價
         print(f"[警告] 歷史/成績單/量能曲線處理失敗: {e}")
+    try:
+        result["bias"] = compute_bias(run_time, indices_out, watchlist_out)
+    except Exception as e:  # noqa: BLE001  多空判斷是加分功能,不能影響報價
+        print(f"[警告] 多空判斷失敗: {e}")
     result["amount_unit"] = amount_unit
     try:
         if lab is not None:
