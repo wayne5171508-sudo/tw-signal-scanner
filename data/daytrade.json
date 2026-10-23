@@ -1,5 +1,5 @@
 {
- "as_of": "2026-10-23T17:59:50.221310+08:00",
+ "as_of": "2026-10-24T00:50:53.972088+08:00",
  "stocks": 74,
  "first": "2026-07-29",
  "last": "2026-10-22",
@@ -27,7 +27,11 @@
       "stop": 701,
       "target": 181,
       "close": 356
-     }
+     },
+     "mdd": 13.87,
+     "worst_day": -1.3,
+     "lose_streak": 13,
+     "cum": -13.87
     },
     "test": {
      "n": 622,
@@ -42,7 +46,11 @@
       "stop": 329,
       "target": 86,
       "close": 207
-     }
+     },
+     "mdd": 6.78,
+     "worst_day": -1.19,
+     "lose_streak": 6,
+     "cum": -6.78
     },
     "all": {
      "n": 1860,
@@ -57,7 +65,11 @@
       "stop": 1030,
       "target": 267,
       "close": 563
-     }
+     },
+     "mdd": 20.66,
+     "worst_day": -1.3,
+     "lose_streak": 13,
+     "cum": -20.66
     }
    },
    "holds": false,
@@ -84,7 +96,11 @@
       "stop": 789,
       "target": 166,
       "close": 477
-     }
+     },
+     "mdd": 16.38,
+     "worst_day": -1.3,
+     "lose_streak": 6,
+     "cum": -15.44
     },
     "test": {
      "n": 789,
@@ -99,7 +115,11 @@
       "stop": 333,
       "target": 108,
       "close": 348
-     }
+     },
+     "mdd": 5.17,
+     "worst_day": -1.0,
+     "lose_streak": 10,
+     "cum": -3.24
     },
     "all": {
      "n": 2221,
@@ -114,7 +134,11 @@
       "stop": 1122,
       "target": 274,
       "close": 825
-     }
+     },
+     "mdd": 21.27,
+     "worst_day": -1.3,
+     "lose_streak": 10,
+     "cum": -18.68
     }
    },
    "holds": false,
@@ -141,7 +165,11 @@
       "stop": 133,
       "target": 280,
       "close": 90
-     }
+     },
+     "mdd": 6.64,
+     "worst_day": -2.8,
+     "lose_streak": 2,
+     "cum": 1.34
     },
     "test": {
      "n": 200,
@@ -156,7 +184,11 @@
       "stop": 69,
       "target": 100,
       "close": 31
-     }
+     },
+     "mdd": 8.16,
+     "worst_day": -2.8,
+     "lose_streak": 5,
+     "cum": -5.39
     },
     "all": {
      "n": 703,
@@ -171,7 +203,11 @@
       "stop": 202,
       "target": 380,
       "close": 121
-     }
+     },
+     "mdd": 11.33,
+     "worst_day": -2.8,
+     "lose_streak": 5,
+     "cum": -4.06
     }
    },
    "holds": false,
@@ -198,7 +234,11 @@
       "stop": 72,
       "target": 110,
       "close": 68
-     }
+     },
+     "mdd": 8.92,
+     "worst_day": -2.8,
+     "lose_streak": 4,
+     "cum": 3.87
     },
     "test": {
      "n": 164,
@@ -213,7 +253,11 @@
       "stop": 86,
       "target": 44,
       "close": 34
-     }
+     },
+     "mdd": 8.12,
+     "worst_day": -2.8,
+     "lose_streak": 4,
+     "cum": -2.96
     },
     "all": {
      "n": 414,
@@ -228,7 +272,11 @@
       "stop": 158,
       "target": 154,
       "close": 102
-     }
+     },
+     "mdd": 8.92,
+     "worst_day": -2.8,
+     "lose_streak": 4,
+     "cum": 0.91
     }
    },
    "holds": false,
@@ -255,7 +303,11 @@
       "stop": 672,
       "target": 152,
       "close": 450
-     }
+     },
+     "mdd": 13.34,
+     "worst_day": -1.3,
+     "lose_streak": 10,
+     "cum": -12.79
     },
     "test": {
      "n": 623,
@@ -270,7 +322,11 @@
       "stop": 333,
       "target": 54,
       "close": 236
-     }
+     },
+     "mdd": 9.51,
+     "worst_day": -1.28,
+     "lose_streak": 13,
+     "cum": -9.51
     },
     "all": {
      "n": 1897,
@@ -285,7 +341,11 @@
       "stop": 1005,
       "target": 206,
       "close": 686
-     }
+     },
+     "mdd": 22.31,
+     "worst_day": -1.3,
+     "lose_streak": 13,
+     "cum": -22.31
     }
    },
    "holds": false,
@@ -312,7 +372,11 @@
       "stop": 484,
       "target": 0,
       "close": 527
-     }
+     },
+     "mdd": 14.25,
+     "worst_day": -1.3,
+     "lose_streak": 11,
+     "cum": -11.1
     },
     "test": {
      "n": 563,
@@ -327,7 +391,11 @@
       "stop": 224,
       "target": 0,
       "close": 339
-     }
+     },
+     "mdd": 6.9,
+     "worst_day": -0.89,
+     "lose_streak": 13,
+     "cum": -3.12
     },
     "all": {
      "n": 1574,
@@ -342,7 +410,11 @@
       "stop": 708,
       "target": 0,
       "close": 866
-     }
+     },
+     "mdd": 20.92,
+     "worst_day": -1.3,
+     "lose_streak": 13,
+     "cum": -14.22
     }
    },
    "holds": false,
@@ -369,7 +441,11 @@
       "stop": 229,
       "target": 46,
       "close": 138
-     }
+     },
+     "mdd": 11.66,
+     "worst_day": -1.35,
+     "lose_streak": 5,
+     "cum": -10.94
     },
     "test": {
      "n": 165,
@@ -384,7 +460,11 @@
       "stop": 100,
       "target": 17,
       "close": 48
-     }
+     },
+     "mdd": 6.34,
+     "worst_day": -1.3,
+     "lose_streak": 5,
+     "cum": -5.99
     },
     "all": {
      "n": 578,
@@ -399,7 +479,11 @@
       "stop": 329,
       "target": 63,
       "close": 186
-     }
+     },
+     "mdd": 17.28,
+     "worst_day": -1.35,
+     "lose_streak": 5,
+     "cum": -16.93
     }
    },
    "holds": false,
@@ -426,7 +510,11 @@
       "stop": 140,
       "target": 32,
       "close": 76
-     }
+     },
+     "mdd": 8.07,
+     "worst_day": -1.31,
+     "lose_streak": 3,
+     "cum": -5.81
     },
     "test": {
      "n": 181,
@@ -441,7 +529,11 @@
       "stop": 119,
       "target": 18,
       "close": 44
-     }
+     },
+     "mdd": 4.24,
+     "worst_day": -1.3,
+     "lose_streak": 3,
+     "cum": -1.45
     },
     "all": {
      "n": 429,
@@ -456,7 +548,11 @@
       "stop": 259,
       "target": 50,
       "close": 120
-     }
+     },
+     "mdd": 11.76,
+     "worst_day": -1.31,
+     "lose_streak": 3,
+     "cum": -7.26
     }
    },
    "holds": false,
@@ -483,7 +579,11 @@
       "stop": 139,
       "target": 87,
       "close": 40
-     }
+     },
+     "mdd": 2.98,
+     "worst_day": -1.31,
+     "lose_streak": 3,
+     "cum": 6.17
     },
     "test": {
      "n": 197,
@@ -498,7 +598,11 @@
       "stop": 120,
       "target": 47,
       "close": 30
-     }
+     },
+     "mdd": 3.19,
+     "worst_day": -1.3,
+     "lose_streak": 3,
+     "cum": -1.94
     },
     "all": {
      "n": 463,
@@ -513,7 +617,11 @@
       "stop": 259,
       "target": 134,
       "close": 70
-     }
+     },
+     "mdd": 3.67,
+     "worst_day": -1.31,
+     "lose_streak": 3,
+     "cum": 4.24
     }
    },
    "holds": false,
@@ -540,7 +648,11 @@
       "stop": 681,
       "target": 314,
       "close": 225
-     }
+     },
+     "mdd": 11.22,
+     "worst_day": -1.17,
+     "lose_streak": 14,
+     "cum": -10.82
     },
     "test": {
      "n": 551,
@@ -555,7 +667,11 @@
       "stop": 298,
       "target": 138,
       "close": 115
-     }
+     },
+     "mdd": 6.45,
+     "worst_day": -1.19,
+     "lose_streak": 4,
+     "cum": -6.45
     },
     "all": {
      "n": 1771,
@@ -570,7 +686,11 @@
       "stop": 979,
       "target": 452,
       "close": 340
-     }
+     },
+     "mdd": 17.58,
+     "worst_day": -1.19,
+     "lose_streak": 14,
+     "cum": -17.27
     }
    },
    "holds": false,
@@ -597,7 +717,11 @@
       "stop": 423,
       "target": 130,
       "close": 413
-     }
+     },
+     "mdd": 9.21,
+     "worst_day": -1.8,
+     "lose_streak": 4,
+     "cum": -7.27
     },
     "test": {
      "n": 577,
@@ -612,7 +736,11 @@
       "stop": 143,
       "target": 113,
       "close": 321
-     }
+     },
+     "mdd": 3.27,
+     "worst_day": -0.87,
+     "lose_streak": 4,
+     "cum": 1.45
     },
     "all": {
      "n": 1543,
@@ -627,7 +755,11 @@
       "stop": 566,
       "target": 243,
       "close": 734
-     }
+     },
+     "mdd": 11.93,
+     "worst_day": -1.8,
+     "lose_streak": 4,
+     "cum": -5.82
     }
    },
    "holds": false,
@@ -654,7 +786,11 @@
       "stop": 420,
       "target": 181,
       "close": 156
-     }
+     },
+     "mdd": 12.53,
+     "worst_day": -1.3,
+     "lose_streak": 11,
+     "cum": -12.53
     },
     "test": {
      "n": 348,
@@ -669,7 +805,11 @@
       "stop": 199,
       "target": 82,
       "close": 67
-     }
+     },
+     "mdd": 6.88,
+     "worst_day": -1.32,
+     "lose_streak": 4,
+     "cum": -6.88
     },
     "all": {
      "n": 1105,
@@ -684,7 +824,11 @@
       "stop": 619,
       "target": 263,
       "close": 223
-     }
+     },
+     "mdd": 19.41,
+     "worst_day": -1.32,
+     "lose_streak": 11,
+     "cum": -19.41
     }
    },
    "holds": false,
@@ -711,7 +855,11 @@
       "stop": 268,
       "target": 219,
       "close": 74
-     }
+     },
+     "mdd": 5.56,
+     "worst_day": -0.99,
+     "lose_streak": 7,
+     "cum": -5.44
     },
     "test": {
      "n": 388,
@@ -726,7 +874,11 @@
       "stop": 119,
       "target": 222,
       "close": 47
-     }
+     },
+     "mdd": 3.9,
+     "worst_day": -1.3,
+     "lose_streak": 6,
+     "cum": -2.65
     },
     "all": {
      "n": 949,
@@ -741,7 +893,11 @@
       "stop": 387,
       "target": 441,
       "close": 121
-     }
+     },
+     "mdd": 9.34,
+     "worst_day": -1.3,
+     "lose_streak": 7,
+     "cum": -8.09
     }
    },
    "holds": false,
@@ -768,7 +924,11 @@
       "stop": 577,
       "target": 126,
       "close": 349
-     }
+     },
+     "mdd": 16.24,
+     "worst_day": -1.34,
+     "lose_streak": 6,
+     "cum": -16.07
     },
     "test": {
      "n": 473,
@@ -783,7 +943,11 @@
       "stop": 265,
       "target": 50,
       "close": 158
-     }
+     },
+     "mdd": 10.06,
+     "worst_day": -1.3,
+     "lose_streak": 5,
+     "cum": -10.06
     },
     "all": {
      "n": 1525,
@@ -798,7 +962,11 @@
       "stop": 842,
       "target": 176,
       "close": 507
-     }
+     },
+     "mdd": 26.14,
+     "worst_day": -1.34,
+     "lose_streak": 6,
+     "cum": -26.14
     }
    },
    "holds": false,
@@ -825,7 +993,11 @@
       "stop": 370,
       "target": 70,
       "close": 254
-     }
+     },
+     "mdd": 7.2,
+     "worst_day": -1.3,
+     "lose_streak": 5,
+     "cum": -4.74
     },
     "test": {
      "n": 427,
@@ -840,7 +1012,11 @@
       "stop": 177,
       "target": 29,
       "close": 221
-     }
+     },
+     "mdd": 7.56,
+     "worst_day": -1.3,
+     "lose_streak": 7,
+     "cum": -5.82
     },
     "all": {
      "n": 1121,
@@ -855,7 +1031,11 @@
       "stop": 547,
       "target": 99,
       "close": 475
-     }
+     },
+     "mdd": 14.15,
+     "worst_day": -1.3,
+     "lose_streak": 7,
+     "cum": -10.56
     }
    },
    "holds": false,
@@ -882,7 +1062,11 @@
       "stop": 44,
       "target": 77,
       "close": 84
-     }
+     },
+     "mdd": 4.19,
+     "worst_day": -2.8,
+     "lose_streak": 3,
+     "cum": -1.12
     },
     "test": {
      "n": 157,
@@ -897,7 +1081,11 @@
       "stop": 44,
       "target": 44,
       "close": 69
-     }
+     },
+     "mdd": 4.71,
+     "worst_day": -2.24,
+     "lose_streak": 4,
+     "cum": -3.28
     },
     "all": {
      "n": 362,
@@ -912,7 +1100,11 @@
       "stop": 88,
       "target": 121,
       "close": 153
-     }
+     },
+     "mdd": 7.39,
+     "worst_day": -2.8,
+     "lose_streak": 4,
+     "cum": -4.4
     }
    },
    "holds": false,
@@ -939,7 +1131,11 @@
       "stop": 74,
       "target": 0,
       "close": 282
-     }
+     },
+     "mdd": 3.41,
+     "worst_day": -2.8,
+     "lose_streak": 5,
+     "cum": 16.63
     },
     "test": {
      "n": 118,
@@ -954,7 +1150,11 @@
       "stop": 25,
       "target": 0,
       "close": 93
-     }
+     },
+     "mdd": 2.03,
+     "worst_day": -1.42,
+     "lose_streak": 1,
+     "cum": 16.33
     },
     "all": {
      "n": 474,
@@ -969,12 +1169,154 @@
       "stop": 99,
       "target": 0,
       "close": 375
-     }
+     },
+     "mdd": 3.41,
+     "worst_day": -2.8,
+     "lose_streak": 5,
+     "cum": 32.95
     }
    },
    "holds": false,
    "tested": 12,
    "n_positive_train": 4
+  },
+  "rsi_vol_now": {
+   "name": "RSI超賣爆量立刻買",
+   "side": "long",
+   "desc": "09:15-12:30 第一次 5 分K RSI(14) < 30 且量 >= 前 20 根平均 2 倍,下一根買",
+   "best": {
+    "stop": 1.5,
+    "target": 1.0,
+    "train": {
+     "n": 249,
+     "days": 39,
+     "avg": -0.305,
+     "win": 48.6,
+     "t": -1.9,
+     "avg_win": 0.62,
+     "avg_loss": 1.18,
+     "payoff": 0.53,
+     "exits": {
+      "stop": 57,
+      "target": 103,
+      "close": 89
+     },
+     "mdd": 9.58,
+     "worst_day": -1.8,
+     "lose_streak": 5,
+     "cum": -7.99
+    },
+    "test": {
+     "n": 208,
+     "days": 20,
+     "avg": -0.73,
+     "win": 29.3,
+     "t": -2.07,
+     "avg_win": 0.63,
+     "avg_loss": 1.29,
+     "payoff": 0.48,
+     "exits": {
+      "stop": 77,
+      "target": 52,
+      "close": 79
+     },
+     "mdd": 6.58,
+     "worst_day": -1.8,
+     "lose_streak": 6,
+     "cum": -6.58
+    },
+    "all": {
+     "n": 457,
+     "days": 59,
+     "avg": -0.499,
+     "win": 39.8,
+     "t": -2.78,
+     "avg_win": 0.62,
+     "avg_loss": 1.24,
+     "payoff": 0.5,
+     "exits": {
+      "stop": 134,
+      "target": 155,
+      "close": 168
+     },
+     "mdd": 16.1,
+     "worst_day": -1.8,
+     "lose_streak": 6,
+     "cum": -14.57
+    }
+   },
+   "holds": false,
+   "tested": 12,
+   "n_positive_train": 0
+  },
+  "rsi_vol_reclaim": {
+   "name": "RSI超賣爆量站回才買",
+   "side": "long",
+   "desc": "同上的訊號 K 之後 6 根內收盤站上訊號 K 最高價才買;先跌破訊號 K 最低價就放棄",
+   "best": {
+    "stop": 1.0,
+    "target": null,
+    "train": {
+     "n": 40,
+     "days": 24,
+     "avg": -0.193,
+     "win": 35.0,
+     "t": -1.06,
+     "avg_win": 1.4,
+     "avg_loss": 1.05,
+     "payoff": 1.33,
+     "exits": {
+      "stop": 17,
+      "target": 0,
+      "close": 23
+     },
+     "mdd": 10.11,
+     "worst_day": -1.3,
+     "lose_streak": 6,
+     "cum": -7.21
+    },
+    "test": {
+     "n": 27,
+     "days": 13,
+     "avg": -0.368,
+     "win": 22.2,
+     "t": -0.84,
+     "avg_win": 1.35,
+     "avg_loss": 0.86,
+     "payoff": 1.57,
+     "exits": {
+      "stop": 9,
+      "target": 0,
+      "close": 18
+     },
+     "mdd": 4.19,
+     "worst_day": -1.3,
+     "lose_streak": 4,
+     "cum": -3.1
+    },
+    "all": {
+     "n": 67,
+     "days": 37,
+     "avg": -0.263,
+     "win": 29.9,
+     "t": -1.34,
+     "avg_win": 1.39,
+     "avg_loss": 0.97,
+     "payoff": 1.44,
+     "exits": {
+      "stop": 26,
+      "target": 0,
+      "close": 41
+     },
+     "mdd": 13.15,
+     "worst_day": -1.3,
+     "lose_streak": 6,
+     "cum": -10.31
+    }
+   },
+   "holds": false,
+   "tested": 12,
+   "n_positive_train": 0
   }
  },
  "method": "5分K,觸發後下一根開盤成交;同根同時碰停損停利算停損;13:20 那根收盤強制出場;前 2/3 交易日挑參數,後 1/3 驗證",
@@ -990,7 +1332,7 @@
   "days": 59,
   "first": "2026-07-29",
   "last": "2026-10-22",
-  "saved_now": 59,
+  "saved_now": 0,
   "added_beyond_yahoo": 0
  }
 }

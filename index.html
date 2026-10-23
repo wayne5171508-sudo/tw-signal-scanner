@@ -1829,7 +1829,7 @@ function dtLive(dt){
     : ks.map(k => {
       const r = lv.rules[k], bt = r.backtest_test_avg;
       return `<div class="bsig" style="padding:6px 0"><div class="l1" style="font-size:12.5px"><span><b>${bearEsc(r.name)}</b> <small style="color:var(--muted)">${r.n} 筆/${r.days} 天</small></span><b class="${r.avg > 0 ? 'up' : 'down'}">${bearPct(r.avg)}</b></div>
-        <div class="l2"><span>勝率 ${r.win}%</span>${r.slip != null ? `<span>滑價 ${bearPct(r.slip)}</span>` : ''}${bt != null ? `<span>回測預期 ${bearPct(bt)}</span>` : ''}</div></div>`;
+        <div class="l2"><span>勝率 ${r.win}%</span>${r.mdd != null ? `<span>最大回撤 ${r.mdd}%</span>` : ''}${r.slip != null ? `<span>滑價 ${bearPct(r.slip)}</span>` : ''}${bt != null ? `<span>回測預期 ${bearPct(bt)}</span>` : ''}</div></div>`;
     }).join('');
   return `<div class="rvsub" style="font-size:12.5px;margin:10px 0 2px"><b>盤中實際成績</b>${lv.n ? `<small style="color:var(--muted)">・${(lv.first || '').slice(5)} ~ ${(lv.last || '').slice(5)},共 ${lv.n} 筆</small>` : ''}</div>
     <div>${body}</div>
@@ -1855,12 +1855,12 @@ function renderDaytrade(dt){
     const r = dt.rules[k], b = r.best || {}, tr = b.train || {}, te = b.test || {};
     const gross = te.avg == null ? null : te.avg + (dt.cost_pct || 0);
     return `<div class="bsig"><div class="l1"><span><b>${bearEsc(r.name)}</b> <small style="color:var(--muted)">${r.side === 'long' ? '做多' : '做空'}</small></span><span class="bst ${r.holds ? 'active' : 'inactive'}">${r.holds ? '站得住' : '沒有優勢'}</span></div>
-      <div class="l2"><span>訓練 ${bearPct(tr.avg)}</span><span>驗證 <b class="${te.avg > 0 ? 'up' : 'down'}">${bearPct(te.avg)}</b></span><span>扣成本前 ${bearPct(gross)}</span><span>勝率 ${te.win == null ? '-' : te.win + '%'}</span><span>損益比 ${te.payoff == null ? '-' : te.payoff}</span><span>${te.n || 0} 筆</span></div>
+      <div class="l2"><span>訓練 ${bearPct(tr.avg)}</span><span>驗證 <b class="${te.avg > 0 ? 'up' : 'down'}">${bearPct(te.avg)}</b></span><span>扣成本前 ${bearPct(gross)}</span><span>勝率 ${te.win == null ? '-' : te.win + '%'}</span><span>損益比 ${te.payoff == null ? '-' : te.payoff}</span><span>最大回撤 ${te.mdd == null ? '-' : te.mdd + '%'}</span><span>${te.n || 0} 筆</span></div>
       <div class="onote" style="margin-top:2px">${bearEsc(r.desc)}。最佳參數:${b.stop ? dtExit(b) : '-'}</div></div>`;
   }).join('');
   el.className = 'sigbox';
   el.innerHTML = `<div class="sh"><b>當沖規則實驗室</b><small>${(dt.first || '').slice(5)} ~ ${(dt.last || '').slice(5)}・${dt.stocks} 檔・${dt.days} 天</small></div>
-    <div class="onote" style="margin:0 0 4px">用 5 分K 回測 ${keys.length} 種常見當沖規則,每種試 12 組停損停利。觸發後下一根開盤價成交,同一根同時碰到停損停利一律算停損,13:20 強制出場,每筆扣 ${dt.cost_pct}% 來回成本(手續費打 6 折 + 當沖證交稅)。前 2/3 天挑參數,${(dt.train_until || '').slice(5)} 起只用來驗證。兩段扣成本後都賺錢、t 值都 ≥ 2 才算站得住。目前站得住:<b>${pass.length} 條</b>。</div>
+    <div class="onote" style="margin:0 0 4px">用 5 分K 回測 ${keys.length} 種常見當沖規則,每種試 12 組停損停利。觸發後下一根開盤價成交,同一根同時碰到停損停利一律算停損,13:20 強制出場,每筆扣 ${dt.cost_pct}% 來回成本(手續費打 6 折 + 當沖證交稅)。前 2/3 天挑參數,${(dt.train_until || '').slice(5)} 起只用來驗證。兩段扣成本後都賺錢、t 值都 ≥ 2 才算站得住。最大回撤=假設每天把資金平均分給當天所有訊號,資金曲線從最高點最多回落幾 %(驗證段)。目前站得住:<b>${pass.length} 條</b>。</div>
     ${rows}
     ${dtLive(dt)}
     <div class="onote">「扣成本前」接近 0 或為負,代表規則本身就沒賺頭;為正但扣成本後變負,代表賺的不夠付手續費和稅。每天收盤後用最新約 60 個交易日重算。${bearEsc(dt.note || '')}</div>`;
