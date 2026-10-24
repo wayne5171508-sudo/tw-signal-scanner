@@ -982,6 +982,7 @@ function levelChips(q, isIndex){
     </div>
     ${(dRes !== null && dSup !== null && dRes > 0 && dSup > 0) ? `<div class="lvrr"><div class="rrbar"><i class="rrdn" style="width:${dSup / (dRes + dSup) * 100}%"></i><i class="rrup" style="width:${dRes / (dRes + dSup) * 100}%"></i></div><div class="rrft"><span class="down">下行風險 -${dSup.toFixed(1)}%</span><span>損益比 ${(dRes / dSup).toFixed(1)}:1</span><span class="up">上行空間 +${dRes.toFixed(1)}%</span></div></div>` : ''}
     ${brokeNote ? `<div class="lvhint">${brokeNote}</div>` : ''}
+    ${q.ex_today ? `<div class="lvhint">今天除權息/減資(參考價是前一日收盤的 ${(q.ex_today * 100).toFixed(1)}%),支撐壓力與均線已依參考價還原計算。</div>` : ''}
     ${!isIndex ? levelWhy(q) : ''}`;
 }
 
