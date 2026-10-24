@@ -28,7 +28,8 @@
   同一根 K 同時碰到停損和停利,一律當作先停損(保守);跳空越過停損,用該根開盤價出。
 成本:來回 COST_PCT(手續費買賣各 0.1425% 打 6 折 + 當沖證交稅 0.15%,約 0.3%)。
 判斷:前 TRAIN_FRAC 交易日挑參數(訓練),之後只用來驗證。
-  「有優勢」= 訓練段和驗證段扣成本後平均都 > 0,而且以「天」為單位的 t 值都 >= 2,驗證段至少 30 筆。
+  「有優勢」= 訓練段和驗證段扣成本後平均都 > 0,而且以「天」為單位的 t 值都 >= 2,驗證段至少 30 筆;
+  而且同一組參數拿到「成交值前 200 大裡不在自選股的股票」驗證段也要賺錢(t >= 1、至少 30 筆),避免只是剛好適合自選股。
   另外算最大回撤(每天資金平均分給當天訊號、依日期累加的資金曲線從高點回落多少 %)、最差一天、最長連虧天數。
 
 產出:data/daytrade.json。這是歷史統計,不是預測,也不是買賣建議。
@@ -37,6 +38,7 @@
 import gzip
 import json
 import os
+import re
 import statistics as stx
 import sys
 import time
@@ -47,7 +49,8 @@ import requests
 import bear_signals as bs
 import bias
 import lab
-from intraday import BIAS_LOG_FILE, DATA_DIR, GROUP_OF, HISTORY_FILE, TAIPEI, load_json_safe, log_bias_day, write_json_atomic
+from intraday import (BIAS_LOG_FILE, DATA_DIR, GROUP_OF, HISTORY_FILE, TAIPEI, TPEX_ALL_URL, TWSE_ALL_URL, UNIVERSE_HEADERS,
+                      load_json_safe, log_bias_day, write_json_atomic)
 
 OUT_FILE = os.path.join(DATA_DIR, "daytrade.json")
 BARS_DIR = os.path.join(DATA_DIR, "bars5m")   # 每天一個 .json.gz,永久保存;Yahoo 只給最近 60 天,靠這裡讓樣本越累積越多
@@ -214,16 +217,17 @@ def _unpack(rows, with_vol=True):
     return [dict(zip(keys, r)) for r in rows]
 
 
-def load_bars_archive():
+def load_bars_archive(bars_dir=None):
     """回傳 {日期: {"stocks": {code: {"pd","pc","b"}}, "idx": [...]}}。壞掉的檔案跳過。"""
+    bars_dir = bars_dir or BARS_DIR
     out = {}
-    if not os.path.isdir(BARS_DIR):
+    if not os.path.isdir(bars_dir):
         return out
-    for fn in sorted(os.listdir(BARS_DIR)):
+    for fn in sorted(os.listdir(bars_dir)):
         if not fn.endswith(".json.gz"):
             continue
         try:
-            with gzip.open(os.path.join(BARS_DIR, fn), "rt", encoding="utf-8") as f:
+            with gzip.open(os.path.join(bars_dir, fn), "rt", encoding="utf-8") as f:
                 day = json.load(f)
             out[day["date"]] = day
         except (OSError, ValueError, KeyError) as e:
@@ -231,10 +235,11 @@ def load_bars_archive():
     return out
 
 
-def save_bars_day(d, data, closes, idx_days):
+def save_bars_day(d, data, closes, idx_days, bars_dir=None):
     """把某一天(已收盤、K 棒完整)的 5 分K 存檔。每檔一併記下前一交易日日期與收盤(pd/pc),
     之後就算 Yahoo 因為除權息往回調整價格,存檔的那天仍然自己一致。已存在就不覆蓋。"""
-    path = os.path.join(BARS_DIR, f"{d}.json.gz")
+    bars_dir = bars_dir or BARS_DIR
+    path = os.path.join(bars_dir, f"{d}.json.gz")
     if os.path.exists(path):
         return False
     stocks = {}
@@ -246,7 +251,7 @@ def save_bars_day(d, data, closes, idx_days):
             stocks[code] = {"pd": pd, "pc": pc[pd], "b": [_round_bar(b) for b in bars]}
     if len(stocks) < bs.MIN_UNIVERSE:
         return False
-    os.makedirs(BARS_DIR, exist_ok=True)
+    os.makedirs(bars_dir, exist_ok=True)
     body = {"date": d, "source": "Yahoo Finance 5m", "stocks": stocks,
             "idx": [_round_bar({k: v for k, v in b.items() if k != "v"}) for b in idx_days.get(d) or []]}
     tmp = path + ".tmp"
@@ -269,6 +274,105 @@ def merge_archive(data, closes, idx_days, archive):
         if day.get("idx") and d not in idx_days:
             idx_days[d] = _unpack(day["idx"], with_vol=False)
     return added
+
+
+# ---------- 成交值前 200 大:交叉驗證用的第二組股票 ----------
+TOP_N = 200
+TOP_FILE = os.path.join(DATA_DIR, "top_universe.json")
+BARS_DIR_TOP = os.path.join(DATA_DIR, "bars5m_top")   # 前 200 大(不含自選股)的 5 分K,每天一檔,永久保存
+BARS1M_DIR = os.path.join(DATA_DIR, "bars1m")         # 1 分K:只在排程機器上產生,由 bear.yml 推到 data-archive 分支(不進網站)
+TOP_MIN_TEST_N = 30
+TOP_T_MIN = 1.0       # 換一批股票只要求方向一致且不是雜訊(t >= 1),主要門檻已經在自選股驗證過
+
+
+def rank_top(twse_rows, tpex_rows, n=TOP_N):
+    """依前一交易日成交值排出前 n 名普通股(四碼、不是 0 開頭,也就是不含 ETF、權證)。回傳 [(code, name, 成交值)]。"""
+    rows = []
+    for data, ck, nk, vk in ((twse_rows, "Code", "Name", "TradeValue"), (tpex_rows, "SecuritiesCompanyCode", "CompanyName", "TransactionAmount")):
+        for r in data or []:
+            c = str(r.get(ck) or "").strip()
+            try:
+                v = float(str(r.get(vk) or "0").replace(",", ""))
+            except ValueError:
+                continue
+            if re.fullmatch(r"[1-9]\d{3}", c) and v > 0:
+                rows.append((c, str(r.get(nk) or "").strip(), v))
+    rows.sort(key=lambda x: -x[2])
+    return rows[:n]
+
+
+def fetch_top_universe(today):
+    """每天更新一次 data/top_universe.json;官方來源抓不到就沿用舊名單。"""
+    cur = load_json_safe(TOP_FILE, {}) or {}
+    if cur.get("date") == today and len(cur.get("codes") or []) >= TOP_N * 0.75:
+        return cur
+    got = {}
+    for key, url in (("twse", TWSE_ALL_URL), ("tpex", TPEX_ALL_URL)):
+        try:
+            r = requests.get(url, headers=UNIVERSE_HEADERS, timeout=20)
+            got[key] = r.json()
+        except Exception:  # noqa: BLE001
+            got[key] = None
+    if got.get("twse") is None or got.get("tpex") is None:
+        return cur
+    top = rank_top(got["twse"], got["tpex"])
+    if len(top) < TOP_N * 0.75:
+        return cur
+    out = {"date": today, "basis": "前一交易日成交值", "codes": [c for c, _, _ in top], "names": {c: nm for c, nm, _ in top}}
+    write_json_atomic(TOP_FILE, out, indent=1)
+    return out
+
+
+def fetch_1m(codes, ev):
+    """Yahoo 1 分K(只給最近約 7 天)。回傳 {日期: {code: [[t,o,h,l,c,v], ...]}},只留 K 棒數夠的日子(>= 240 根)。"""
+    out, started = {}, time.time()
+    for code in codes:
+        if time.time() - started > bs.YAHOO_BUDGET_SECONDS:
+            break
+        _, res = bs._yahoo(code, {"interval": "1m", "range": "7d"}, (ev.get(code) or {}).get("suf"))
+        if not res:
+            continue
+        q = res["indicators"]["quote"][0]
+        days = {}
+        for i, t in enumerate(res["timestamp"]):
+            o, h, l, c = q["open"][i], q["high"][i], q["low"][i], q["close"][i]
+            if o and h and l and c:
+                dt_ = datetime.fromtimestamp(t, TAIPEI)
+                days.setdefault(dt_.strftime("%Y-%m-%d"), []).append([dt_.strftime("%H:%M"), round(o, 4), round(h, 4), round(l, 4), round(c, 4), int(q["volume"][i] or 0)])
+        for d, rows in days.items():
+            if len(rows) >= 240:
+                out.setdefault(d, {})[code] = rows
+        time.sleep(0.15)
+    return out
+
+
+def save_1m(days, today, after_close):
+    """每天一個 data/bars1m/日期.json.gz(排程機器上),已收盤的完整交易日才存。回傳存了哪些日期。"""
+    os.makedirs(BARS1M_DIR, exist_ok=True)
+    saved = []
+    for d, stocks in sorted(days.items()):
+        if (d < today or after_close) and len(stocks) >= bs.MIN_UNIVERSE:
+            with gzip.open(os.path.join(BARS1M_DIR, f"{d}.json.gz"), "wt", encoding="utf-8") as f:
+                json.dump({"date": d, "source": "Yahoo Finance 1m", "stocks": stocks}, f, separators=(",", ":"))
+            saved.append(d)
+    return saved
+
+
+def cross_check(res, trades_top, split):
+    """自選股選出的最佳參數,原封不動拿到「前 200 大裡不在自選股的股票」再測一次。
+    寫進 res[rule]["top"],並把 holds 改成「自選股站得住 且 前 200 大驗證段也賺錢(t >= 1)」。"""
+    for rule, r in (res or {}).items():
+        r["holds_watch"] = r["holds"]
+        b = r.get("best")
+        if not b or trades_top is None:
+            r["top"] = None
+            continue
+        rows = trades_top.get((rule, b["stop"], b["target"])) or []
+        te = _stats([x for x in rows if split and x[0] >= split])
+        r["top"] = {"all": _stats(rows), "test": te}
+        ok = te.get("n", 0) >= TOP_MIN_TEST_N and te.get("avg", 0) > 0 and (te.get("t") or 0) >= TOP_T_MIN
+        r["holds"] = bool(r["holds_watch"] and ok)
+    return res
 
 
 # ---------- 盤中觸發的實際成績 ----------
@@ -620,6 +724,30 @@ def main():
     ctx = score_context(data, closes, idx_days)
     trades = trades_for(data, closes, bear_prev, ctx)
     res, all_days, split = evaluate(trades)
+
+    # 交叉驗證:成交值前 200 大裡不在自選股的股票,用同一組參數再測一次(5 分K 也每天存檔,樣本會累積)
+    top_info, trades_top, top_n, top_days, ev_top = fetch_top_universe(today), None, 0, 0, {}
+    top_codes = [c for c in (top_info.get("codes") or []) if c not in bs.WATCHLIST_NAMES]
+    try:
+        if top_codes and res:
+            ev_top, _, closes_top = bs.fetch_corp_actions(top_codes, run_time)
+            data_top = fetch_5m(top_codes, ev_top)
+            for d in sorted({d for days in data_top.values() for d in days if d < today or after_close}):
+                save_bars_day(d, data_top, closes_top, {}, BARS_DIR_TOP)
+            merge_archive(data_top, closes_top, {}, load_bars_archive(BARS_DIR_TOP))
+            trades_top = trades_for(data_top, closes_top, {}, score_context(data_top, closes_top, idx_days))
+            top_n, top_days = len(data_top), len({d for days in data_top.values() for d in days})
+    except Exception as e:  # noqa: BLE001  交叉驗證失敗時只用自選股的結果,並在輸出標示
+        print(f"[警告] 前 200 大交叉驗證失敗: {e}")
+        trades_top = None
+    cross_check(res, trades_top, split)
+
+    # 1 分K:自選股 + 前 200 大,存在排程機器上,由 bear.yml 推到 data-archive 分支(Yahoo 只給 7 天,每天存才會累積)
+    try:
+        saved_1m = save_1m(fetch_1m(codes + top_codes, {**ev, **ev_top}), today, after_close)
+    except Exception as e:  # noqa: BLE001
+        print(f"[警告] 1 分K 存檔失敗: {e}")
+        saved_1m = []
     out = {
         "as_of": run_time.isoformat(),
         "stocks": len(data),
@@ -629,6 +757,9 @@ def main():
         "train_until": split,
         "cost_pct": COST_PCT,
         "rules": res,
+        "top_universe": {"date": top_info.get("date"), "basis": top_info.get("basis"), "stocks": top_n, "days": top_days,
+                         "checked": trades_top is not None, "min_test_n": TOP_MIN_TEST_N, "t_min": TOP_T_MIN},
+        "bars1m_saved": saved_1m,
         "method": "5分K,觸發後下一根開盤成交;同根同時碰停損停利算停損;13:20 那根收盤強制出場;前 2/3 交易日挑參數,後 1/3 驗證",
         "note": "歷史統計,不是預測,不構成買賣建議。當沖風險高,實際成交會有滑價。",
     }
