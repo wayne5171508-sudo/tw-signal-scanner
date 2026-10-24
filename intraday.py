@@ -29,7 +29,7 @@ import os
 import random
 import re
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import requests
@@ -98,7 +98,10 @@ INDICES = [
     ("GI:IXIC:INDEX", "NASDAQ"),
     ("GI:INX:INDEX", "S&P500"),
     ("GI:SOX:INDEX", "費城半導體"),
+    ("TWF:TXF:FUTURES", "台指期"),   # 近月台指期(含夜盤),看開盤方向;網頁另外算期現價差
 ]
+TW_TIME_CODES = ("TWS:TSE01:INDEX", "TWS:OTC01:INDEX")   # 「報價時間」只看台股(美股、夜盤時間會比台股收盤晚)
+TRADE_FLAGS_FILE = os.path.join(DATA_DIR, "trade_flags.json")
 
 # 自選股(代碼: 名稱)—— 來源:阿文國泰證券App自選股6個分頁彙整(皇太后、行動自選1~5),2026-10-15
 WATCHLIST_NAMES = {
@@ -2045,6 +2048,27 @@ def end_of_day_extras(run_time, indices_out, watchlist_out, regime_today):
             print(f"[警告] 策略驗證失敗: {e}")
 
 
+def load_trade_flags(run_time):
+    """當沖資格與處置/注意股:每個交易日第一輪向證交所/櫃買抓一次(tradeflags.py),之後讀 data/trade_flags.json。
+    抓失敗不影響報價,沿用舊檔並在網頁標示資料日期。"""
+    today = run_time.strftime("%Y-%m-%d")
+    cur = load_json_safe(TRADE_FLAGS_FILE, {}) or {}
+    if cur.get("date") == today and not any(v == "fail" for v in (cur.get("status") or {}).values()):
+        return cur
+    if cur.get("date") == today and cur.get("retry_at") and run_time.isoformat() < cur["retry_at"]:
+        return cur
+    try:
+        import tradeflags
+        new = tradeflags.fetch_flags(list(WATCHLIST_NAMES), today)
+        if any(v == "fail" for v in new["status"].values()):
+            new["retry_at"] = (run_time + timedelta(minutes=30)).isoformat()   # 有來源失敗,30 分鐘後再試
+        write_json_atomic(TRADE_FLAGS_FILE, new, indent=1)
+        return new
+    except Exception as e:  # noqa: BLE001  交易限制是加分資料
+        print(f"[警告] 當沖資格/處置股資料抓取失敗: {e}")
+        return cur
+
+
 def main():
     run_time = taipei_now()
 
@@ -2089,10 +2113,14 @@ def main():
         print(f"[警告] 正式日K更新失敗,改用舊記錄: {e}")
         official = {}
     touch_summary = build_levels(watchlist_out, prev_bars, history_days, official, run_time.strftime("%Y-%m-%d"))
+    trade_flags = load_trade_flags(run_time)
+    for q in watchlist_out:
+        q["flags"] = (trade_flags.get("flags") or {}).get(q["code"])
 
-    # 資料實際代表的時間(取所有報價裡最新的時間戳;指數報價偶爾會停在幾分鐘前),跟程式執行時間分開揭露
+    # 資料實際代表的時間(取台股報價裡最新的時間戳;指數報價偶爾會停在幾分鐘前),跟程式執行時間分開揭露。
+    # 不算美股指數與台指期:它們收盤/夜盤時間比台股晚,週末或收盤後會讓「報價時間」看起來比實際新。
     data_ts = None
-    for q in indices_out + watchlist_out:
+    for q in [x for x in indices_out if x["code"] in TW_TIME_CODES] + watchlist_out:
         if q.get("ts") and (data_ts is None or q["ts"] > data_ts):
             data_ts = q["ts"]
     data_as_of = (
@@ -2121,6 +2149,7 @@ def main():
         "market_regime": (touch_summary or {}).get("regime_today"),
         "indices": indices_out,
         "watchlist_quotes": watchlist_out,
+        "trade_flags": {k: trade_flags.get(k) for k in ("date", "fetched_at", "daytrade_list_date", "status", "note")},
     }
 
     os.makedirs(DATA_DIR, exist_ok=True)
