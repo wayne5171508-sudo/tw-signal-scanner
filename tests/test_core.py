@@ -547,3 +547,30 @@ def test_health_new_pipelines(tmp_path, monkeypatch):
     _write(d, "daytrade.json", {"archive": {"last": "2026-10-27"}})
     items = {i["key"]: i for i in health.run(dt.datetime(2026, 10, 27, 18, 30, tzinfo=TPE))["items"]}
     assert items["daytrade"]["ok"]
+
+
+def test_tradeflags_parsing_and_build():
+    import tradeflags as tf
+    assert tf.roc_to_iso("1151027") == "2026-10-27" and tf.roc_to_iso("115/10/21") == "2026-10-21" and tf.roc_to_iso("20261022") == "2026-10-22"
+    assert tf.period_range("115/10/21～115/10/28") == ("2026-10-21", "2026-10-28")
+    assert tf.period_range("1151022~1151029") == ("2026-10-22", "2026-10-29")
+    raw = {
+        "twse_daytrade": [{"Date": "1151027", "Code": "2303", "Suspension": ""}, {"Date": "1151027", "Code": "0056", "Suspension": "Y"}],
+        "tpex_daytrade": [{"資料日期": "1151027", "證券代號": "8042", "暫停現股賣出後現款買進當沖註記": ""}],
+        "twse_punish": [{"Code": "2424", "DispositionPeriod": "115/10/21～115/10/28", "DispositionMeasures": "人工管制撮合"},
+                        {"Code": "2303", "DispositionPeriod": "115/09/01～115/09/08", "DispositionMeasures": "人工管制撮合"}],
+        "tpex_punish": [], "twse_notice": [], "tpex_notice": [{"Date": "1151022", "SecuritiesCompanyCode": "1815", "TradingInformation": "週轉率過高"}],
+        "twse_accum": None, "tpex_accum": [], "twse_change": [],
+    }
+    flags, status, d = tf.build_flags(raw, ["2303", "0056", "8042", "2424", "1815", "9999"], "2026-10-27")
+    assert d == "2026-10-27" and status["twse_accum"] == "fail"
+    assert flags["2303"] == {"daytrade": True}                      # 過期的處置不算
+    assert flags["0056"]["no_sell_first"] and flags["2424"]["disposal"]["end"] == "2026-10-28"
+    assert flags["2424"]["daytrade"] is False and flags["1815"]["notice"]["reason"] == "週轉率過高"
+    assert flags["9999"] == {"daytrade": False}
+    assert flags["2424"]["disposal"]["measure"] == "人工管制撮合"
+    assert tf.summarize_measure("約每五分鐘撮合一次") == "每5分鐘撮合" and tf.summarize_measure("每二十分鐘") == "每20分鐘撮合" and tf.summarize_measure("每十分鐘") == "每10分鐘撮合"
+    assert tf.summarize_measure("* 處置措施：(1)以人工管制之撮合終端機執行撮合作業(約每2分鐘撮合一次)；(2)證券商應就投資人每日已委託買賣該有價證券,向該投資人收取全部之買進價金") == "每2分鐘撮合・預收款券"
+    raw["tpex_daytrade"] = None                                      # 名單抓不到時不能說「不可當沖」
+    flags, _, _ = tf.build_flags(raw, ["9999"], "2026-10-27")
+    assert "9999" not in flags

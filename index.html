@@ -317,6 +317,16 @@
   .zft{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:3px;font-variant-numeric:tabular-nums}
   .zlegend{display:flex;flex-wrap:wrap;gap:3px 12px;font-size:11px;color:var(--muted);margin-top:6px}
   .zlegend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+  .tflag{display:inline-block;font-size:11px;font-weight:700;padding:1px 7px;border-radius:10px;margin:2px 4px 0 0;white-space:nowrap}
+  .tflag.red{background:rgba(209,64,63,.14);color:#b3302f} .tflag.orange{background:#fff3dc;color:#9a6200}
+  .dttools{margin:10px 0;padding:10px;border:1px solid var(--border);border-radius:10px;background:var(--card)}
+  .dthead{font-size:13px;font-weight:700;margin-bottom:6px}
+  .dtrow{padding:6px 0;border-top:1px solid var(--border)} .dtrow:first-of-type{border-top:none}
+  .dtlab{font-size:12.5px;margin-bottom:4px}
+  .dttools .dtlab input[type=number]{width:52px;min-width:0;height:auto;font:inherit;font-size:12.5px;padding:2px 4px;margin:0;border:1px solid var(--border);border-radius:6px;background:var(--card);color:var(--text);box-sizing:border-box}
+  .dtbar{position:relative;height:8px;border-radius:4px;background:#ecebe6;overflow:visible}
+  .dtbar i{position:absolute;left:0;top:0;bottom:0;border-radius:4px}
+  .dtbar em{position:absolute;top:-3px;bottom:-3px;width:2px;margin-left:-1px;background:var(--sec)}
   .bmore{margin-top:8px;font-size:12.5px;color:var(--accent);cursor:pointer;background:none;border:0;padding:4px 0;font-family:inherit}
   .stt{display:inline-block;font-size:11px;font-weight:700;border-radius:6px;padding:1px 7px;background:#f1f0ea;color:var(--sec)}
   .stt.hold{background:#fff1d6;color:#8a5a00} .stt.str{background:rgba(209,64,63,.14);color:var(--up)} .stt.wk{background:rgba(24,143,99,.14);color:var(--down)}
@@ -379,6 +389,7 @@
 
 <div data-pane="today">
 <div id="biasBox" style="display:none"></div>
+<div id="tradeFlagBox" style="display:none"></div>
 <div id="reviewTop" style="display:none"></div>
 <div id="focusBox" style="display:none"></div>
 <div id="bearBox" style="display:none"></div>
@@ -1070,6 +1081,7 @@ function openDetail(code, isIndex, opts){
     </div>
     ${!isIndex ? `<div class="meta">成交量 ${volText}${volMulText}(與昨日比較相對大小用,非委買委賣量;免費報價源無法取得買賣盤口)</div>` : ''}
 
+    ${!isIndex ? dtTools(q) : ''}
     ${priceLadder(q)}
     ${levelChips(q, isIndex)}
     <div class="biasnote">${biasNote(q)}</div>
@@ -1246,6 +1258,7 @@ async function loadAll(opts){
   safe('fresh', () => renderFresh(intraday));
   safe('health', () => renderHealth(HEALTH));
   safe('bias', () => renderBias(intraday));
+  safe('tradeflags', () => renderTradeFlags(intraday));
   safe('focus', () => renderFocus(intraday));
   safe('opening', () => renderOpening(intraday));
   safe('market', () => renderMarket(MARKET));
@@ -1307,12 +1320,23 @@ function renderIndices(data){
   const el = document.getElementById('indicesGrid');
   if(!data || !data.indices){ el.innerHTML = '<div class="err">暫無大盤資料</div>'; return; }
   const short = {'集中市場加權指數':'加權指數','櫃買市場加權指數':'櫃買指數','費城半導體':'費半'};
-  el.innerHTML = data.indices.map(q => `
+  const tse = data.indices.find(x => x.code === 'TWS:TSE01:INDEX');
+  el.innerHTML = data.indices.map(q => {
+    // 台指期:顯示期現價差(期貨 − 加權指數),正=期貨比現貨強;報價時間不是台股盤中(例如夜盤)時加註
+    let extra = '';
+    if(q.code === 'TWF:TXF:FUTURES' && tse && num(q.last) !== null && num(tse.last) !== null){
+      const basis = q.last - tse.last;
+      const hm = q.ts ? new Date(q.ts * 1000).toLocaleTimeString('en-GB', {timeZone: 'Asia/Taipei', hour: '2-digit', minute: '2-digit'}) : '';
+      const night = hm && (hm < '08:45' || hm > '13:45');
+      extra = `<div class="ic" style="color:var(--muted)">價差 ${basis > 0 ? '+' : ''}${fmtNum(Math.round(basis))}${night ? '・夜盤 ' + hm : ''}</div>`;
+    }
+    return `
     <div class="idxtile" onclick="openDetail('${q.code}', true)">
       <div class="in">${short[q.name] || q.name}</div>
       <div class="iv ${PCT_CLASS(q.change)}">${fmtNum(q.last)}</div>
-      <div class="ic ${PCT_CLASS(q.change)}">${ARROW(q.change)} ${fmtPct(q.pct)}</div>
-    </div>`).join('');
+      <div class="ic ${PCT_CLASS(q.change)}">${ARROW(q.change)} ${fmtPct(q.pct)}</div>${extra}
+    </div>`;
+  }).join('');
 }
 
 function renderFresh(data){
@@ -1863,7 +1887,7 @@ function renderBear(sc){
     const lv = x.level === 'high' ? '▼▼' : '▼';
     const chips = x.signals.filter(s => s.status !== 'inactive').map(s => `<span class="bchip ${s.status}">${bearEsc(s.name)}</span>`).join('');
     return `<div class="bsig" onclick="openDetail('${bearEsc(x.code)}', false)" style="cursor:pointer">
-      <div class="l1"><span><span class="blvl">${lv}</span><b>${bearEsc(x.name)}</b> <small style="color:var(--muted)">${bearEsc(x.code)}</small></span>
+      <div class="l1"><span><span class="blvl">${lv}</span><b>${bearEsc(x.name)}</b> <small style="color:var(--muted)">${bearEsc(x.code)}</small>${flagBadges(((INTRADAY && INTRADAY.watchlist_quotes) || []).find(w => w.code === x.code))}</span>
       <span class="${x.pct < 0 ? 'down' : (x.pct > 0 ? 'up' : 'flat')}" style="font-variant-numeric:tabular-nums">${x.close} ${bearPct(x.pct)}</span></div>
       <div>${chips}</div>${bearRR(x.rr)}</div>`;
   }).join('');
@@ -1928,7 +1952,7 @@ function renderBias(intraday){
     x.target != null ? `停利 ${fmtNum(x.target)}(${x.target_pct}%)` : (x.stop != null ? '停利 抱到13:20' : '')].filter(Boolean);
   const row = x => {
     const lg = x.side === 'long', cls = lg ? 'up' : 'down';
-    return `<div class="bsig" style="cursor:pointer" onclick="searchAndOpen('${x.code}')"><div class="l1"><span><b>${bearEsc(x.name)}</b> <small style="color:var(--muted)">${x.code}</small> <span class="bchip" style="background:var(--${lg ? 'up' : 'down'}-fill);color:var(--${cls});font-weight:700">${lg ? '做多' : '放空'}</span></span><span class="${cls}"><b>${x.score > 0 ? '+' : ''}${x.score}</b></span></div>
+    return `<div class="bsig" style="cursor:pointer" onclick="searchAndOpen('${x.code}')"><div class="l1"><span><b>${bearEsc(x.name)}</b> <small style="color:var(--muted)">${x.code}</small> <span class="bchip" style="background:var(--${lg ? 'up' : 'down'}-fill);color:var(--${cls});font-weight:700">${lg ? '做多' : '放空'}</span>${flagBadges(((INTRADAY && INTRADAY.watchlist_quotes) || []).find(w => w.code === x.code))}</span><span class="${cls}"><b>${x.score > 0 ? '+' : ''}${x.score}</b></span></div>
       <div class="l2"><span>${x.trig_t} 觸發 @ <b>${fmtNum(x.trig_price)}</b>(${Math.round(x.age_min)} 分鐘前)</span><span>現價 ${fmtNum(x.last)}(部位 <b class="${x.move_pct > 0 ? 'up' : (x.move_pct < 0 ? 'down' : '')}">${x.move_pct > 0 ? '+' : ''}${x.move_pct}%</b>)</span>${lvl(x).map(t => `<span>${t}</span>`).join('')}</div>
       ${(() => { const q = ((INTRADAY && INTRADAY.watchlist_quotes) || []).find(w => w.code === x.code); return q ? zoneStrip(q) : ''; })()}
       <div class="onote" style="margin-top:2px">${bearEsc(x.rule_name)}・理由:${(x.reasons || []).join('、') || '-'}${x.vwap != null ? '・均價 ' + fmtNum(x.vwap) : ''}</div></div>`;
@@ -2148,6 +2172,80 @@ function rpRender(){
     <div class="rpinfo"><span><b style="color:var(--text)">${now.t}</b></span><span>開 ${fmtNum(now.o)}</span><span>高 ${fmtNum(now.h)}</span><span>低 ${fmtNum(now.l)}</span><span>收 ${fmtNum(now.c)}${pct != null ? ` <span class="${pct > 0 ? 'up' : 'down'}">${fmtPct(pct)}</span>` : ''}</span><span>${zoneTxt}</span></div>
     <div style="margin-top:8px">${trList || `<div class="onote">到 ${now.t} 為止,${RP.rule === 'all' ? '沒有規則' : '這條規則'}在這檔觸發。</div>`}</div>
     <div class="onote">黃線=波段折線(反向走超過 ${RP.zz}% 才確認轉折);方框=最近一段已確認的漲跌範圍,上半做空區、中間 10% 平衡區、下半做多區,和影片同一種畫法。▲▼=規則進場,○=出場與扣 ${(RP.trades || {}).cost_pct || 0.3}% 成本後報酬;灰色=未通過回測。每播一根只用到這根為止的資料,不偷看後面。股票名稱後面的數字是當天觸發筆數。歷史回放,不是預測,不構成買賣建議。</div>`;
+}
+
+// ================= 當沖工具:交易限制標籤、振幅進度、損益兩平、部位試算 =================
+// 交易限制來自證交所/櫃買 OpenAPI(data/trade_flags.json,intraday.py 每個交易日盤前抓一次)。
+const DT_FEE = 0.1425 * 0.6 / 100, DT_TAX = 0.15 / 100;   // 手續費打 6 折(買賣各一次)、當沖證交稅減半
+function flagBadges(q){
+  const f = q && q.flags;
+  if(!f) return '';
+  const md = d => d ? d.slice(5).replace('-', '/') : '';
+  const out = [];
+  if(f.disposal) out.push(`<span class="tflag red" title="${bearEsc(f.disposal.measure || '')}">處置中 到${md(f.disposal.end)}${f.disposal.measure ? '・' + bearEsc(f.disposal.measure.slice(0, 10)) : ''}</span>`);
+  if(f.daytrade === false) out.push('<span class="tflag red">不可現股當沖</span>');
+  if(f.no_sell_first) out.push('<span class="tflag orange">暫停先賣後買</span>');
+  if(f.change_trading) out.push('<span class="tflag red">分盤交易</span>');
+  if(f.notice) out.push(`<span class="tflag orange" title="${bearEsc(f.notice.reason || '')}">注意股</span>`);
+  if(f.near_disposal) out.push(`<span class="tflag orange" title="${bearEsc(f.near_disposal)}">可能被處置</span>`);
+  return out.join('');
+}
+function renderTradeFlags(intraday){
+  const el = document.getElementById('tradeFlagBox');
+  if(!el) return;
+  const tf = intraday && intraday.trade_flags;
+  if(!tf || !tf.date){ el.style.display = 'none'; return; }
+  const qs = (intraday.watchlist_quotes || []).filter(q => q.flags && Object.keys(q.flags).some(k => k !== 'daytrade'));
+  const sev = q => q.flags.disposal || q.flags.daytrade === false || q.flags.change_trading ? 0 : 1;
+  qs.sort((a, b) => sev(a) - sev(b));
+  const fail = Object.entries(tf.status || {}).filter(([, v]) => v !== 'ok').map(([k]) => k);
+  const rows = qs.map(q => `<div class="rvrow" style="font-size:12.5px;cursor:pointer" onclick="searchAndOpen('${q.code}')"><span><b>${bearEsc(q.name)}</b> <small style="color:var(--muted)">${q.code}</small></span><span>${flagBadges(q)}</span></div>`).join('');
+  el.className = 'sigbox';
+  el.innerHTML = `<div class="sh"><b>當沖限制提醒</b><small>官方名單 ${(tf.daytrade_list_date || tf.date).slice(5).replace('-', '/')}</small></div>
+    ${rows ? `<div class="rvbox">${rows}</div>` : `<div class="onote" style="margin:0">自選股今天沒有處置、注意、暫停先賣後買或不可當沖的標的。</div>`}
+    ${fail.length ? `<div class="onote" style="color:var(--up)">有 ${fail.length} 個官方來源暫時抓不到,30 分鐘後自動重試,這段期間標籤可能不完整。</div>` : ''}
+    <div class="onote">處置股會分盤撮合、可能要預收款券;注意股或「可能被處置」代表近期交易異常、明天可能有限制。來源:證交所、櫃買中心,實際以券商下單系統為準。</div>`;
+  el.style.display = '';
+}
+function tickSize(code, p){ return tickOf(code, p) || 0.01; }
+function roundTick(code, p, mode){
+  const t = tickSize(code, p), f = mode === 'up' ? Math.ceil : Math.floor;
+  return Math.round(f(p / t - 1e-9 * (mode === 'up' ? 1 : -1)) * t * 100) / 100;
+}
+function dtGet(k, d){ try { const v = localStorage.getItem(k); return v === null ? d : +v; } catch(e){ return d; } }
+function dtSet(k, v){ try { localStorage.setItem(k, v); } catch(e){ /* 私密模式存不了就算了 */ } if(CURRENT_DETAIL) openDetail(CURRENT_DETAIL.code, false, {silent: true}); }
+function dtTools(q){
+  const p = num(q.last), pc = num(q.prev_close);
+  if(p === null || !p) return '';
+  // 1) 振幅進度:今天已經走了平常一天的幾成
+  let rangeHtml = '';
+  const adr = q.swing && num(q.swing.adr5), hi = num(q.high), lo = num(q.low);
+  if(adr && hi !== null && lo !== null && pc){
+    const today = (hi - lo) / pc * 100, ratio = today / adr;
+    const w = Math.min(100, ratio * 50);   // 平均振幅畫在中間(50%),超過一倍就到底
+    rangeHtml = `<div class="dtrow"><div class="dtlab">今日振幅 <b>${today.toFixed(2)}%</b>・近5日平均 ${adr.toFixed(2)}%・已達 <b class="${ratio >= 1.5 ? 'up' : ''}">${Math.round(ratio * 100)}%</b></div>
+      <div class="dtbar"><i style="width:${w}%;background:${ratio >= 1.5 ? 'var(--up)' : ratio >= 1 ? '#c9a227' : 'var(--accent)'}"></i><em style="left:50%"></em></div>
+      <div class="onote" style="margin-top:2px">${ratio >= 1.5 ? '已超過平常一天波動的 1.5 倍,追價空間通常有限、回檔也容易放大。' : ratio >= 1 ? '已走完平常一天的振幅。' : '還沒走完平常一天的振幅。'}(中線=平均振幅)</div></div>`;
+  }
+  // 2) 當沖損益兩平價(手續費 6 折、當沖證交稅 0.15%)
+  const beLong = roundTick(q.code, p * (1 + DT_FEE) / (1 - DT_FEE - DT_TAX), 'up');
+  const beShort = roundTick(q.code, p * (1 - DT_FEE - DT_TAX) / (1 + DT_FEE), 'down');
+  const beHtml = `<div class="dtrow"><div class="dtlab">以現價 ${fmtNum(p)} 進場的損益兩平價</div>
+    <div class="l2" style="display:flex;gap:4px 14px;flex-wrap:wrap;font-size:12.5px"><span>做多要賣在 <b class="up">${fmtNum(beLong)}</b> 以上</span><span>做空要買回在 <b class="down">${fmtNum(beShort)}</b> 以下</span><span style="color:var(--muted)">來回成本約 ${((2 * DT_FEE + DT_TAX) * 100).toFixed(2)}%</span></div></div>`;
+  // 3) 部位試算:停損用卡片上的支撐(做多)/壓力(做空)
+  const cap = dtGet('dt_capital', 100), risk = dtGet('dt_risk', 1);
+  const {resTarget, supTarget} = effectiveLevels(q, false);
+  const size = (stop, side) => {
+    if(num(stop) === null) return '<span style="color:var(--muted)">沒有可用的停損位置</span>';
+    const dist = side === 'long' ? p - stop : stop - p;
+    if(!(dist > 0)) return '<span style="color:var(--muted)">現價已越過停損位置</span>';
+    const sh = Math.floor(Math.min(cap * 10000 * risk / 100 / dist, cap * 10000 / p));
+    return `停損 ${fmtNum(stop)}(${(dist / p * 100).toFixed(2)}%)→ 最多 <b>${sh.toLocaleString('en-US')}</b> 股(${(sh / 1000).toFixed(sh >= 10000 ? 0 : 1)} 張),虧到停損約 ${Math.round(sh * dist).toLocaleString('en-US')} 元`;
+  };
+  const posHtml = `<div class="dtrow"><div class="dtlab">部位試算 <span style="color:var(--muted)">本金</span> <input type="number" min="1" step="10" value="${cap}" onchange="dtSet('dt_capital', this.value)" aria-label="本金(萬元)"> 萬,每筆最多虧 <input type="number" min="0.1" step="0.1" value="${risk}" onchange="dtSet('dt_risk', this.value)" aria-label="每筆風險百分比"> %</div>
+    <div style="font-size:12.5px;line-height:1.7"><div>做多:${size(supTarget, 'long')}</div><div>做空:${size(resTarget, 'short')}</div></div>
+    <div class="onote" style="margin-top:2px">只是算術:用停損距離反推最多能買多少,不含滑價、跳空,也不是建議部位。本金和比例只存在這台裝置。</div></div>`;
+  return `<div class="dttools"><div class="dthead">當沖工具</div>${flagBadges(q) ? `<div style="margin-bottom:6px">${flagBadges(q)}</div>` : ''}${rangeHtml}${beHtml}${posHtml}</div>`;
 }
 
 // ================= 資金流向(自選股估算) =================
