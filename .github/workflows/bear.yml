@@ -24,7 +24,7 @@ permissions:
 jobs:
   bear:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 50
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v6
@@ -48,12 +48,32 @@ jobs:
         if: steps.check.outputs.skip != '1'
         continue-on-error: true
         run: python daytrade_lab.py
+      - name: 1 分K 存到 data-archive 分支(不進網站,只新增不覆蓋)
+        if: steps.check.outputs.skip != '1'
+        continue-on-error: true
+        run: |
+          ls data/bars1m/*.json.gz >/dev/null 2>&1 || { echo "這次沒有 1 分K"; exit 0; }
+          git config user.name "tw-signal-scanner-bot"
+          git config user.email "actions@users.noreply.github.com"
+          if git ls-remote --exit-code --heads origin data-archive >/dev/null 2>&1; then
+            git fetch -q origin data-archive
+            git worktree add -q /tmp/archive origin/data-archive -B data-archive
+          else
+            git worktree add -q --orphan -b data-archive /tmp/archive
+          fi
+          mkdir -p /tmp/archive/bars1m
+          cp -n data/bars1m/*.json.gz /tmp/archive/bars1m/
+          cd /tmp/archive
+          git add bars1m
+          if git diff --quiet --cached; then echo "1 分K 沒有新的日子"; exit 0; fi
+          git commit -q -m "1 分K 存檔 $(TZ=Asia/Taipei date +'%Y-%m-%d')"
+          git push -q origin data-archive
       - name: 存回 repo
         if: steps.check.outputs.skip != '1'
         run: |
           git config user.name "tw-signal-scanner-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add data/bear_scorecard.json data/corp_actions.json data/daytrade.json data/bias_log.json data/bars5m/ data/replay/
+          git add data/bear_scorecard.json data/corp_actions.json data/daytrade.json data/bias_log.json data/bars5m/ data/replay/ data/bars5m_top/ data/top_universe.json
           if git diff --quiet --cached; then echo "沒有變動"; exit 0; fi
           git commit -m "利空回測成績單 $(TZ=Asia/Taipei date +'%Y-%m-%d %H:%M')"
           for i in 1 2 3; do

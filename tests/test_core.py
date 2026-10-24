@@ -574,3 +574,19 @@ def test_tradeflags_parsing_and_build():
     raw["tpex_daytrade"] = None                                      # 名單抓不到時不能說「不可當沖」
     flags, _, _ = tf.build_flags(raw, ["9999"], "2026-10-27")
     assert "9999" not in flags
+
+
+def test_rank_top_and_cross_check():
+    twse = [{"Code": "2330", "Name": "台積電", "TradeValue": "9,000"}, {"Code": "0050", "Name": "ETF", "TradeValue": "99999"},
+            {"Code": "2303", "Name": "聯電", "TradeValue": "500"}, {"Code": "030001", "Name": "權證", "TradeValue": "88888"}]
+    tpex = [{"SecuritiesCompanyCode": "8042", "CompanyName": "金山電", "TransactionAmount": "700"}]
+    assert [c for c, _, _ in daytrade_lab.rank_top(twse, tpex, 2)] == ["2330", "8042"]
+    good = [("2026-10-%02d" % (1 + k % 28), 0.5 + (k % 3) * 0.1, "target", "X") for k in range(60)]
+    res = {"orb_long": {"holds": True, "best": {"stop": 1.0, "target": 2.0}}, "orb_short": {"holds": True, "best": {"stop": 1.0, "target": 2.0}}}
+    trades_top = {("orb_long", 1.0, 2.0): good, ("orb_short", 1.0, 2.0): [(d, -r, w, c) for d, r, w, c in good]}
+    daytrade_lab.cross_check(res, trades_top, "2026-10-01")
+    assert res["orb_long"]["holds"] and res["orb_long"]["top"]["test"]["n"] == 60
+    assert res["orb_short"]["holds_watch"] and not res["orb_short"]["holds"]     # 前 200 大是虧的就不算站得住
+    res2 = {"orb_long": {"holds": True, "best": {"stop": 1.0, "target": 2.0}}}
+    daytrade_lab.cross_check(res2, None, "2026-10-01")
+    assert res2["orb_long"]["holds"] and res2["orb_long"]["top"] is None           # 交叉驗證失敗時保留原結果
