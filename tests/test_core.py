@@ -512,3 +512,38 @@ def test_write_replay_is_append_only(tmp_path, monkeypatch):
     assert t[0] == "orb_long" and t[1] == "09:35" and t[2] == 101.5 and body["params"]["orb_long"] == [1.0, 2.0]
     idx = json.loads((tmp_path / "replay" / "index.json").read_text())
     assert idx["dates"] == ["2026-10-26"] and idx["rules"]["orb_long"]["side"] == "long"
+
+
+def test_corp_adjust_to_reference_and_build_levels_ex_today(tmp_path, monkeypatch):
+    import corp
+    b = [{"d": f"2026-10-{d:02d}", "o": 100, "h": 102, "l": 98, "c": 100, "v": 1000} for d in range(1, 23)]
+    assert corp.adjust_to_reference([dict(x) for x in b], 300) is None            # 比例太誇張,不當成除權息
+    bb = [dict(x) for x in b]
+    assert corp.adjust_to_reference(bb, 95) == pytest.approx(0.95) and bb[-1]["c"] == pytest.approx(95) and bb[0]["v"] == 1000
+    monkeypatch.setattr(corp, "CORP_FILE", str(tmp_path / "none.json"))
+    off = {"bars": {"1111": b}}
+    q = {"code": "1111", "name": "x", "last": 96, "prev_close": 95, "high": 97, "low": 94, "volume": 500}
+    intraday.build_levels([q], {}, [{"date": "2026-10-22", "bars": {}}], off, "2026-10-23")
+    assert q["ex_today"] == pytest.approx(0.95)
+    assert q["cdp"]["basis"]["source"] == "official" and q["cdp"]["basis"]["c"] == pytest.approx(95)
+    assert q["swing"]["h20"] == pytest.approx(102 * 0.95) and q["swing"]["adjusted"]
+    assert b[-1]["c"] == 100                                                          # 原始日K沒有被改到
+
+
+def test_health_new_pipelines(tmp_path, monkeypatch):
+    d = str(tmp_path)
+    monkeypatch.setattr(health, "D", d)
+    monkeypatch.setattr(health, "OUT", os.path.join(d, "health.json"))
+    _write(d, "intraday_latest.json", {"data_as_of": "2026-10-27T10:00:00+08:00", "bias": None})
+    items = {i["key"]: i for i in health.run(dt.datetime(2026, 10, 27, 10, 5, tzinfo=TPE))["items"]}
+    assert not items["bias"]["ok"] and "bear" not in items          # 盤中只檢查多空判斷
+    _write(d, "intraday_latest.json", {"data_as_of": "2026-10-27T13:33:00+08:00"})
+    _write(d, "bear_scorecard.json", {"latest_bar": "2026-10-27"})
+    _write(d, "daytrade.json", {"archive": {"last": "2026-10-26"}})
+    items = {i["key"]: i for i in health.run(dt.datetime(2026, 10, 27, 18, 30, tzinfo=TPE))["items"]}
+    assert items["bear"]["ok"] and not items["daytrade"]["ok"]       # 5分K 沒存到當天
+    os.makedirs(os.path.join(d, "bars5m")); os.makedirs(os.path.join(d, "replay"))
+    open(os.path.join(d, "bars5m", "2026-10-27.json.gz"), "w").close(); open(os.path.join(d, "replay", "2026-10-27.json.gz"), "w").close()
+    _write(d, "daytrade.json", {"archive": {"last": "2026-10-27"}})
+    items = {i["key"]: i for i in health.run(dt.datetime(2026, 10, 27, 18, 30, tzinfo=TPE))["items"]}
+    assert items["daytrade"]["ok"]

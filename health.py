@@ -21,6 +21,7 @@ D = "data"
 OUT = os.path.join(D, "health.json")
 SCAN_SINCE = "2026-09-29"   # 盤後掃描存檔從這天開始
 NEW_SINCE = "2026-10-23"    # 成交金額單位、全市場快照是 10/22 收盤後才上線,從下一個交易日起才檢查
+NEW2_SINCE = "2026-10-26"   # 利空回測、當沖回測、5分K存檔、多空判斷從這天起才檢查
 
 
 def load(name, default=None):
@@ -104,6 +105,22 @@ def run(now=None):
         if trade_date >= NEW_SINCE:
             add("mkt", "全市場快照", nsn >= 3 and has_close, f"快照 {nsn}/3 次,收盤價" + ("有" if has_close else "沒有"))
         add("lab", "策略驗證室", str(lb.get("updated", ""))[:10] == trade_date, f"最後更新 {lb.get('updated')}")
+
+    # 6b. 盤中多空判斷:09:20~12:30 之間 intraday_latest.json 要有 bias(沒有代表 bias.py 載入或計算失敗)
+    if trade_date and trade_date >= NEW2_SINCE and market_day_today and 9 * 60 + 20 <= minute <= 12 * 60 + 30:
+        b = latest.get("bias") or {}
+        add("bias", "多空判斷", bool(b), f"{b.get('as_of')} 更新,規則站得住 {b.get('n_holds', 0)} 條" if b else "這一輪沒有多空判斷資料")
+
+    # 6c. 收盤後排程(bear.yml 14:30/15:30):利空回測、當沖回測、5分K與回放存檔都要是這個交易日
+    if trade_date and trade_date >= NEW2_SINCE and ((not market_day_today) or minute >= 15 * 60 + 50):
+        bs_ = load("bear_scorecard.json", {}) or {}
+        add("bear", "利空回測", bs_.get("latest_bar") == trade_date, f"成績單最新 K 線 {bs_.get('latest_bar')}")
+        dt_ = load("daytrade.json", {}) or {}
+        last5 = (dt_.get("archive") or {}).get("last")
+        bars5 = os.path.exists(os.path.join(D, "bars5m", f"{trade_date}.json.gz"))
+        rep = os.path.exists(os.path.join(D, "replay", f"{trade_date}.json.gz"))
+        add("daytrade", "當沖回測與存檔", last5 == trade_date and bars5 and rep,
+            f"5分K存到 {last5},{trade_date} 存檔" + ("有" if bars5 else "沒有") + "、回放" + ("有" if rep else "沒有"))
 
     # 7. 盤後掃描:交易日曆上每一天都要有存檔(當天的要等隔天早上才算漏)
     files = {}

@@ -52,6 +52,7 @@ try:
     import bias
 except ImportError:
     bias = None
+import corp
 
 TAIPEI = ZoneInfo("Asia/Taipei")
 HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; personal-trading-dashboard/1.0)"}
@@ -1899,10 +1900,14 @@ def build_levels(watchlist_out, prev_bars, history_days, official, today):
         med_today = pcts[m] if len(pcts) % 2 else (pcts[m - 1] + pcts[m]) / 2
     summary["regime_today"] = {"median_pct": round(med_today, 2), "label": regime_label(med_today)} if med_today is not None else None
     today_date = datetime.strptime(today, "%Y-%m-%d").date()
+    corp_events = corp.load_events()
     for q in watchlist_out:
         code = q["code"]
         pc = q.get("prev_close")
-        ob = [b for b in (official_bars.get(code) or []) if b.get("d") and b["d"] < today]
+        # 正式日K先還原權值(過去的除息/配股/減資),高低點、均線、量能區、觸及回測才不會被除權息跳空扭曲
+        ob = [dict(b) for b in (official_bars.get(code) or []) if b.get("d") and b["d"] < today]
+        adj_n = len(corp.adjust_bars(ob, corp_events.get(code)))
+        ex_today = None
         prev = prev_bars.get(code)
         src, basis_date, use_official = "sampled", None, False
         if ob:
@@ -1917,6 +1922,10 @@ def build_levels(watchlist_out, prev_bars, history_days, official, today):
             if ok_date and expected and lastb["d"] < expected:
                 ok_date = False
             ok_close = (pc is None) or _close_matches(lastb["c"], pc)
+            if ok_date and not ok_close and _num_ok(pc) and pc > 0:
+                # 日期對、收盤卻和報價昨收對不上:今天除權息/減資,報價昨收已經是參考價,整段依參考價調整
+                ex_today = corp.adjust_to_reference(ob, pc)
+                ok_close = ex_today is not None and _close_matches(ob[-1]["c"], pc)
             if ok_date and ok_close:
                 prev = {"h": lastb["h"], "l": lastb["l"], "c": lastb["c"]}
                 src, basis_date, use_official = "official", lastb["d"], True
@@ -1940,6 +1949,8 @@ def build_levels(watchlist_out, prev_bars, history_days, official, today):
             cdp["basis"]["source"] = src
             if basis_date:
                 cdp["basis"]["date"] = basis_date
+            if src == "official" and (adj_n or ex_today):
+                cdp["basis"]["adjusted"] = {"past_events": adj_n, "ex_today": round(ex_today, 4) if ex_today else None}
             cdp["prev_range_pct"] = rng_pct
 
             prev_move = None
@@ -1960,6 +1971,7 @@ def build_levels(watchlist_out, prev_bars, history_days, official, today):
         sw = compute_swing(series)
         if sw:
             sw["source"] = "official" if use_official else "sampled"
+            sw["adjusted"] = bool(use_official and (adj_n or ex_today))
         q["swing"] = sw
 
         # 觸及回測:只用正式日K(取樣記錄太短、也沒有開盤價,不拿來回測)
@@ -1990,6 +2002,7 @@ def build_levels(watchlist_out, prev_bars, history_days, official, today):
         except Exception as e:  # noqa: BLE001
             print(f"[警告] {code} 疊加區計算失敗: {e}")
 
+        q["ex_today"] = round(ex_today, 4) if ex_today else None   # 今天除權息/減資(參考價 ÷ 前一日收盤),網頁會提示
         q["volume_multiple"] = compute_volume_multiple(q.get("volume"), code, history_days)
         if use_official:
             q["cdp_trend"] = compute_cdp_trend_official(ob, cdp)

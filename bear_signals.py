@@ -36,6 +36,7 @@ from datetime import datetime, timedelta, timezone
 
 import requests
 
+from corp import adjust_bars  # noqa: F401  還原權值共用(盤中 intraday.py 也用這份)
 from intraday import (DATA_DIR, DAILY_OFFICIAL_FILE, HEADERS, TAIPEI, WATCHLIST_NAMES, _EmptyHistory,
                       fetch_history_one, load_json_safe, write_json_atomic)
 
@@ -54,7 +55,6 @@ WATCH_T = -1.5
 ACTIVE_LOSE_GAP = 3.0      # 跑輸機率至少比基準高幾個百分點
 FETCH_BUDGET_SECONDS = 240
 YAHOO_BUDGET_SECONDS = 300
-SELF_SPLIT_LO, SELF_SPLIT_HI = 0.5, 2.0   # 單日收盤比前一天低於一半或高於兩倍,當成分割
 WINDOWS = ("09", "10", "11", "12", "13")  # 60分K的開始時間;13 點那根只到 13:30
 WINDOW_LABEL = {"09": "09:00-10:00", "10": "10:00-11:00", "11": "11:00-12:00", "12": "12:00-13:00", "13": "13:00-13:30"}
 WINDOW_MIN_DAYS = 60       # 進場時段至少要有幾個交易日才下結論
@@ -203,37 +203,6 @@ def fetch_corp_actions(codes, run_time):
     return ev, f"yahoo {ok}/{len(codes)}", closes
 
 
-def adjust_bars(b, ev):
-    """往回還原權值(原地修改,回傳事件清單)。ev={"div":{日期:每股現金}, "split":{日期:新股數/舊股數}}。
-    除息:之前價格乘 (昨收-股息)/昨收。配股/減資/分割:之前價格除以股數比、成交量乘以股數比。
-    事件不在 Yahoo 但單日收盤 < 一半或 > 兩倍的,也當分割。事件當天標 event=True,不判斷訊號。"""
-    ev = ev or {}
-    applied = []
-    for i in range(1, len(b)):
-        d, pc = b[i]["d"], b[i - 1]["c"]
-        pf, vf = 1.0, 1.0
-        if d in (ev.get("split") or {}):
-            r = ev["split"][d]
-            if r > 0:
-                pf, vf = 1 / r, r
-        if d in (ev.get("div") or {}):
-            amt = ev["div"][d]
-            if 0 < amt < pc:
-                pf *= (pc - amt) / pc
-        if pf == 1.0:
-            move = b[i]["c"] / pc
-            if move < SELF_SPLIT_LO or move > SELF_SPLIT_HI:
-                pf, vf = move, 1 / move
-        if pf != 1.0:
-            for x in b[:i]:
-                for k in ("o", "h", "l", "c"):
-                    if x.get(k):
-                        x[k] *= pf
-                if vf != 1.0 and x.get("v"):
-                    x["v"] *= vf
-            b[i]["event"] = True
-            applied.append({"d": d, "price_factor": round(pf, 4), "vol_factor": round(vf, 4)})
-    return applied
 
 
 def fetch_hourly(codes, ev, closes):
