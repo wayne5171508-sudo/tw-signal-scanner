@@ -334,6 +334,13 @@
   .tcv.ok{background:rgba(24,143,99,.12);color:var(--down)} .tcv.warn{background:#fff3dc;color:#9a6200} .tcv.bad{background:rgba(209,64,63,.12);color:#b3302f}
   .mood{margin:4px 0 2px} .moodbar{position:relative;height:10px;border-radius:5px;background:linear-gradient(90deg,var(--down),#d8d6cf 50%,var(--up))}
   .moodbar em{position:absolute;top:-3px;width:14px;height:14px;margin-left:-7px;border-radius:50%;background:var(--card);border:3px solid var(--text);box-sizing:border-box}
+  .tmbar{display:flex;height:12px;border-radius:6px;overflow:hidden;background:#ecebe6}
+  .tmbar i{display:block;height:100%}
+  .dttools .dtlab select{font:inherit;font-size:12.5px;padding:2px 4px;border:1px solid var(--border);border-radius:6px;background:var(--card);color:var(--text)}
+  .dttools .dtlab #tmStop,.dttools .dtlab #tmTarget{width:72px;font:inherit;font-size:12.5px;padding:2px 4px;border:1px solid var(--border);border-radius:6px;background:var(--card);color:var(--text);box-sizing:border-box}
+  .tmgo{font:inherit;font-size:12.5px;font-weight:700;padding:4px 10px;border-radius:8px;border:1px solid var(--text);background:var(--text);color:#fff;cursor:pointer}
+  #riskBox input[type=time]{width:120px !important}
+  .dttools .dtlab input[type=time],#riskBox input[type=number],#riskBox input[type=time]{width:88px;min-width:0;font:inherit;font-size:12.5px;padding:2px 4px;border:1px solid var(--border);border-radius:6px;background:var(--card);color:var(--text);box-sizing:border-box}
   .bmore{margin-top:8px;font-size:12.5px;color:var(--accent);cursor:pointer;background:none;border:0;padding:4px 0;font-family:inherit}
   .stt{display:inline-block;font-size:11px;font-weight:700;border-radius:6px;padding:1px 7px;background:#f1f0ea;color:var(--sec)}
   .stt.hold{background:#fff1d6;color:#8a5a00} .stt.str{background:rgba(209,64,63,.14);color:var(--up)} .stt.wk{background:rgba(24,143,99,.14);color:var(--down)}
@@ -396,6 +403,7 @@
 
 <div data-pane="today">
 <div id="teamBox" style="display:none"></div>
+<div id="riskBox" style="display:none"></div>
 <div id="biasBox" style="display:none"></div>
 <div id="tradeFlagBox" style="display:none"></div>
 <div id="reviewTop" style="display:none"></div>
@@ -1091,6 +1099,7 @@ function openDetail(code, isIndex, opts){
 
     ${!isIndex ? teamPanel(q) : ''}
     ${!isIndex ? dtTools(q) : ''}
+    ${!isIndex ? tmPanel(q) : ''}
     ${priceLadder(q)}
     ${levelChips(q, isIndex)}
     <div class="biasnote">${biasNote(q)}</div>
@@ -1267,6 +1276,7 @@ async function loadAll(opts){
   safe('fresh', () => renderFresh(intraday));
   safe('health', () => renderHealth(HEALTH));
   safe('team', () => renderTeam(intraday));
+  safe('risk', () => renderRisk());
   safe('bias', () => renderBias(intraday));
   safe('tradeflags', () => renderTradeFlags(intraday));
   safe('focus', () => renderFocus(intraday));
@@ -2251,12 +2261,13 @@ function dtTools(q){
     if(num(stop) === null) return '<span style="color:var(--muted)">沒有可用的停損位置</span>';
     const dist = side === 'long' ? p - stop : stop - p;
     if(!(dist > 0)) return '<span style="color:var(--muted)">現價已越過停損位置</span>';
-    const sh = Math.floor(Math.min(cap * 10000 * risk / 100 / dist, cap * 10000 / p));
+    const budget = Math.min(cap * 10000 * risk / 100, riskState().remain);
+    const sh = Math.floor(Math.max(0, Math.min(budget / dist, cap * 10000 / p)));
     return `停損 ${fmtNum(stop)}(${(dist / p * 100).toFixed(2)}%)→ 最多 <b>${sh.toLocaleString('en-US')}</b> 股(${(sh / 1000).toFixed(sh >= 10000 ? 0 : 1)} 張),虧到停損約 ${Math.round(sh * dist).toLocaleString('en-US')} 元`;
   };
   const posHtml = `<div class="dtrow"><div class="dtlab">部位試算 <span style="color:var(--muted)">本金</span> <input type="number" min="1" step="10" value="${cap}" onchange="dtSet('dt_capital', this.value)" aria-label="本金(萬元)"> 萬,每筆最多虧 <input type="number" min="0.1" step="0.1" value="${risk}" onchange="dtSet('dt_risk', this.value)" aria-label="每筆風險百分比"> %</div>
     <div style="font-size:12.5px;line-height:1.7"><div>做多:${size(supTarget, 'long')}</div><div>做空:${size(resTarget, 'short')}</div></div>
-    <div class="onote" style="margin-top:2px">只是算術:用停損距離反推最多能買多少,不含滑價、跳空,也不是建議部位。本金和比例只存在這台裝置。</div></div>`;
+    <div class="onote" style="margin-top:2px">只是算術:用停損距離反推最多能買多少,而且每筆最多虧不會超過「今日風控」剩下的額度(今天還能虧 ${riskState().remain.toLocaleString('en-US')} 元)。不含滑價、跳空,也不是建議部位。本金和比例只存在這台裝置。</div></div>`;
   return `<div class="dttools"><div class="dthead">當沖工具</div>${flagBadges(q) ? `<div style="margin-bottom:6px">${flagBadges(q)}</div>` : ''}${rangeHtml}${beHtml}${posHtml}</div>`;
 }
 
@@ -2310,14 +2321,17 @@ function teamCheck(q, mood){
     const risk = side > 0 ? p - supTarget : resTarget - p, reward = side > 0 ? resTarget - p : p - supTarget;
     const rr = risk > 0 ? reward / risk : null;
     const chase = zi && ((side > 0 && (zi.zone === 'short' || zi.zone === 'over')) || (side < 0 && (zi.zone === 'long' || zi.zone === 'under')));
-    ck.push({r: '圖表', s: rr === null ? 'bad' : (rr >= 1.5 && !chase ? 'ok' : (rr < 1 || chase ? 'warn' : 'na')), t: rr === null ? '已越過停損位置' : `損益比 ${rr.toFixed(1)}:1` + (zi ? `,現價在${zi.label}` : '') + (chase ? '(追價位置)' : '')});
+    const minRR = riskCfg().minRR;
+    ck.push({r: '圖表', s: rr === null ? 'bad' : (rr >= minRR && !chase ? 'ok' : (rr < 1 || chase ? 'warn' : 'na')), t: rr === null ? '已越過停損位置' : `損益比 ${rr.toFixed(1)}:1` + (rr < minRR ? `(低於你設定的 ${minRR})` : '') + (zi ? `,現價在${zi.label}` : '') + (chase ? '(追價位置)' : '')});
   }
   // 5 風險管理員
   const f = q.flags || {};
   const adr = q.swing && num(q.swing.adr5), hi = num(q.high), lo = num(q.low), pc = num(q.prev_close);
   const used = adr && hi !== null && lo !== null && pc ? (hi - lo) / pc * 100 / adr : null;
   const stopPct = side && num(side > 0 ? supTarget : resTarget) !== null ? Math.abs(p - (side > 0 ? supTarget : resTarget)) / p * 100 : null;
-  if(f.disposal || f.daytrade === false || f.change_trading) ck.push({r: '風險', s: 'bad', t: f.disposal ? `處置中(${f.disposal.measure || '分盤撮合'})` : f.daytrade === false ? '不能現股當沖' : '分盤交易'});
+  const rs = riskState();
+  if(rs.block) ck.push({r: '風險', s: 'bad', t: '今日風控:' + rs.reasons.join('、')});
+  else if(f.disposal || f.daytrade === false || f.change_trading) ck.push({r: '風險', s: 'bad', t: f.disposal ? `處置中(${f.disposal.measure || '分盤撮合'})` : f.daytrade === false ? '不能現股當沖' : '分盤交易'});
   else if(side < 0 && f.no_sell_first) ck.push({r: '風險', s: 'bad', t: '暫停先賣後買,不能當沖做空'});
   else {
     const w = [];
@@ -2374,6 +2388,190 @@ function renderTeam(intraday){
     <div class="rvsub" style="font-size:12px;color:var(--muted);margin:10px 0 0">機會掃描員挑出的標的(量能 ≥ 2 倍、開盤爆量、剛觸發多空判斷或今天有重大訊息)</div>
     ${rows || '<div class="onote">目前沒有量能突出或有事件的自選股。</div>'}${newsHtml}
     <div class="onote">每檔依序由五個角色檢查,最後由決策員整合:碰到處置、不能當沖就拒絕;沒有回測站得住的規則觸發時最多只到「僅觀察」。點任一檔看完整檢查與當沖工具。工具只負責整理,交易規則仍要由你決定,不構成買賣建議。</div>`;
+  el.style.display = '';
+}
+
+// ================= 時光機:用這檔過去約 60 天同一時段的 5 分K,重組今天接下來的走法 1 萬次 =================
+// 每次模擬從現價出發,剩下的每一根都從「過去同一時段 ±2 根」隨機抽一根真實 K 棒的漲跌比例套上去;
+// 同一根同時碰到停損停利算停損(和回測一樣保守),13:20 那根收盤還沒碰到就算「都沒碰到」。
+// 另外把同樣的停損停利比例,套到過去每一天同一時間進場,看實際結果。資料來自 data/bars5m/ 的存檔。
+const TM = {dayCache: {}, res: {}, busy: false};
+const TM_LAST = '13:20', TM_N = 10000, TM_WIN = 2;
+const slotOf = t => { const [h, m] = String(t).split(':').map(Number); return (h - 9) * 12 + Math.floor(m / 5); };
+const slotTime = k => { const m = 9 * 60 + k * 5; return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
+function tmRng(seed){ let a = seed >>> 0; return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+async function tmLoadDays(code){
+  if(!RP.idx){ const r = await fetch('data/replay/index.json', {cache: 'no-store'}); RP.idx = await r.json(); }
+  const dates = (RP.idx.dates || []).slice(-60);
+  await Promise.all(dates.map(async d => { if(!(d in TM.dayCache)){ try { TM.dayCache[d] = await rpLoadGz(`data/bars5m/${d}.json.gz`); } catch(e){ TM.dayCache[d] = null; } } }));
+  const out = [];
+  for(const d of dates){
+    const st = TM.dayCache[d] && TM.dayCache[d].stocks && TM.dayCache[d].stocks[code];
+    if(st && st.b && st.b.length >= 45) out.push({d, pc: st.pc, b: st.b.map(r => ({t: r[0], o: r[1], h: r[2], l: r[3], c: r[4]}))});
+  }
+  return out;
+}
+function tmBarHit(side, bar, stop, target){
+  // 回傳 'stop' / 'target' / null;同一根兩邊都碰到算停損
+  if(side > 0){ if(bar.l <= stop) return 'stop'; if(bar.h >= target) return 'target'; }
+  else { if(bar.h >= stop) return 'stop'; if(bar.l <= target) return 'target'; }
+  return null;
+}
+function tmSimulate(days, startSlot, entry, stop, target, side, n, seed){
+  const last = slotOf(TM_LAST), pools = [];
+  for(let s = 0; s <= last; s++) pools.push([]);
+  days.forEach(day => day.b.forEach((x, k) => {
+    const prev = k ? day.b[k - 1].c : day.pc, s = slotOf(x.t);
+    if(prev && s >= 0 && s <= last) pools[s].push([x.o / prev, x.h / prev, x.l / prev, x.c / prev]);
+  }));
+  const win = pools.map((_, s) => { const a = []; for(let j = Math.max(0, s - TM_WIN); j <= Math.min(last, s + TM_WIN); j++) a.push(...pools[j]); return a; });
+  const rnd = tmRng(seed), risk = Math.abs(entry - stop);
+  let tg = 0, sp = 0, ne = 0, sumR = 0;
+  for(let i = 0; i < n; i++){
+    let p = entry, out = null;
+    for(let s = startSlot; s <= last && !out; s++){
+      const pool = win[s];
+      if(!pool.length) continue;
+      const r = pool[Math.floor(rnd() * pool.length)];
+      const bar = {o: p * r[0], h: p * r[1], l: p * r[2], c: p * r[3]};
+      // 跳空越過停損:用開盤價出場(和回測一樣),但 R 最多算到 -1 以外的實際值
+      if(side > 0 && bar.o <= stop){ out = 'stop'; sumR += (bar.o - entry) / risk; break; }
+      if(side < 0 && bar.o >= stop){ out = 'stop'; sumR += (entry - bar.o) / risk; break; }
+      out = tmBarHit(side, bar, stop, target);
+      if(out === 'stop') sumR -= 1;
+      else if(out === 'target') sumR += Math.abs(target - entry) / risk;
+      p = bar.c;
+    }
+    if(out === 'target') tg++; else if(out === 'stop') sp++; else { ne++; sumR += side * (p - entry) / risk; }
+  }
+  return {n, tg, sp, ne, avgR: sumR / n, pool: days.length};
+}
+function tmHistory(days, startSlot, side, stopPct, targetPct){
+  // 過去每一天:同一時間那根開盤進場,同樣的停損停利比例,實際走一遍
+  const rows = [];
+  for(const day of days){
+    const k = day.b.findIndex(x => slotOf(x.t) >= startSlot);
+    if(k < 0 || slotOf(day.b[k].t) > slotOf(TM_LAST)) continue;
+    const e = day.b[k].o, stop = e * (1 - side * stopPct / 100), target = e * (1 + side * targetPct / 100);
+    let out = null, close = e;
+    for(let j = k; j < day.b.length && slotOf(day.b[j].t) <= slotOf(TM_LAST) && !out; j++){
+      const bar = day.b[j];
+      if(j > k && ((side > 0 && bar.o <= stop) || (side < 0 && bar.o >= stop))){ out = 'stop'; break; }
+      out = tmBarHit(side, bar, stop, target);
+      close = bar.c;
+    }
+    rows.push({d: day.d, out: out || 'none', ret: out === 'target' ? targetPct : out === 'stop' ? -stopPct : side * (close / e - 1) * 100});
+  }
+  return rows;
+}
+function tmVerdict(r, rr, costR){
+  const resolved = r.tg + r.sp, win = resolved ? r.tg / resolved : 0;
+  const need = (1 + costR) / (rr + 1);          // 扣成本後打平需要的「先到停利」比例
+  const gap = (win - need) * 100;
+  const evR = r.avgR - costR;                    // 每筆平均 R(含都沒碰到的),再扣成本
+  let txt = Math.abs(gap) < 5 ? '接近打平,跟擲硬幣差不多' : gap > 0 ? (gap >= 15 ? '明顯偏向停利' : '略偏向停利') : (gap <= -15 ? '明顯偏向停損' : '略偏向停損');
+  return {win, need, gap, evR, txt, cls: Math.abs(gap) < 5 ? 'na' : gap > 0 ? 'ok' : 'bad'};
+}
+function tmDefaults(q){
+  const t = teamCheck(q, marketMood(INTRADAY));
+  const side = (TM.res[q.code] && TM.res[q.code].sideSel) || (t && t.side) || 1;
+  const {resTarget, supTarget} = effectiveLevels(q, false);
+  const p = num(q.last);
+  let stop = side > 0 ? supTarget : resTarget, target = side > 0 ? resTarget : supTarget;
+  // 停損沒有或在錯邊時,用 1% 停損、2% 停利當預設
+  if(num(stop) === null || (side > 0 ? stop >= p : stop <= p)) stop = p * (1 - side * 0.01);
+  if(num(target) === null || (side > 0 ? target <= p : target >= p)) target = p * (1 + side * 0.02);
+  return {side, stop: toTick(stop, q.code), target: toTick(target, q.code)};
+}
+function tmStartSlot(){
+  const t = INTRADAY && INTRADAY.data_as_of ? new Date(INTRADAY.data_as_of).toLocaleTimeString('en-GB', {timeZone: 'Asia/Taipei', hour: '2-digit', minute: '2-digit'}) : '09:30';
+  const s = slotOf(t) + 1;   // 下一根開始(和回測一樣:訊號後下一根進場)
+  return s < 1 ? slotOf('09:30') : s;
+}
+async function tmRun(code){
+  const q = ((INTRADAY && INTRADAY.watchlist_quotes) || []).find(x => x.code === code);
+  if(!q || TM.busy) return;
+  const g = id => document.getElementById(id);
+  const side = +(g('tmSide') || {}).value || 1, stop = num((g('tmStop') || {}).value), target = num((g('tmTarget') || {}).value), entry = num(q.last);
+  const box = g('tmOut');
+  if(!(entry && stop && target) || (side > 0 ? !(stop < entry && target > entry) : !(stop > entry && target < entry))){ box.innerHTML = '<div class="onote" style="color:var(--up)">停損要在現價的反方向、停利在順方向,請檢查數字。</div>'; return; }
+  let start = tmStartSlot();
+  if(start > slotOf(TM_LAST) - 2) start = slotOf('09:30');   // 收盤前或盤後:改從 09:30 模擬,看一般情況
+  TM.busy = true; box.innerHTML = '<div class="onote">載入過去 60 天 5 分K、模擬中…</div>';
+  try{
+    const days = await tmLoadDays(code);
+    if(days.length < 20){ box.innerHTML = `<div class="onote">這檔只有 ${days.length} 天完整的 5 分K,至少 20 天才模擬。</div>`; return; }
+    const r = tmSimulate(days, start, entry, stop, target, side, TM_N, 19);
+    const stopPct = Math.abs(entry - stop) / entry * 100, targetPct = Math.abs(target - entry) / entry * 100;
+    const hist = tmHistory(days, start, side, stopPct, targetPct);
+    const rr = targetPct / stopPct, costR = ((2 * DT_FEE + DT_TAX) * 100) / stopPct;
+    const v = tmVerdict(r, rr, costR);
+    const h = {target: hist.filter(x => x.out === 'target').length, stop: hist.filter(x => x.out === 'stop').length, none: hist.filter(x => x.out === 'none').length};
+    const hAvg = hist.length ? hist.reduce((a, x) => a + x.ret, 0) / hist.length - (2 * DT_FEE + DT_TAX) * 100 : 0;
+    const pc = x => (x / r.n * 100).toFixed(1);
+    TM.res[code] = {sideSel: side};
+    box.innerHTML = `<div class="onote" style="margin:4px 0">從 ${slotTime(start)} 那根開始、${side > 0 ? '做多' : '做空'} 進場 ${fmtNum(entry)}、停損 ${fmtNum(stop)}(${stopPct.toFixed(2)}%)、停利 ${fmtNum(target)}(${targetPct.toFixed(2)}%,${rr.toFixed(1)}R),用過去 ${r.pool} 天同時段的 K 棒模擬 ${r.n.toLocaleString('en-US')} 次:</div>
+      <div class="tmbar"><i style="width:${pc(r.tg)}%;background:var(--up)"></i><i style="width:${pc(r.ne)}%;background:#c9c6bd"></i><i style="width:${pc(r.sp)}%;background:var(--down)"></i></div>
+      <div class="l2" style="display:flex;flex-wrap:wrap;gap:2px 12px;font-size:12px;margin-top:3px"><span class="up">先到停利 ${pc(r.tg)}%</span><span style="color:var(--muted)">13:20 前都沒碰到 ${pc(r.ne)}%</span><span class="down">先到停損 ${pc(r.sp)}%</span></div>
+      <div class="tcv ${v.cls}" style="margin-top:6px"><b>${v.txt}</b>:有碰到其中一邊的模擬裡,先到停利 ${(v.win * 100).toFixed(1)}%;扣 ${((2 * DT_FEE + DT_TAX) * 100).toFixed(2)}% 成本要打平需要 ${(v.need * 100).toFixed(1)}%。平均每筆 ${v.evR >= 0 ? '+' : ''}${v.evR.toFixed(2)}R(已扣成本)。</div>
+      <div class="onote" style="margin-top:6px">實際歷史:過去 ${hist.length} 天在同一時間用同樣比例進場,停利 ${h.target} 次、停損 ${h.stop} 次、都沒碰到 ${h.none} 次,平均每筆 ${hAvg >= 0 ? '+' : ''}${hAvg.toFixed(2)}%(已扣成本)。</div>`;
+  } catch(e){ box.innerHTML = '<div class="onote">5 分K 存檔讀取失敗,稍後再試。</div>'; }
+  finally { TM.busy = false; }
+}
+function tmPanel(q){
+  if(!q || num(q.last) === null) return '';
+  const d = tmDefaults(q);
+  return `<div class="dttools"><div class="dthead">時光機 <small style="color:var(--muted);font-weight:400">這筆交易的勝率模擬</small></div>
+    <div class="dtlab" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+      <select id="tmSide" onchange="TM.res['${q.code}']={sideSel:+this.value};openDetail('${q.code}', false, {silent:true})" aria-label="方向"><option value="1"${d.side > 0 ? ' selected' : ''}>做多</option><option value="-1"${d.side < 0 ? ' selected' : ''}>做空</option></select>
+      停損 <input id="tmStop" type="number" step="any" value="${d.stop}" aria-label="停損價"> 停利 <input id="tmTarget" type="number" step="any" value="${d.target}" aria-label="停利價">
+      <button class="tmgo" onclick="tmRun('${q.code}')">跑 1 萬次</button></div>
+    <div id="tmOut"><div class="onote">預設停損停利是卡片上的支撐/壓力,可以自己改。會載入這檔過去約 60 天的 5 分K(第一次稍慢)。</div></div>
+    <div class="onote">模擬只是「如果今天像過去 60 天」的情況,不是預測;5 分K 隨機重組會忽略連續性與突發消息,實際滑價也可能更差。</div></div>`;
+}
+
+// ================= 每日風控上限(設定與今天的損益只存在這台裝置的 localStorage) =================
+// 每天最多虧多少、最多做幾筆、幾點以後不再新進場、最低損益比。超過就在交易小組檢查裡擋下(出場永遠不擋)。
+const RISK_DEF = {maxLoss: 5000, maxTrades: 5, lastEntry: '12:30', minRR: 1.5};
+const riskToday = () => new Date().toLocaleDateString('en-CA', {timeZone: 'Asia/Taipei'});
+function riskCfg(){ try { return Object.assign({}, RISK_DEF, JSON.parse(localStorage.getItem('dt_risk_cfg') || '{}')); } catch(e){ return Object.assign({}, RISK_DEF); } }
+function riskDay(){ try { const d = JSON.parse(localStorage.getItem('dt_day') || '{}'); return d.date === riskToday() ? d : {date: riskToday(), pnl: 0, trades: 0}; } catch(e){ return {date: riskToday(), pnl: 0, trades: 0}; } }
+function riskSave(cfg, day){
+  try { if(cfg) localStorage.setItem('dt_risk_cfg', JSON.stringify(cfg)); if(day) localStorage.setItem('dt_day', JSON.stringify(day)); } catch(e){ /* 私密模式存不了 */ }
+  renderRisk(); if(CURRENT_DETAIL) openDetail(CURRENT_DETAIL.code, false, {silent: true}); renderTeam(INTRADAY);
+}
+function riskSetCfg(k, v){ const c = riskCfg(); c[k] = k === 'lastEntry' ? v : +v; riskSave(c, null); }
+function riskAdd(dp, dt){ const d = riskDay(); d.pnl = Math.round((d.pnl + dp) * 100) / 100; d.trades = Math.max(0, d.trades + dt); riskSave(null, d); }
+function riskSetPnl(v){ const d = riskDay(); d.pnl = +v || 0; riskSave(null, d); }
+function riskState(){
+  const c = riskCfg(), d = riskDay();
+  const now = new Date().toLocaleTimeString('en-GB', {timeZone: 'Asia/Taipei', hour: '2-digit', minute: '2-digit'});
+  const remain = c.maxLoss + Math.min(0, d.pnl);   // 今天還能虧多少(賺的不加回,避免越做越大)
+  const reasons = [];
+  if(remain <= 0) reasons.push(`今天已虧 ${Math.abs(d.pnl).toLocaleString('en-US')} 元,達到上限 ${c.maxLoss.toLocaleString('en-US')} 元`);
+  if(d.trades >= c.maxTrades) reasons.push(`今天已做 ${d.trades} 筆,達到上限 ${c.maxTrades} 筆`);
+  if(now > c.lastEntry && now < '14:00') reasons.push(`已過最晚進場時間 ${c.lastEntry}`);
+  return {c, d, now, remain: Math.max(0, remain), block: reasons.length > 0, reasons};
+}
+function renderRisk(){
+  const el = document.getElementById('riskBox');
+  if(!el) return;
+  const r = riskState(), c = r.c, d = r.d;
+  const used = c.maxLoss ? Math.min(100, Math.max(0, -d.pnl) / c.maxLoss * 100) : 0;
+  el.className = 'sigbox';
+  el.innerHTML = `<div class="sh"><b>今日風控</b><small>${r.d.date}・只存在這台裝置</small></div>
+    <div class="tcv ${r.block ? 'bad' : 'ok'}" style="margin-top:0"><b>${r.block ? '停止新進場' : '可以進場'}</b> ${r.block ? r.reasons.join('、') : `今天還能虧 ${r.remain.toLocaleString('en-US')} 元、還能做 ${Math.max(0, c.maxTrades - d.trades)} 筆,${c.lastEntry} 前可新進場`}</div>
+    <div class="dtbar" style="margin-top:8px"><i style="width:${used}%;background:${used >= 100 ? 'var(--up)' : used >= 60 ? '#c9a227' : 'var(--down)'}"></i></div>
+    <div class="zft"><span>今日損益 <b class="${d.pnl > 0 ? 'up' : d.pnl < 0 ? 'down' : ''}">${d.pnl > 0 ? '+' : ''}${d.pnl.toLocaleString('en-US')}</b> 元</span><span>已用虧損額度 ${Math.round(used)}%</span><span>已做 ${d.trades}/${c.maxTrades} 筆</span></div>
+    <div class="dtlab" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px">記一筆:<input type="number" id="riskPnlIn" step="any" placeholder="損益(元)" aria-label="這筆損益(元)"><button class="tmgo" onclick="const v=+document.getElementById('riskPnlIn').value||0;riskAdd(v,1)">記錄</button><button class="bmore" style="margin:0" onclick="if(confirm('清空今天的損益與筆數?'))riskSave(null,{date:riskToday(),pnl:0,trades:0})">清空今天</button></div>
+    <details style="margin-top:6px"><summary style="cursor:pointer;font-size:12px;color:var(--muted)">風控設定</summary>
+      <div class="dtlab" style="display:grid;grid-template-columns:auto 1fr;gap:6px 10px;align-items:center;margin-top:6px">
+        <span>每天最多虧</span><span><input type="number" min="0" step="500" value="${c.maxLoss}" onchange="riskSetCfg('maxLoss', this.value)" aria-label="每天最多虧損(元)"> 元</span>
+        <span>每天最多做</span><span><input type="number" min="1" step="1" value="${c.maxTrades}" onchange="riskSetCfg('maxTrades', this.value)" aria-label="每天最多筆數"> 筆</span>
+        <span>最晚新進場</span><span><input type="time" value="${c.lastEntry}" onchange="riskSetCfg('lastEntry', this.value)" aria-label="最晚進場時間"></span>
+        <span>最低損益比</span><span><input type="number" min="0.5" step="0.1" value="${c.minRR}" onchange="riskSetCfg('minRR', this.value)" aria-label="最低損益比"> : 1</span>
+      </div></details>
+    <div class="onote">當沖最重要的紀律是「整天」的上限:虧到上限、做滿筆數或過了時間就停止新進場(出場不受限)。賺的錢不會加回可虧額度,避免越做越大。每天自動歸零。</div>`;
   el.style.display = '';
 }
 
