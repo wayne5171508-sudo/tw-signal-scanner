@@ -191,6 +191,51 @@ button{font:inherit;color:inherit}
 .seg2 button{flex:1;min-height:40px;border:0;border-radius:9px;background:transparent;color:var(--sec);font-size:14px;cursor:pointer}
 .seg2 button.on{background:var(--card2);color:var(--text);font-weight:800;box-shadow:inset 0 0 0 1px var(--line2)}
 
+
+/* ---------- 戰鬥畫面 ---------- */
+.player{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:8px;margin-top:12px}
+.pbox{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 10px;min-width:0}
+.pbox .k{font-size:11.5px;color:var(--muted);display:flex;align-items:center;gap:4px}
+.pbox .v{font-family:var(--num);font-size:18px;font-weight:700;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hpline{height:8px;border-radius:3px;background:var(--bg2);border:1px solid var(--line2);margin-top:4px;overflow:hidden}
+.hpline i{display:block;height:100%;background-image:repeating-linear-gradient(90deg,rgba(0,0,0,.25) 0 2px,transparent 2px 6px)}
+.ammo{display:flex;gap:3px;margin-top:5px}
+.ammo i{width:9px;height:14px;border-radius:2px 2px 1px 1px;background:var(--line)}
+.ammo i.on{background:var(--gold);box-shadow:0 0 5px rgba(255,210,63,.55)}
+.light{margin-top:14px;border-radius:22px;padding:22px 16px 18px;text-align:center;position:relative;overflow:hidden;border:2px solid var(--line2);background:var(--card)}
+.light .big{font-size:72px;font-weight:900;line-height:1;letter-spacing:6px;margin:6px 0 4px}
+.light .orb{width:88px;height:88px;border-radius:50%;margin:0 auto;display:flex;align-items:center;justify-content:center;font-size:40px}
+.light .why{font-size:15.5px;color:var(--text);margin-top:8px;line-height:1.55}
+.light .sub{font-size:13px;color:var(--muted);margin-top:6px;line-height:1.5}
+.light.go{border-color:#3ce07f;background:radial-gradient(circle at 50% 0%,rgba(60,224,127,.22),var(--card) 70%)}
+.light.go .big{color:#3ce07f;text-shadow:0 0 22px rgba(60,224,127,.6)} .light.go .orb{background:#3ce07f;box-shadow:0 0 34px rgba(60,224,127,.8);animation:pulse 1.2s ease-in-out infinite}
+.light.wait{border-color:var(--gold);background:radial-gradient(circle at 50% 0%,rgba(255,210,63,.16),var(--card) 70%)}
+.light.wait .big{color:var(--gold);text-shadow:0 0 18px rgba(255,210,63,.45)} .light.wait .orb{background:var(--gold);box-shadow:0 0 26px rgba(255,210,63,.6)}
+.light.stop{border-color:#ff5a5f;background:radial-gradient(circle at 50% 0%,rgba(255,90,95,.18),var(--card) 70%)}
+.light.stop .big{color:#ff5a5f;text-shadow:0 0 18px rgba(255,90,95,.5)} .light.stop .orb{background:#ff5a5f;box-shadow:0 0 26px rgba(255,90,95,.65)}
+@keyframes pulse{50%{transform:scale(1.08)}}
+.phase{display:flex;gap:4px;margin-top:14px}
+.phase span{flex:1;font-size:11px;text-align:center;padding:5px 2px;border-radius:7px;background:var(--bg2);color:var(--muted);border:1px solid var(--line);white-space:nowrap}
+.phase span.on{background:var(--cyan);color:var(--bg);font-weight:800;border-color:var(--cyan)}
+.phase span.done{opacity:.45}
+.tg{display:flex;gap:12px;align-items:center}
+.tg .badge2{width:64px;height:64px;flex:none;border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:900;font-size:22px;line-height:1.1}
+.tg .badge2 small{font-size:10.5px;font-weight:700;opacity:.85}
+.b-go{background:rgba(60,224,127,.18);color:#3ce07f;border:2px solid #3ce07f}
+.b-try{background:rgba(77,226,255,.14);color:var(--cyan);border:2px solid var(--cyan)}
+.b-care{background:rgba(255,159,67,.14);color:var(--orange);border:2px solid var(--orange)}
+.b-no{background:rgba(255,90,95,.12);color:#ff8fb1;border:2px solid #ff8fb1}
+.b-look{background:rgba(108,118,160,.18);color:var(--sec);border:2px solid var(--line2)}
+.trio{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px}
+.trio > div{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:6px 4px;text-align:center}
+.trio .k{font-size:11px;color:var(--muted)} .trio .v{font-family:var(--num);font-size:16px;font-weight:700}
+.tip{font-size:13px;color:var(--sec);margin-top:8px;line-height:1.5}
+.logrow{display:flex;gap:8px;margin-top:8px}
+.logrow input{flex:1;min-width:0;height:48px;border-radius:12px;border:1px solid var(--line2);background:var(--bg2);color:var(--text);font-size:17px;padding:0 12px;font-family:var(--num)}
+.logrow button{min-width:72px;height:48px;border-radius:12px;border:0;font-weight:900;font-size:16px;cursor:pointer}
+.logrow .win{background:var(--up);color:#fff} .logrow .lose{background:var(--down);color:var(--bg)}
+details.more{margin-top:18px;border:1px solid var(--line);border-radius:var(--r);padding:4px 12px;background:rgba(18,25,51,.5)}
+details.more summary{cursor:pointer;min-height:44px;display:flex;align-items:center;color:var(--sec);font-size:14px;font-weight:700}
 /* ---------- 底部導覽 ---------- */
 .tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;background:rgba(10,14,28,.96);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
 .tabs .in{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(3,1fr);height:var(--tab-h)}
@@ -272,11 +317,18 @@ body.sheet-open{overflow:hidden}
 <main class="wrap">
   <!-- ============ 任務 ============ -->
   <section data-pane="quest">
-    <div class="stats" id="statBox"></div>
-    <div id="biasSec"></div>
-    <div id="teamSec"><div class="skel"></div><div class="skel"></div></div>
-    <div id="focusSec"></div>
-    <div id="flagSec"></div>
+    <div id="player"></div>
+    <div id="battle"><div class="skel" style="height:220px"></div></div>
+    <div id="targets"></div>
+    <div id="logBox"></div>
+    <details class="more">
+      <summary>完整情報(出擊訊號・交易小組・爆量焦點・禁區)</summary>
+      <div class="stats" id="statBox"></div>
+      <div id="biasSec"></div>
+      <div id="teamSec"></div>
+      <div id="focusSec"></div>
+      <div id="flagSec"></div>
+    </details>
   </section>
 
   <!-- ============ 自選 ============ -->
@@ -521,13 +573,16 @@ function teamCheck(q, mood){
     const risk = side > 0 ? p - supTarget : resTarget - p, reward = side > 0 ? resTarget - p : p - supTarget;
     const rr = risk > 0 ? reward / risk : null;
     const chase = zi && ((side > 0 && (zi.zone === 'short' || zi.zone === 'over')) || (side < 0 && (zi.zone === 'long' || zi.zone === 'under')));
-    ck.push({r:'圖表', s: rr === null ? 'bad' : (rr >= 1.5 && !chase ? 'ok' : (rr < 1 || chase ? 'warn' : 'na')), t: rr === null ? '已越過停損位置' : `損益比 ${rr.toFixed(1)}:1` + (zi ? `,現價在${zi.label}` : '') + (chase ? '(追價位置)' : '')});
+    const minRR = riskCfg().minRR;
+    ck.push({r:'圖表', s: rr === null ? 'bad' : (rr >= minRR && !chase ? 'ok' : (rr < 1 || chase ? 'warn' : 'na')), t: rr === null ? '已越過停損位置' : `損益比 ${rr.toFixed(1)}:1` + (rr < minRR ? `(低於你設定的 ${minRR})` : '') + (zi ? `,現價在${zi.label}` : '') + (chase ? '(追價位置)' : '')});
   }
   const f = q.flags || {};
   const adr = q.swing && num(q.swing.adr5), hi = num(q.high), lo = num(q.low), pc = num(q.prev_close);
   const used = adr && hi !== null && lo !== null && pc ? (hi - lo) / pc * 100 / adr : null;
   const stopPct = side && num(side > 0 ? supTarget : resTarget) !== null ? Math.abs(p - (side > 0 ? supTarget : resTarget)) / p * 100 : null;
-  if(f.disposal || f.daytrade === false || f.change_trading) ck.push({r:'風險', s:'bad', t: f.disposal ? `處置中(${f.disposal.measure || '分盤撮合'})` : f.daytrade === false ? '不能現股當沖' : '分盤交易'});
+  const rs = riskState();
+  if(rs.block) ck.push({r:'風險', s:'bad', t:'今日風控:' + rs.reasons.join('、')});
+  else if(f.disposal || f.daytrade === false || f.change_trading) ck.push({r:'風險', s:'bad', t: f.disposal ? `處置中(${f.disposal.measure || '分盤撮合'})` : f.daytrade === false ? '不能現股當沖' : '分盤交易'});
   else if(side < 0 && f.no_sell_first) ck.push({r:'風險', s:'bad', t:'暫停先賣後買,不能當沖做空'});
   else {
     const w = [], ul = num(q.upper_limit), ll = num(q.lower_limit);
@@ -536,6 +591,7 @@ function teamCheck(q, mood){
     if(f.notice || f.near_disposal) w.push(f.near_disposal ? '可能被處置' : '注意股');
     if(used !== null && used >= 1.5) w.push(`振幅已達平常 ${Math.round(used * 100)}%`);
     if(stopPct !== null && stopPct > 3) w.push(`停損距離 ${stopPct.toFixed(1)}% 偏遠`);
+    if(stopPct !== null && stopPct < 0.5) w.push(`停損只差 ${stopPct.toFixed(2)}%,很容易被正常波動洗掉`);
     ck.push({r:'風險', s: w.length ? 'warn' : 'ok', t: w.length ? w.join('、') : '沒有交易限制,振幅與停損距離正常'});
   }
   const bad = ck.filter(c => c.s === 'bad').length, warn = ck.filter(c => c.s === 'warn').length, ok = ck.filter(c => c.s === 'ok').length;
@@ -673,6 +729,123 @@ function renderFlagSec(it){
   if(!qs.length){ el.innerHTML = ''; return; }
   el.innerHTML = `<div class="sec"><h2>禁區提醒</h2><span class="tag v">LOCK</span><small>處置・注意・不可當沖</small></div><div class="card list">` +
     qs.map(q => `<div class="li" onclick="openSheet('${esc(q.code)}')"><div class="l"><b>${esc(q.name)}</b><span class="code num" style="color:var(--muted);font-size:12px">${esc(q.code)}</span></div><div>${flagBadges(q)}</div></div>`).join('') + '</div>';
+}
+
+
+// ================= 戰鬥畫面:衝 / 等 / 停 =================
+// 規則跟經典版一樣,只是用號誌燈說出來:
+//   衝 = 回測站得住的規則剛觸發、交易小組五關沒有警示(決策 ok);目前規則都還沒過關,所以通常不會出現。
+//   等 = 盤中可以交易,但沒有可以衝的;可以拿「練習」目標做紙上交易。
+//   停 = 休市/收盤、開盤前 15 分鐘(開盤區間還沒形成)、過了最晚進場時間、今日風控到上限、資料延遲。
+// 今日風控設定與今天的損益存在 localStorage,和經典版「今日風控」同一份(dt_risk_cfg / dt_day / dt_capital / dt_risk)。
+const RISK_DEF = {maxLoss: 5000, maxTrades: 5, lastEntry: '12:30', minRR: 1.5};
+const tpNow = () => { if(window.__NOW) return window.__NOW;   // 測試用:可以指定時間
+  const d = new Date(Date.now() + 8 * 3600000); return {date: d.toISOString().slice(0, 10), hm: d.toISOString().slice(11, 16), wd: d.getUTCDay()}; };
+function riskCfg(){ try { return Object.assign({}, RISK_DEF, JSON.parse(localStorage.getItem('dt_risk_cfg') || '{}')); } catch(e){ return Object.assign({}, RISK_DEF); } }
+function riskDay(){ const t = tpNow().date; try { const d = JSON.parse(localStorage.getItem('dt_day') || '{}'); return d.date === t ? d : {date: t, pnl: 0, trades: 0}; } catch(e){ return {date: t, pnl: 0, trades: 0}; } }
+function riskState(){
+  const c = riskCfg(), d = riskDay(), now = tpNow().hm;
+  const remain = c.maxLoss + Math.min(0, d.pnl), reasons = [];
+  if(remain <= 0) reasons.push(`今天已虧到上限 ${c.maxLoss.toLocaleString('en-US')} 元`);
+  if(d.trades >= c.maxTrades) reasons.push(`今天已做滿 ${c.maxTrades} 筆`);
+  if(now > c.lastEntry && now < '14:00') reasons.push(`過了最晚進場 ${c.lastEntry}`);
+  return {c, d, now, remain: Math.max(0, remain), block: reasons.length > 0, reasons};
+}
+function logTrade(sign){
+  const el = document.getElementById('pnlIn'), v = Math.abs(+el.value || 0);
+  if(!v) { el.focus(); return; }
+  const d = riskDay(); d.pnl = Math.round((d.pnl + sign * v) * 100) / 100; d.trades += 1;
+  try { localStorage.setItem('dt_day', JSON.stringify(d)); } catch(e){}
+  el.value = ''; renderBattle(INTRADAY); renderTeamSec(INTRADAY);
+}
+function phaseOf(it){
+  const t = tpNow(), live = (window.__NOW ? true : !!(it && it.data_as_of && it.data_as_of.slice(0, 10) === t.date)) && t.wd >= 1 && t.wd <= 5;
+  const last = riskCfg().lastEntry;
+  if(!live) return {k: 'closed', name: '休市', i: 5};
+  if(t.hm < '09:00') return {k: 'pre', name: '準備', i: 0};
+  if(t.hm < '09:15') return {k: 'open', name: '開盤混戰', i: 1};
+  if(t.hm < last) return {k: 'battle', name: '主戰場', i: 2};
+  if(t.hm < '13:20') return {k: 'exit', name: '只出場', i: 3};
+  return {k: 'done', name: '收工', i: 4};
+}
+const PHASES = ['準備', '開盤混戰', '主戰場', '只出場', '收工'];
+function planOf(q, t){
+  // 進場 = 現價;停損 = 支撐(做多)/壓力(做空);停利 = 另一邊;股數 = 每筆最多虧 ÷ 停損距離(不超過今天剩下的額度)
+  const p = num(q.last), L = effectiveLevels(q);
+  if(!t || !t.side || p === null) return null;
+  const stop = t.side > 0 ? L.supTarget : L.resTarget, target = t.side > 0 ? L.resTarget : L.supTarget;
+  if(num(stop) === null || num(target) === null) return null;
+  const dist = t.side > 0 ? p - stop : stop - p;
+  if(!(dist > 0)) return null;
+  let cap = 100, rk = 1;
+  try { cap = +(localStorage.getItem('dt_capital') || 100); rk = +(localStorage.getItem('dt_risk') || 1); } catch(e){}
+  const budget = Math.min(cap * 10000 * rk / 100, riskState().remain);
+  const sh = Math.floor(Math.max(0, Math.min(budget / dist, cap * 10000 / p)));
+  return {entry: p, stop, target, shares: sh, loss: Math.round(sh * dist)};
+}
+function gameLabel(t){
+  if(t.vc === 'ok') return {k: 'go', t: '衝', s: 'GO'};
+  if(t.vc === 'bad') return {k: 'no', t: '別碰', s: 'NO'};
+  if(t.vc === 'warn') return {k: 'care', t: '小心', s: 'RISK'};
+  const ok = t.ck.filter(c => c.s === 'ok').length, warn = t.ck.filter(c => c.s === 'warn').length;
+  return t.side && ok >= 3 && !warn ? {k: 'try', t: '練習', s: 'PAPER'} : {k: 'look', t: '觀察', s: 'WATCH'};
+}
+function renderBattle(it){
+  const mood = marketMood(it), r = riskState(), ph = phaseOf(it), c = r.c, d = r.d;
+  // ---- 玩家狀態:血量 = 今天還能虧多少、子彈 = 還能做幾筆、關卡 = 時段 ----
+  const hpPct = c.maxLoss ? Math.max(0, Math.min(100, r.remain / c.maxLoss * 100)) : 0;
+  const hpC = hpPct > 60 ? '#3ce07f' : hpPct > 30 ? 'var(--gold)' : '#ff5a5f';
+  const left = Math.max(0, c.maxTrades - d.trades);
+  document.getElementById('player').innerHTML = `<div class="player">
+    <div class="pbox"><div class="k">❤️ 血量(還能虧)</div><div class="v" style="color:${hpC}">${r.remain.toLocaleString('en-US')}<small style="font-size:11px;color:var(--muted)"> 元</small></div><div class="hpline"><i style="width:${hpPct}%;background-color:${hpC}"></i></div></div>
+    <div class="pbox"><div class="k">🔫 子彈(筆數)</div><div class="v">${left}<small style="font-size:11px;color:var(--muted)"> / ${c.maxTrades}</small></div><div class="ammo">${Array.from({length: Math.min(c.maxTrades, 10)}, (_, i) => `<i class="${i < left ? 'on' : ''}"></i>`).join('')}</div></div>
+    <div class="pbox"><div class="k">💰 今日戰果</div><div class="v ${d.pnl > 0 ? 'up' : d.pnl < 0 ? 'down' : ''}">${d.pnl > 0 ? '+' : ''}${Math.round(d.pnl).toLocaleString('en-US')}</div><div class="k" style="margin-top:2px">已打 ${d.trades} 場</div></div></div>`;
+
+  // ---- 號誌燈 ----
+  const qs = ((it && it.watchlist_quotes) || []).filter(q => !String(q.code).startsWith('00') && num(q.last) !== null);
+  const B = (it && it.bias && it.bias.items) || [];
+  const op = {}; (((it && it.opening_alerts) || {}).items || []).forEach(x => { if(x.hot_now) op[x.code] = 1; });
+  const cands = mood ? qs.filter(q => (num(q.pace) || 0) >= 2 || op[q.code] || B.some(x => x.code === q.code && x.fresh))
+    .map(q => ({q, t: teamCheck(q, mood)})).filter(x => x.t).map(x => ({...x, g: gameLabel(x.t)})) : [];
+  const order = {go: 0, try: 1, care: 2, look: 3, no: 4};
+  cands.sort((a, b) => (order[a.g.k] - order[b.g.k]) || ((b.q.pace || 0) - (a.q.pace || 0)));
+  const go = cands.filter(x => x.g.k === 'go');
+  const mins = window.__NOW ? 0 : (it && it.data_as_of ? Math.round((Date.now() - Date.parse(it.data_as_of)) / 60000) : 999);
+  let st, big, emoji, why, sub;
+  if(ph.k === 'closed' || ph.k === 'done'){ st = 'stop'; big = '停'; emoji = '🌙'; why = ph.k === 'closed' ? '今天休市或已收盤,收工休息。' : '13:20 收工時間,手上的部位全部出場。'; sub = '收盤後 14:30 系統會自動回測、更新明天要用的資料。可以到「地圖」看今天的熱度,或用經典版的回放複習。'; }
+  else if(r.block){ st = 'stop'; big = '停'; emoji = '🛑'; why = '今日風控:' + r.reasons.join('、') + '。'; sub = '今天不再新進場,只處理手上部位的出場。守住紀律,明天再戰。'; }
+  else if(ph.k === 'pre'){ st = 'stop'; big = '停'; emoji = '⏳'; why = '還沒開盤,先看台指期和昨晚的重大訊息。'; sub = '09:00 開盤後的前 15 分鐘是混戰,先別衝。'; }
+  else if(ph.k === 'open'){ st = 'stop'; big = '停'; emoji = '⚔️'; why = '開盤混戰中,等 09:15 開盤區間形成再說。'; sub = '開盤前 15 分鐘波動最亂,回測也顯示一開盤就追的平均成本最高。'; }
+  else if(ph.k === 'exit'){ st = 'stop'; big = '停'; emoji = '🏁'; why = `過了 ${c.lastEntry},不再新進場。`; sub = '只管手上部位:碰到停損或停利就出場,13:20 前全部了結。'; }
+  else if(mins > 20){ st = 'stop'; big = '停'; emoji = '📡'; why = `資料已經 ${mins} 分鐘沒更新,看不清楚就別衝。`; sub = '按右上角重新整理;一直這樣代表資料來源延遲。'; }
+  else if(go.length){ st = 'go'; big = '衝'; emoji = '🚀'; why = `${go[0].q.name} 出現回測驗證過的訊號,五關都過!`; sub = '照下面目標卡的停損、停利和股數執行,碰到停損就認賠,不要凹。'; }
+  else { st = 'wait'; big = '等'; emoji = '👀'; why = '盤中,但還沒有可以衝的機會。'; sub = (it && it.bias && !Object.values(it.bias.rules || {}).some(x => x.holds)) ? '目前沒有任何招式通過回測驗證,所以不會亮綠燈。下面的「練習」目標可以拿來紙上交易,累積經驗。' : '等驗證過的訊號出現;下面的「練習」目標可以先紙上交易。'; }
+  const phaseBar = `<div class="phase">${PHASES.map((n, i) => `<span class="${ph.k !== 'closed' && i === ph.i ? 'on' : (ph.k !== 'closed' && i < ph.i) || ph.k === 'closed' ? 'done' : ''}">${n}</span>`).join('')}</div>`;
+  const boss = mood ? `<div class="sub" style="margin-top:10px">大盤 Boss:<b style="color:${mood.side > 0 ? 'var(--up)' : mood.side < 0 ? 'var(--down)' : 'var(--sec)'}">${mood.label} ${mood.score > 0 ? '+' : ''}${mood.score}</b>${mood.overheated ? '・過熱' : ''}</div>` : '';
+  document.getElementById('battle').innerHTML = `<div class="light ${st}" role="status" aria-live="polite"><div class="orb" aria-hidden="true">${emoji}</div><div class="big">${big}!</div><div class="why">${esc(why)}</div><div class="sub">${esc(sub)}</div>${boss}${phaseBar}</div>`;
+
+  // ---- 目標卡:最多 3 張 ----
+  const show = cands.filter(x => x.g.k !== 'look').slice(0, 3);
+  const card = ({q, t, g}) => {
+    const pl = planOf(q, t);
+    const tip = g.k === 'go' ? '照停損停利執行,不要凹單。' : g.k === 'try' ? '條件不錯但還沒有驗證過的招式:只拿來紙上練習。' : g.k === 'care' ? t.ck.filter(c => c.s === 'warn').map(c => c.t).join('、') : t.ck.filter(c => c.s === 'bad').map(c => c.t).join('、');
+    return `<div class="card tap" onclick="openSheet('${esc(q.code)}')"><div class="tg">
+      <div class="badge2 b-${g.k}">${g.t}<small>${g.s}</small></div>
+      <div style="flex:1;min-width:0"><div class="row1"><div class="nm"><b>${esc(q.name)}</b><span class="code">${esc(q.code)}</span></div><div class="px"><span class="p num ${cls(q.pct)}">${fmtNum(q.last)}</span></div></div>
+      <div class="row1" style="margin-top:2px">${actTag(t.S)}<span class="c num ${cls(q.pct)}" style="font-size:13px;font-weight:600">${fmtPct(q.pct)}</span></div></div></div>
+      ${pl && (g.k === 'go' || g.k === 'try') ? `<div class="trio"><div><div class="k">進場</div><div class="v">${fmtNum(pl.entry)}</div></div><div><div class="k">停損</div><div class="v down">${fmtNum(pl.stop)}</div></div><div><div class="k">停利</div><div class="v up">${fmtNum(pl.target)}</div></div></div>
+      <div class="tip">建議最多 <b class="num">${pl.shares.toLocaleString('en-US')}</b> 股,虧到停損約 ${pl.loss.toLocaleString('en-US')} 元。</div>` : ''}
+      <div class="tip">${esc(tip)}</div></div>`;
+  };
+  const review = !(ph.k === 'battle' || ph.k === 'exit');
+  document.getElementById('targets').innerHTML = `<div class="sec"><h2>${review ? '上一盤的目標' : '目標'}</h2><span class="tag g">${review ? 'REVIEW' : 'TARGET'}</span><small>${review ? '只供回顧,現在不能進場' : '點卡片看完整檢查'}</small></div>` +
+    (show.length ? show.map(card).join('') : `<div class="empty">${ph.k === 'battle' ? '目前沒有量能突出的目標,耐心等。' : '現在不是找目標的時間。'}</div>`);
+
+  // ---- 記錄戰果 ----
+  document.getElementById('logBox').innerHTML = `<div class="sec"><h2>記錄戰果</h2><span class="tag v">LOG</span><small>和經典版今日風控同步</small></div>
+    <div class="card"><div class="note">每打完一場,輸入這筆賺或賠多少元,血量和子彈會自動更新。設定上限請到經典版「今日風控」。</div>
+    <div class="logrow"><input id="pnlIn" type="number" inputmode="decimal" min="0" placeholder="金額(元)" aria-label="這筆金額(元)"><button class="win" onclick="logTrade(1)">贏</button><button class="lose" onclick="logTrade(-1)">輸</button></div></div>
+    <div class="disc">號誌燈和目標卡的判斷跟經典版交易小組完全相同,只是換成遊戲說法;依網頁已有資料機械式整理,不是預測,也不構成買賣建議。</div>`;
 }
 
 // ---- 自選地圖 ----
@@ -858,6 +1031,7 @@ async function loadAll(opts){
   }
   const safe = (n, f) => { try { f(); } catch(e){ console.error('render ' + n, e); } };
   safe('hud', () => renderHud(INTRADAY));
+  safe('battle', () => renderBattle(INTRADAY));
   safe('stats', () => renderStats(INTRADAY));
   safe('bias', () => renderBiasSec(INTRADAY));
   safe('team', () => renderTeamSec(INTRADAY));
@@ -866,7 +1040,7 @@ async function loadAll(opts){
   safe('map', () => renderMap(INTRADAY));
   safe('intel', () => renderIntel());
   if(CUR) safe('sheet', () => openSheet(CUR, true));
-  if(errs.length && !INTRADAY) document.getElementById('teamSec').innerHTML = `<div class="err">${errs.join('、')},請按右上角重新整理</div>`;
+  if(errs.length && !INTRADAY) document.getElementById('battle').innerHTML = `<div class="err">${errs.join('、')},請按右上角重新整理</div>`;
   btn.classList.remove('spin');
 }
 setTab('quest');
