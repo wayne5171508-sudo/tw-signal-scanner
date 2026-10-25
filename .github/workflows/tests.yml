@@ -2,7 +2,7 @@ name: 程式自動測試
 
 on:
   push:
-    paths: ["**.py", "tests/**", ".github/workflows/tests.yml"]
+    paths: ["**.py", "**.html", "tests/**", ".github/workflows/tests.yml"]
   workflow_dispatch: {}
 
 jobs:
