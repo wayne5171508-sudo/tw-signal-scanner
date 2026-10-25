@@ -2116,6 +2116,15 @@ def main():
     trade_flags = load_trade_flags(run_time)
     for q in watchlist_out:
         q["flags"] = (trade_flags.get("flags") or {}).get(q["code"])
+    # 新聞分析員:公開資訊觀測站重大訊息,每 15 分鐘最多抓一次,累積最近 7 天(news.py)
+    news_data = {}
+    try:
+        import news
+        news_data = news.update_news(list(WATCHLIST_NAMES), run_time, load_json_safe, write_json_atomic)
+        for q in watchlist_out:
+            q["news"] = news.recent_for(news_data, q["code"], run_time.strftime("%Y-%m-%d")) or None
+    except Exception as e:  # noqa: BLE001  消息是加分資料
+        print(f"[警告] 重大訊息抓取失敗: {e}")
 
     # 資料實際代表的時間(取台股報價裡最新的時間戳;指數報價偶爾會停在幾分鐘前),跟程式執行時間分開揭露。
     # 不算美股指數與台指期:它們收盤/夜盤時間比台股晚,週末或收盤後會讓「報價時間」看起來比實際新。
@@ -2150,6 +2159,7 @@ def main():
         "indices": indices_out,
         "watchlist_quotes": watchlist_out,
         "trade_flags": {k: trade_flags.get(k) for k in ("date", "fetched_at", "daytrade_list_date", "status", "note")},
+        "news_status": {k: news_data.get(k) for k in ("updated", "status", "source")} if news_data else None,
     }
 
     os.makedirs(DATA_DIR, exist_ok=True)

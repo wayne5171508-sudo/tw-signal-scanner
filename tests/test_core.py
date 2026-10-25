@@ -590,3 +590,17 @@ def test_rank_top_and_cross_check():
     res2 = {"orb_long": {"holds": True, "best": {"stop": 1.0, "target": 2.0}}}
     daytrade_lab.cross_check(res2, None, "2026-10-01")
     assert res2["orb_long"]["holds"] and res2["orb_long"]["top"] is None           # 交叉驗證失敗時保留原結果
+
+
+def test_news_normalize_merge_and_recent():
+    import news
+    row = {"出表日期": "1151027", "發言日期": "1151027", "發言時間": "93005", "公司代號": "2303", "公司名稱": "聯電",
+           "主旨 ": "公告本公司董事會決議\r\n發放現金股利", "符合條款": "第14款"}
+    it = news.normalize(row, "公司代號")
+    assert it["date"] == "2026-10-27" and it["time"] == "09:30" and it["title"] == "公告本公司董事會決議 發放現金股利"
+    assert it["cat"] == "股利增減資" and news.categorize("自結九月營收") == "財報營收" and news.categorize("其他事項") == "其他"
+    old = [dict(it, date="2026-10-10"), dict(it)]
+    merged = news.merge(old, [dict(it), news.normalize(dict(row, 公司代號="9999"), "公司代號")], {"2303"}, "2026-10-27")
+    assert len(merged) == 1                                       # 去重、過舊與非自選股都去掉
+    assert news.recent_for({"items": merged}, "2303", "2026-10-28")[0]["title"].startswith("公告")
+    assert news.recent_for({"items": merged}, "2303", "2026-11-05") == []

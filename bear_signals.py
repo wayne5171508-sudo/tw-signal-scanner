@@ -496,6 +496,11 @@ def main():
     }
     os.makedirs(DATA_DIR, exist_ok=True)
     write_json_atomic(OUT_FILE, out, indent=1)
+    try:   # 收盤後的重大訊息(財報、董事會多在盤後公告),隔天盤前網頁就看得到
+        import news
+        news.update_news(list(WATCHLIST_NAMES), run_time, load_json_safe, write_json_atomic, force=True)
+    except Exception as e:  # noqa: BLE001
+        print(f"[警告] 收盤後重大訊息抓取失敗: {e}")
 
     print(f"[完成] {latest} 共 {len(bars)} 檔(重抓 {fresh} 檔),期間 {result['period'][0]}~{result['period'][1]}")
     print(f"  還原權值:{ev_src},{out['data_quality']['adjusted_stocks']} 檔共 {out['data_quality']['adjusted_events']} 次事件")
