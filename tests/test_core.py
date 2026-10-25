@@ -604,3 +604,22 @@ def test_news_normalize_merge_and_recent():
     assert len(merged) == 1                                       # 去重、過舊與非自選股都去掉
     assert news.recent_for({"items": merged}, "2303", "2026-10-28")[0]["title"].startswith("公告")
     assert news.recent_for({"items": merged}, "2303", "2026-11-05") == []
+
+
+def test_web_pages_javascript_syntax(tmp_path):
+    """網頁的 JavaScript 有語法錯誤時整頁會空白,Python 測試抓不到;有 node 就用 node --check 檢查每一段 <script>。"""
+    import re
+    import shutil
+    import subprocess
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("沒有安裝 node(GitHub Actions 的 ubuntu 環境有)")
+    for page in ("index.html", "game.html"):
+        html = open(os.path.join(ROOT, page), encoding="utf-8").read()
+        scripts = re.findall(r"<script>(.*?)</script>", html, re.S)
+        assert scripts, page
+        for i, js in enumerate(scripts):
+            f = tmp_path / f"{page}.{i}.js"
+            f.write_text(js, encoding="utf-8")
+            r = subprocess.run([node, "--check", str(f)], capture_output=True, text=True)
+            assert r.returncode == 0, f"{page} 第 {i + 1} 段 script 語法錯誤:\n{r.stderr[-800:]}"

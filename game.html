@@ -557,11 +557,17 @@ function teamCheck(q, mood){
   if(p === null) return null;
   const B = (INTRADAY && INTRADAY.bias && INTRADAY.bias.items) || [];
   const fresh = B.filter(x => x.code === q.code && x.fresh);
-  let side = fresh.length ? (fresh[0].side === 'long' ? 1 : -1) : (num(q.pct) >= 0.5 ? 1 : num(q.pct) <= -0.5 ? -1 : 0);
+  // 方向:有剛觸發的多空判斷就用它;同時有方向相反的觸發(例如分數放空和超跌反向做多同一根成立)時,
+  // 只有通過回測的那一邊算數,都沒通過就當成矛盾、改看漲跌幅(±0.5% 以內算觀望)
+  const fSides = new Set(fresh.map(x => x.side)), held = fresh.filter(x => x.holds);
+  const conflict = fSides.size > 1;
+  const pick = !conflict ? fresh : (new Set(held.map(x => x.side)).size === 1 ? held : []);
+  let side = pick.length ? (pick[0].side === 'long' ? 1 : -1) : (num(q.pct) >= 0.5 ? 1 : num(q.pct) <= -0.5 ? -1 : 0);
   const S = side > 0 ? '做多' : side < 0 ? '做空' : '觀望';
   const ck = [];
   const pace = num(q.pace);
   ck.push({r:'機會', s: pace >= 2 ? 'ok' : 'na', t: pace === null ? '量能資料累積中' : pace >= 2 ? `量能 ${pace.toFixed(1)} 倍,有資金在動` : `量能 ${pace.toFixed(1)} 倍,不算突出`});
+  if(conflict && !pick.length) ck[ck.length - 1] = {r: '機會', s: 'warn', t: ck[ck.length - 1].t + ',而且剛觸發的多空訊號互相矛盾'};
   const nw = q.news || [];
   ck.push({r:'消息', s: nw.length ? 'warn' : 'ok', t: nw.length ? `${nw[0].date.slice(5)} ${nw[0].cat}:${nw[0].title.slice(0, 28)}${nw[0].title.length > 28 ? '…' : ''}(事件可能放大波動)` : '近兩天沒有重大訊息'});
   if(!mood || !side) ck.push({r:'情緒', s:'na', t: mood ? `大盤${mood.label}(${mood.score > 0 ? '+' : ''}${mood.score})` : '沒有大盤資料'});
@@ -595,11 +601,11 @@ function teamCheck(q, mood){
     ck.push({r:'風險', s: w.length ? 'warn' : 'ok', t: w.length ? w.join('、') : '沒有交易限制,振幅與停損距離正常'});
   }
   const bad = ck.filter(c => c.s === 'bad').length, warn = ck.filter(c => c.s === 'warn').length, ok = ck.filter(c => c.s === 'ok').length;
-  const validated = fresh.some(x => x.holds && (x.side === 'long' ? 1 : -1) === side);
+  const validated = pick.some(x => x.holds && (x.side === 'long' ? 1 : -1) === side);
   let v, vc;
   if(bad){ v = '拒絕:' + ck.filter(c => c.s === 'bad').map(c => c.t).join('、'); vc = 'bad'; }
   else if(!side){ v = '觀望:方向不明'; vc = 'na'; }
-  else if(validated && ok >= 3 && warn <= 1){ v = `符合已驗證規則(${fresh.find(x => x.holds).rule_name}),可依部位試算執行`; vc = 'ok'; }
+  else if(validated && ok >= 3 && warn <= 1){ v = `符合已驗證規則(${pick.find(x => x.holds).rule_name}),可依部位試算執行`; vc = 'ok'; }
   else if(warn >= 2){ v = '不建議:警示項目太多,就算要做也要縮小部位'; vc = 'warn'; }
   else { v = validated ? '已驗證規則觸發,但條件不夠完整:縮小部位' : '僅觀察:沒有回測站得住的規則觸發,只適合紙上交易'; vc = validated ? 'warn' : 'na'; }
   return {side, S, ck, v, vc};
@@ -739,6 +745,7 @@ function renderFlagSec(it){
 //   停 = 休市/收盤、開盤前 15 分鐘(開盤區間還沒形成)、過了最晚進場時間、今日風控到上限、資料延遲。
 // 今日風控設定與今天的損益存在 localStorage,和經典版「今日風控」同一份(dt_risk_cfg / dt_day / dt_capital / dt_risk)。
 const RISK_DEF = {maxLoss: 5000, maxTrades: 5, lastEntry: '12:30', minRR: 1.5};
+let RISK_IGNORE_TIME = false;   // 收工/休市回顧當天目標時,不套用「過了最晚進場」
 const tpNow = () => { if(window.__NOW) return window.__NOW;   // 測試用:可以指定時間
   const d = new Date(Date.now() + 8 * 3600000); return {date: d.toISOString().slice(0, 10), hm: d.toISOString().slice(11, 16), wd: d.getUTCDay()}; };
 function riskCfg(){ try { return Object.assign({}, RISK_DEF, JSON.parse(localStorage.getItem('dt_risk_cfg') || '{}')); } catch(e){ return Object.assign({}, RISK_DEF); } }
@@ -748,7 +755,7 @@ function riskState(){
   const remain = c.maxLoss + Math.min(0, d.pnl), reasons = [];
   if(remain <= 0) reasons.push(`今天已虧到上限 ${c.maxLoss.toLocaleString('en-US')} 元`);
   if(d.trades >= c.maxTrades) reasons.push(`今天已做滿 ${c.maxTrades} 筆`);
-  if(now > c.lastEntry && now < '14:00') reasons.push(`過了最晚進場 ${c.lastEntry}`);
+  if(!RISK_IGNORE_TIME && now > c.lastEntry && now < '14:00') reasons.push(`過了最晚進場 ${c.lastEntry}`);
   return {c, d, now, remain: Math.max(0, remain), block: reasons.length > 0, reasons};
 }
 function logTrade(sign){
@@ -805,8 +812,11 @@ function renderBattle(it){
   const qs = ((it && it.watchlist_quotes) || []).filter(q => !String(q.code).startsWith('00') && num(q.last) !== null);
   const B = (it && it.bias && it.bias.items) || [];
   const op = {}; (((it && it.opening_alerts) || {}).items || []).forEach(x => { if(x.hot_now) op[x.code] = 1; });
+  const reviewMode = ph.k === 'closed' || ph.k === 'done';
+  RISK_IGNORE_TIME = reviewMode;
   const cands = mood ? qs.filter(q => (num(q.pace) || 0) >= 2 || op[q.code] || B.some(x => x.code === q.code && x.fresh))
     .map(q => ({q, t: teamCheck(q, mood)})).filter(x => x.t).map(x => ({...x, g: gameLabel(x.t)})) : [];
+  RISK_IGNORE_TIME = false;
   const order = {go: 0, try: 1, care: 2, look: 3, no: 4};
   cands.sort((a, b) => (order[a.g.k] - order[b.g.k]) || ((b.q.pace || 0) - (a.q.pace || 0)));
   const go = cands.filter(x => x.g.k === 'go');
@@ -825,7 +835,7 @@ function renderBattle(it){
   document.getElementById('battle').innerHTML = `<div class="light ${st}" role="status" aria-live="polite"><div class="orb" aria-hidden="true">${emoji}</div><div class="big">${big}!</div><div class="why">${esc(why)}</div><div class="sub">${esc(sub)}</div>${boss}${phaseBar}</div>`;
 
   // ---- 目標卡:最多 3 張 ----
-  const show = cands.filter(x => x.g.k !== 'look').slice(0, 3);
+  const show = ph.k === 'exit' ? [] : cands.filter(x => x.g.k !== 'look').slice(0, 3);
   const card = ({q, t, g}) => {
     const pl = planOf(q, t);
     const tip = g.k === 'go' ? '照停損停利執行,不要凹單。' : g.k === 'try' ? '條件不錯但還沒有驗證過的招式:只拿來紙上練習。' : g.k === 'care' ? t.ck.filter(c => c.s === 'warn').map(c => c.t).join('、') : t.ck.filter(c => c.s === 'bad').map(c => c.t).join('、');
@@ -839,7 +849,7 @@ function renderBattle(it){
   };
   const review = !(ph.k === 'battle' || ph.k === 'exit');
   document.getElementById('targets').innerHTML = `<div class="sec"><h2>${review ? '上一盤的目標' : '目標'}</h2><span class="tag g">${review ? 'REVIEW' : 'TARGET'}</span><small>${review ? '只供回顧,現在不能進場' : '點卡片看完整檢查'}</small></div>` +
-    (show.length ? show.map(card).join('') : `<div class="empty">${ph.k === 'battle' ? '目前沒有量能突出的目標,耐心等。' : '現在不是找目標的時間。'}</div>`);
+    (show.length ? show.map(card).join('') : `<div class="empty">${ph.k === 'battle' ? '目前沒有量能突出的目標,耐心等。' : ph.k === 'exit' ? `過了最晚進場 ${c.lastEntry},不找新目標;只管手上部位的停損停利。` : '現在不是找目標的時間。'}</div>`);
 
   // ---- 記錄戰果 ----
   document.getElementById('logBox').innerHTML = `<div class="sec"><h2>記錄戰果</h2><span class="tag v">LOG</span><small>和經典版今日風控同步</small></div>
