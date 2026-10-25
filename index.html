@@ -2341,6 +2341,7 @@ function teamCheck(q, mood){
     if(f.notice || f.near_disposal) w.push(f.near_disposal ? '可能被處置' : '注意股');
     if(used !== null && used >= 1.5) w.push(`振幅已達平常 ${Math.round(used * 100)}%`);
     if(stopPct !== null && stopPct > 3) w.push(`停損距離 ${stopPct.toFixed(1)}% 偏遠`);
+    if(stopPct !== null && stopPct < 0.5) w.push(`停損只差 ${stopPct.toFixed(2)}%,很容易被正常波動洗掉`);
     ck.push({r: '風險', s: w.length ? 'warn' : 'ok', t: w.length ? w.join('、') : '沒有交易限制,振幅與停損距離正常'});
   }
   // 6 最終決策員
