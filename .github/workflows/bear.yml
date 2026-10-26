@@ -34,16 +34,20 @@ jobs:
         run: pip install requests
       - name: 今天已經算過就跳過
         id: check
+        env:
+          FORCE: ${{ inputs.force }}
         run: |
           today=$(TZ=Asia/Taipei date +%Y-%m-%d)
-          if [ "${{ inputs.force }}" != "true" ] && [ -f data/bear_scorecard.json ] \
+          if [ "$FORCE" != "true" ] && [ -f data/bear_scorecard.json ] \
              && grep -q "\"latest_bar\": \"$today\"" data/bear_scorecard.json; then
             echo "今天的成績單已經更新過"; echo "skip=1" >> "$GITHUB_OUTPUT"
           fi
       - name: 跑利空回測
         if: steps.check.outputs.skip != '1'
+        env:
+          FORCE: ${{ inputs.force }}
         run: |
-          if [ "${{ inputs.force }}" = "true" ]; then python bear_signals.py --force; else python bear_signals.py; fi
+          if [ "$FORCE" = "true" ]; then python bear_signals.py --force; else python bear_signals.py; fi
       - name: 跑當沖規則回測
         if: steps.check.outputs.skip != '1'
         continue-on-error: true
