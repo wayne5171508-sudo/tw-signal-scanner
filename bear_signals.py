@@ -27,12 +27,11 @@ t 值的算法:同一天多檔同時出現的訊號先平均成一筆,避免同�
 用法:python bear_signals.py(加 --force 在非交易日也重算,手動測試用)
 """
 
-import json
 import os
 import statistics as stx
 import sys
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 
 import requests
 
