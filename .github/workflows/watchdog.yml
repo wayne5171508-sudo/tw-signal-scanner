@@ -1,0 +1,69 @@
+name: 每日巡檢(補跑漏掉的排程)
+
+on:
+  schedule:
+    # GitHub 的 cron 會延遲或跳過,所以巡檢也設兩個時間;第二次發現都正常就什麼都不做。
+    - cron: "30 13 * * 1-5"   # 21:30 台北
+    - cron: "0 15 * * 1-5"    # 23:00 台北
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: watchdog
+  cancel-in-progress: false
+
+jobs:
+  watchdog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 巡檢並補跑
+        run: |
+          set -u
+          today=$(TZ=Asia/Taipei date +%F)
+          roc="$(( $(TZ=Asia/Taipei date +%Y) - 1911 ))/$(TZ=Asia/Taipei date +%m/%d)"
+          ym01=$(TZ=Asia/Taipei date +%Y%m01)
+
+          # 以證交所「有沒有今天的成交資料」判斷交易日(颱風假等臨時休市也算得準)。
+          # 注意:MI_INDEX type=IND 在休市日也會回 OK,不能拿來判斷。
+          trading=$(curl -s --max-time 30 "https://www.twse.com.tw/rwd/zh/afterTrading/FMTQIK?date=${ym01}&response=json" \
+            | python3 -c "import json,sys;d=json.load(sys.stdin);print('yes' if any(r[0]=='${roc}' for r in d.get('data',[])) else 'no')" 2>/dev/null || echo unknown)
+          echo "今天 ${today}(${roc}) 交易日: ${trading}"
+          echo "## 巡檢 ${today}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- 交易日: ${trading}" >> "$GITHUB_STEP_SUMMARY"
+
+          busy() {  # 這個 workflow 現在是否正在跑或排隊
+            [ -n "$(gh run list -R "$REPO" --workflow "$1" --json status --jq '.[]|select(.status!="completed")|.status' | head -1)" ]
+          }
+          dispatch() {
+            if busy "$1"; then echo "- $1 正在跑,不重複觸發" >> "$GITHUB_STEP_SUMMARY"
+            else gh workflow run "$1" -R "$REPO" && echo "- 已補跑 $1($2)" >> "$GITHUB_STEP_SUMMARY"; fi
+          }
+
+          if [ "$trading" = "yes" ]; then
+            scan_date=$(python3 -c "import json;print(json.load(open('data/latest.json')).get('date',''))" 2>/dev/null || echo "")
+            bear_date=$(python3 -c "import json;print(json.load(open('data/bear_scorecard.json')).get('latest_bar',''))" 2>/dev/null || echo "")
+            echo "盤後掃描日期=${scan_date} 利空回測日K=${bear_date}"
+            echo "- 盤後掃描資料日期: ${scan_date:-無}" >> "$GITHUB_STEP_SUMMARY"
+            echo "- 利空回測最新日K: ${bear_date:-無}" >> "$GITHUB_STEP_SUMMARY"
+            [ "$scan_date" = "$today" ] || dispatch scan.yml "資料停在 ${scan_date:-無}"
+            [ "$bear_date" = "$today" ] || dispatch bear.yml "日K停在 ${bear_date:-無}"
+          fi
+
+          # 過去 26 小時第一次執行就失敗的排程 run,自動重跑一次(只重跑第一次失敗的,避免無限重跑)。
+          since=$(date -u -d '-26 hours' +%Y-%m-%dT%H:%M:%SZ)
+          gh run list -R "$REPO" --limit 50 --json databaseId,workflowName,conclusion,createdAt,event,attempt \
+            --jq ".[]|select(.createdAt>=\"$since\" and (.conclusion==\"failure\" or .conclusion==\"timed_out\" or .conclusion==\"startup_failure\") and .attempt==1 and .event!=\"push\" and .workflowName!=\"每日巡檢(補跑漏掉的排程)\")|\"\(.databaseId)\t\(.workflowName)\"" \
+          | while IFS=$'\t' read -r id name; do
+              gh run rerun "$id" -R "$REPO" --failed && echo "- 已重跑失敗的「${name}」(#${id})" >> "$GITHUB_STEP_SUMMARY"
+            done
+
+          echo "巡檢完成"
