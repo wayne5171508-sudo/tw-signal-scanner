@@ -1,5 +1,5 @@
 {
-  "checked_at": "2026-10-27T13:36:00+08:00",
+  "checked_at": "2026-10-27T23:57:27+08:00",
   "trade_date": "2026-10-27",
   "ok": true,
   "items": [
@@ -28,6 +28,42 @@
       "detail": "單位 1"
     },
     {
+      "key": "review",
+      "name": "收盤復盤",
+      "ok": true,
+      "detail": "最新一份是 2026-10-27"
+    },
+    {
+      "key": "archive",
+      "name": "盤中走勢存檔",
+      "ok": true,
+      "detail": "2026-10-27.json 有"
+    },
+    {
+      "key": "mkt",
+      "name": "全市場快照",
+      "ok": true,
+      "detail": "快照 3/3 次,收盤價有"
+    },
+    {
+      "key": "lab",
+      "name": "策略驗證室",
+      "ok": true,
+      "detail": "最後更新 2026-10-27 13:36"
+    },
+    {
+      "key": "bear",
+      "name": "利空回測",
+      "ok": true,
+      "detail": "成績單最新 K 線 2026-10-27"
+    },
+    {
+      "key": "daytrade",
+      "name": "當沖回測與存檔",
+      "ok": true,
+      "detail": "5分K存到 2026-10-27,2026-10-27 存檔有、回放有"
+    },
+    {
       "key": "scan",
       "name": "盤後掃描存檔",
       "ok": true,
@@ -37,7 +73,7 @@
       "key": "track",
       "name": "隔日戰績",
       "ok": true,
-      "detail": "61 筆,無重複、皆為隔日"
+      "detail": "71 筆,無重複、皆為隔日"
     }
   ]
 }
