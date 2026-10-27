@@ -1,10 +1,10 @@
 {
- "as_of": "2026-10-24T14:34:46.529648+08:00",
+ "as_of": "2026-10-27T16:17:19.616591+08:00",
  "stocks": 74,
  "first": "2026-07-29",
- "last": "2026-10-22",
- "days": 59,
- "train_until": "2026-09-22",
+ "last": "2026-10-27",
+ "days": 60,
+ "train_until": "2026-09-23",
  "cost_pct": 0.3,
  "rules": {
   "orb_long": {
@@ -15,61 +15,61 @@
     "stop": 1.0,
     "target": 3.0,
     "train": {
-     "n": 1238,
-     "days": 39,
-     "avg": -0.241,
-     "win": 32.1,
-     "t": -4.21,
+     "n": 1258,
+     "days": 40,
+     "avg": -0.254,
+     "win": 31.7,
+     "t": -4.43,
      "avg_win": 1.71,
-     "avg_loss": 1.16,
+     "avg_loss": 1.17,
      "payoff": 1.47,
      "exits": {
-      "stop": 701,
-      "target": 181,
-      "close": 356
+      "stop": 719,
+      "target": 182,
+      "close": 357
      },
-     "mdd": 13.87,
+     "mdd": 14.93,
      "worst_day": -1.3,
      "lose_streak": 13,
-     "cum": -13.87
+     "cum": -14.93
     },
     "test": {
-     "n": 622,
+     "n": 618,
      "days": 20,
-     "avg": -0.259,
-     "win": 30.5,
-     "t": -3.09,
-     "avg_win": 1.68,
+     "avg": -0.255,
+     "win": 30.7,
+     "t": -3.08,
+     "avg_win": 1.67,
      "avg_loss": 1.11,
-     "payoff": 1.51,
+     "payoff": 1.5,
      "exits": {
-      "stop": 329,
-      "target": 86,
-      "close": 207
+      "stop": 324,
+      "target": 85,
+      "close": 209
      },
-     "mdd": 6.78,
+     "mdd": 6.84,
      "worst_day": -1.19,
-     "lose_streak": 6,
-     "cum": -6.78
+     "lose_streak": 7,
+     "cum": -6.84
     },
     "all": {
-     "n": 1860,
-     "days": 59,
-     "avg": -0.247,
-     "win": 31.6,
-     "t": -5.26,
+     "n": 1876,
+     "days": 60,
+     "avg": -0.254,
+     "win": 31.4,
+     "t": -5.44,
      "avg_win": 1.7,
      "avg_loss": 1.15,
      "payoff": 1.48,
      "exits": {
-      "stop": 1030,
+      "stop": 1043,
       "target": 267,
-      "close": 563
+      "close": 566
      },
-     "mdd": 20.66,
+     "mdd": 21.77,
      "worst_day": -1.3,
      "lose_streak": 13,
-     "cum": -20.66
+     "cum": -21.77
     }
    },
    "holds": false,
@@ -78,42 +78,42 @@
    "holds_watch": false,
    "top": {
     "all": {
-     "n": 3878,
-     "days": 59,
-     "avg": -0.272,
-     "win": 31.0,
-     "t": -7.02,
+     "n": 3914,
+     "days": 60,
+     "avg": -0.276,
+     "win": 30.9,
+     "t": -7.21,
      "avg_win": 1.62,
      "avg_loss": 1.12,
      "payoff": 1.44,
      "exits": {
-      "stop": 2063,
-      "target": 529,
-      "close": 1286
+      "stop": 2088,
+      "target": 532,
+      "close": 1294
      },
-     "mdd": 18.58,
+     "mdd": 19.21,
      "worst_day": -1.36,
      "lose_streak": 14,
-     "cum": -18.58
+     "cum": -19.21
     },
     "test": {
-     "n": 1347,
+     "n": 1338,
      "days": 20,
-     "avg": -0.286,
-     "win": 30.4,
-     "t": -5.32,
-     "avg_win": 1.57,
+     "avg": -0.296,
+     "win": 30.3,
+     "t": -5.38,
+     "avg_win": 1.55,
      "avg_loss": 1.1,
-     "payoff": 1.44,
+     "payoff": 1.41,
      "exits": {
-      "stop": 695,
-      "target": 173,
-      "close": 479
+      "stop": 692,
+      "target": 166,
+      "close": 480
      },
-     "mdd": 5.62,
+     "mdd": 5.99,
      "worst_day": -0.77,
      "lose_streak": 7,
-     "cum": -5.62
+     "cum": -5.99
     }
    }
   },
@@ -125,61 +125,61 @@
     "stop": 1.0,
     "target": 3.0,
     "train": {
-     "n": 1432,
-     "days": 39,
-     "avg": -0.266,
-     "win": 32.4,
-     "t": -4.19,
-     "avg_win": 1.58,
+     "n": 1479,
+     "days": 40,
+     "avg": -0.249,
+     "win": 33.1,
+     "t": -4.06,
+     "avg_win": 1.56,
      "avg_loss": 1.15,
-     "payoff": 1.37,
+     "payoff": 1.36,
      "exits": {
-      "stop": 789,
-      "target": 166,
-      "close": 477
+      "stop": 805,
+      "target": 173,
+      "close": 501
      },
      "mdd": 16.38,
      "worst_day": -1.3,
      "lose_streak": 6,
-     "cum": -15.44
+     "cum": -15.17
     },
     "test": {
-     "n": 789,
+     "n": 799,
      "days": 20,
-     "avg": -0.015,
-     "win": 42.8,
-     "t": -1.14,
-     "avg_win": 1.4,
-     "avg_loss": 1.08,
-     "payoff": 1.3,
+     "avg": -0.029,
+     "win": 41.8,
+     "t": -1.24,
+     "avg_win": 1.45,
+     "avg_loss": 1.09,
+     "payoff": 1.33,
      "exits": {
-      "stop": 333,
-      "target": 108,
-      "close": 348
+      "stop": 346,
+      "target": 112,
+      "close": 341
      },
      "mdd": 5.17,
      "worst_day": -1.0,
      "lose_streak": 10,
-     "cum": -3.24
+     "cum": -3.49
     },
     "all": {
-     "n": 2221,
-     "days": 59,
-     "avg": -0.177,
-     "win": 36.1,
-     "t": -3.99,
-     "avg_win": 1.5,
+     "n": 2278,
+     "days": 60,
+     "avg": -0.172,
+     "win": 36.2,
+     "t": -3.97,
+     "avg_win": 1.52,
      "avg_loss": 1.13,
      "payoff": 1.34,
      "exits": {
-      "stop": 1122,
-      "target": 274,
-      "close": 825
+      "stop": 1151,
+      "target": 285,
+      "close": 842
      },
      "mdd": 21.27,
      "worst_day": -1.3,
      "lose_streak": 10,
-     "cum": -18.68
+     "cum": -18.66
     }
    },
    "holds": false,
@@ -188,42 +188,42 @@
    "holds_watch": false,
    "top": {
     "all": {
-     "n": 4466,
-     "days": 59,
-     "avg": -0.17,
-     "win": 36.0,
-     "t": -4.23,
-     "avg_win": 1.47,
+     "n": 4574,
+     "days": 60,
+     "avg": -0.174,
+     "win": 35.7,
+     "t": -4.33,
+     "avg_win": 1.48,
      "avg_loss": 1.09,
      "payoff": 1.35,
      "exits": {
-      "stop": 2131,
-      "target": 518,
-      "close": 1817
+      "stop": 2197,
+      "target": 536,
+      "close": 1841
      },
      "mdd": 18.02,
      "worst_day": -1.08,
      "lose_streak": 10,
-     "cum": -15.47
+     "cum": -15.8
     },
     "test": {
-     "n": 1594,
+     "n": 1605,
      "days": 20,
-     "avg": -0.073,
-     "win": 40.7,
-     "t": -1.54,
-     "avg_win": 1.35,
-     "avg_loss": 1.05,
-     "payoff": 1.29,
+     "avg": -0.091,
+     "win": 39.5,
+     "t": -1.66,
+     "avg_win": 1.41,
+     "avg_loss": 1.07,
+     "payoff": 1.32,
      "exits": {
-      "stop": 668,
-      "target": 179,
-      "close": 747
+      "stop": 704,
+      "target": 195,
+      "close": 706
      },
-     "mdd": 5.1,
+     "mdd": 5.05,
      "worst_day": -0.75,
      "lose_streak": 10,
-     "cum": -3.21
+     "cum": -3.48
     }
    }
   },
@@ -235,61 +235,61 @@
     "stop": 2.5,
     "target": 2.0,
     "train": {
-     "n": 503,
-     "days": 37,
-     "avg": 0.084,
-     "win": 59.4,
-     "t": 0.16,
-     "avg_win": 1.63,
-     "avg_loss": 2.18,
-     "payoff": 0.75,
+     "n": 533,
+     "days": 38,
+     "avg": 0.087,
+     "win": 59.7,
+     "t": 0.18,
+     "avg_win": 1.62,
+     "avg_loss": 2.19,
+     "payoff": 0.74,
      "exits": {
-      "stop": 133,
-      "target": 280,
-      "close": 90
+      "stop": 142,
+      "target": 297,
+      "close": 94
      },
      "mdd": 6.64,
      "worst_day": -2.8,
      "lose_streak": 2,
-     "cum": 1.34
+     "cum": 1.48
     },
     "test": {
-     "n": 200,
+     "n": 205,
      "days": 17,
-     "avg": -0.197,
-     "win": 55.5,
-     "t": -0.98,
-     "avg_win": 1.58,
-     "avg_loss": 2.41,
-     "payoff": 0.65,
+     "avg": -0.113,
+     "win": 57.1,
+     "t": -0.89,
+     "avg_win": 1.6,
+     "avg_loss": 2.39,
+     "payoff": 0.67,
      "exits": {
-      "stop": 69,
-      "target": 100,
+      "stop": 66,
+      "target": 108,
       "close": 31
      },
      "mdd": 8.16,
      "worst_day": -2.8,
      "lose_streak": 5,
-     "cum": -5.39
+     "cum": -4.95
     },
     "all": {
-     "n": 703,
-     "days": 54,
-     "avg": 0.004,
-     "win": 58.3,
-     "t": -0.41,
-     "avg_win": 1.61,
+     "n": 738,
+     "days": 55,
+     "avg": 0.031,
+     "win": 58.9,
+     "t": -0.35,
+     "avg_win": 1.62,
      "avg_loss": 2.25,
      "payoff": 0.72,
      "exits": {
-      "stop": 202,
-      "target": 380,
-      "close": 121
+      "stop": 208,
+      "target": 405,
+      "close": 125
      },
      "mdd": 11.33,
      "worst_day": -2.8,
      "lose_streak": 5,
-     "cum": -4.06
+     "cum": -3.47
     }
    },
    "holds": false,
@@ -298,42 +298,42 @@
    "holds_watch": false,
    "top": {
     "all": {
-     "n": 1219,
-     "days": 58,
-     "avg": -0.093,
-     "win": 55.2,
-     "t": -1.83,
+     "n": 1280,
+     "days": 59,
+     "avg": -0.049,
+     "win": 56.2,
+     "t": -1.71,
      "avg_win": 1.63,
-     "avg_loss": 2.21,
+     "avg_loss": 2.2,
      "payoff": 0.74,
      "exits": {
-      "stop": 375,
-      "target": 624,
-      "close": 220
+      "stop": 384,
+      "target": 669,
+      "close": 227
      },
      "mdd": 17.58,
      "worst_day": -2.8,
      "lose_streak": 7,
-     "cum": -14.34
+     "cum": -13.52
     },
     "test": {
-     "n": 370,
+     "n": 394,
      "days": 20,
-     "avg": -0.303,
-     "win": 52.4,
-     "t": -1.22,
-     "avg_win": 1.58,
-     "avg_loss": 2.38,
-     "payoff": 0.66,
+     "avg": -0.187,
+     "win": 54.6,
+     "t": -1.07,
+     "avg_win": 1.61,
+     "avg_loss": 2.35,
+     "payoff": 0.69,
      "exits": {
       "stop": 134,
-      "target": 170,
-      "close": 66
+      "target": 195,
+      "close": 65
      },
      "mdd": 6.94,
      "worst_day": -1.79,
      "lose_streak": 7,
-     "cum": -5.07
+     "cum": -4.57
     }
    }
   },
@@ -408,42 +408,42 @@
    "holds_watch": false,
    "top": {
     "all": {
-     "n": 752,
-     "days": 50,
-     "avg": 0.01,
-     "win": 49.1,
-     "t": -0.19,
+     "n": 753,
+     "days": 51,
+     "avg": 0.006,
+     "win": 49.0,
+     "t": -0.42,
      "avg_win": 2.35,
      "avg_loss": 2.25,
      "payoff": 1.05,
      "exits": {
-      "stop": 257,
+      "stop": 258,
       "target": 300,
       "close": 195
      },
-     "mdd": 9.07,
+     "mdd": 11.87,
      "worst_day": -2.8,
      "lose_streak": 8,
-     "cum": -2.15
+     "cum": -4.95
     },
     "test": {
      "n": 319,
      "days": 17,
-     "avg": -0.5,
-     "win": 39.2,
-     "t": -0.17,
+     "avg": -0.517,
+     "win": 38.9,
+     "t": -0.98,
      "avg_win": 2.36,
-     "avg_loss": 2.34,
+     "avg_loss": 2.35,
      "payoff": 1.01,
      "exits": {
-      "stop": 136,
-      "target": 100,
+      "stop": 137,
+      "target": 99,
       "close": 83
      },
-     "mdd": 9.07,
+     "mdd": 11.87,
      "worst_day": -2.8,
      "lose_streak": 8,
-     "cum": -1.17
+     "cum": -6.67
     }
    }
   },
@@ -455,61 +455,61 @@
     "stop": 1.0,
     "target": 3.0,
     "train": {
-     "n": 1274,
-     "days": 39,
-     "avg": -0.269,
-     "win": 31.5,
-     "t": -3.69,
-     "avg_win": 1.59,
+     "n": 1314,
+     "days": 40,
+     "avg": -0.29,
+     "win": 30.7,
+     "t": -3.91,
+     "avg_win": 1.58,
      "avg_loss": 1.12,
      "payoff": 1.41,
      "exits": {
-      "stop": 672,
-      "target": 152,
-      "close": 450
+      "stop": 702,
+      "target": 153,
+      "close": 459
      },
-     "mdd": 13.34,
+     "mdd": 13.77,
      "worst_day": -1.3,
      "lose_streak": 10,
-     "cum": -12.79
+     "cum": -13.77
     },
     "test": {
      "n": 623,
      "days": 20,
-     "avg": -0.47,
-     "win": 23.9,
-     "t": -4.47,
-     "avg_win": 1.47,
-     "avg_loss": 1.08,
-     "payoff": 1.36,
+     "avg": -0.444,
+     "win": 25.2,
+     "t": -4.41,
+     "avg_win": 1.46,
+     "avg_loss": 1.09,
+     "payoff": 1.35,
      "exits": {
-      "stop": 333,
-      "target": 54,
-      "close": 236
+      "stop": 331,
+      "target": 55,
+      "close": 237
      },
-     "mdd": 9.51,
+     "mdd": 9.11,
      "worst_day": -1.28,
-     "lose_streak": 13,
-     "cum": -9.51
+     "lose_streak": 14,
+     "cum": -9.11
     },
     "all": {
-     "n": 1897,
-     "days": 59,
-     "avg": -0.335,
+     "n": 1937,
+     "days": 60,
+     "avg": -0.34,
      "win": 29.0,
-     "t": -5.48,
+     "t": -5.61,
      "avg_win": 1.55,
      "avg_loss": 1.11,
      "payoff": 1.4,
      "exits": {
-      "stop": 1005,
-      "target": 206,
-      "close": 686
+      "stop": 1033,
+      "target": 208,
+      "close": 696
      },
-     "mdd": 22.31,
+     "mdd": 22.88,
      "worst_day": -1.3,
-     "lose_streak": 13,
-     "cum": -22.31
+     "lose_streak": 14,
+     "cum": -22.88
     }
    },
    "holds": false,
@@ -518,42 +518,42 @@
    "holds_watch": false,
    "top": {
     "all": {
-     "n": 3907,
-     "days": 59,
-     "avg": -0.325,
-     "win": 29.5,
-     "t": -6.88,
+     "n": 3996,
+     "days": 60,
+     "avg": -0.335,
+     "win": 29.3,
+     "t": -7.07,
      "avg_win": 1.48,
      "avg_loss": 1.08,
-     "payoff": 1.37,
+     "payoff": 1.36,
      "exits": {
-      "stop": 1981,
-      "target": 428,
-      "close": 1498
+      "stop": 2045,
+      "target": 431,
+      "close": 1520
      },
-     "mdd": 19.95,
+     "mdd": 20.73,
      "worst_day": -1.2,
      "lose_streak": 8,
-     "cum": -19.95
+     "cum": -20.73
     },
     "test": {
-     "n": 1353,
+     "n": 1357,
      "days": 20,
-     "avg": -0.377,
-     "win": 27.7,
-     "t": -4.32,
-     "avg_win": 1.41,
+     "avg": -0.381,
+     "win": 27.8,
+     "t": -4.31,
+     "avg_win": 1.39,
      "avg_loss": 1.06,
-     "payoff": 1.33,
+     "payoff": 1.31,
      "exits": {
-      "stop": 677,
-      "target": 132,
-      "close": 544
+      "stop": 688,
+      "target": 131,
+      "close": 538
      },
-     "mdd": 6.37,
+     "mdd": 6.43,
      "worst_day": -0.95,
-     "lose_streak": 5,
-     "cum": -6.37
+     "lose_streak": 6,
+     "cum": -6.43
     }
    }
   },
@@ -565,61 +565,61 @@
     "stop": 1.0,
     "target": null,
     "train": {
-     "n": 1011,
-     "days": 38,
-     "avg": -0.126,
-     "win": 36.1,
-     "t": -2.51,
-     "avg_win": 1.58,
+     "n": 1032,
+     "days": 39,
+     "avg": -0.119,
+     "win": 36.5,
+     "t": -2.44,
+     "avg_win": 1.57,
      "avg_loss": 1.09,
-     "payoff": 1.45,
+     "payoff": 1.44,
      "exits": {
-      "stop": 484,
+      "stop": 490,
       "target": 0,
-      "close": 527
+      "close": 542
      },
      "mdd": 14.25,
      "worst_day": -1.3,
      "lose_streak": 11,
-     "cum": -11.1
+     "cum": -10.86
     },
     "test": {
-     "n": 563,
+     "n": 571,
      "days": 20,
-     "avg": -0.144,
-     "win": 38.5,
-     "t": -0.81,
-     "avg_win": 1.25,
+     "avg": -0.146,
+     "win": 38.2,
+     "t": -0.86,
+     "avg_win": 1.27,
      "avg_loss": 1.02,
-     "payoff": 1.23,
+     "payoff": 1.24,
      "exits": {
-      "stop": 224,
+      "stop": 231,
       "target": 0,
-      "close": 339
+      "close": 340
      },
      "mdd": 6.9,
      "worst_day": -0.89,
      "lose_streak": 13,
-     "cum": -3.12
+     "cum": -3.28
     },
     "all": {
-     "n": 1574,
-     "days": 58,
-     "avg": -0.133,
-     "win": 37.0,
-     "t": -2.44,
+     "n": 1603,
+     "days": 59,
+     "avg": -0.129,
+     "win": 37.1,
+     "t": -2.43,
      "avg_win": 1.46,
      "avg_loss": 1.07,
      "payoff": 1.37,
      "exits": {
-      "stop": 708,
+      "stop": 721,
       "target": 0,
-      "close": 866
+      "close": 882
      },
      "mdd": 20.92,
      "worst_day": -1.3,
      "lose_streak": 13,
-     "cum": -14.22
+     "cum": -14.14
     }
    },
    "holds": false,
@@ -628,42 +628,42 @@
    "holds_watch": false,
    "top": {
     "all": {
-     "n": 3181,
-     "days": 59,
-     "avg": -0.161,
-     "win": 34.7,
-     "t": -2.18,
-     "avg_win": 1.42,
+     "n": 3239,
+     "days": 60,
+     "avg": -0.156,
+     "win": 34.8,
+     "t": -2.14,
+     "avg_win": 1.43,
      "avg_loss": 1.0,
-     "payoff": 1.42,
+     "payoff": 1.43,
      "exits": {
-      "stop": 1341,
+      "stop": 1365,
       "target": 0,
-      "close": 1840
+      "close": 1874
      },
      "mdd": 15.9,
      "worst_day": -1.12,
      "lose_streak": 7,
-     "cum": -10.53
+     "cum": -10.38
     },
     "test": {
-     "n": 1123,
+     "n": 1134,
      "days": 20,
-     "avg": -0.217,
-     "win": 33.7,
-     "t": -1.14,
-     "avg_win": 1.24,
+     "avg": -0.212,
+     "win": 33.2,
+     "t": -1.12,
+     "avg_win": 1.3,
      "avg_loss": 0.96,
-     "payoff": 1.29,
+     "payoff": 1.35,
      "exits": {
-      "stop": 443,
+      "stop": 457,
       "target": 0,
-      "close": 680
+      "close": 677
      },
      "mdd": 5.89,
      "worst_day": -0.74,
      "lose_streak": 6,
-     "cum": -3.47
+     "cum": -3.43
     }
    }
   },
@@ -673,63 +673,63 @@
    "desc": "10:00 那根收盤漲 >= 3% 且在均價線之上",
    "best": {
     "stop": 1.0,
-    "target": 3.0,
+    "target": 1.0,
     "train": {
-     "n": 413,
-     "days": 38,
-     "avg": -0.368,
-     "win": 23.0,
-     "t": -1.87,
-     "avg_win": 1.88,
-     "avg_loss": 1.04,
-     "payoff": 1.81,
+     "n": 424,
+     "days": 39,
+     "avg": -0.371,
+     "win": 37.7,
+     "t": -3.37,
+     "avg_win": 0.67,
+     "avg_loss": 1.0,
+     "payoff": 0.67,
      "exits": {
-      "stop": 229,
-      "target": 46,
-      "close": 138
+      "stop": 182,
+      "target": 151,
+      "close": 91
      },
-     "mdd": 11.66,
+     "mdd": 13.42,
      "worst_day": -1.35,
-     "lose_streak": 5,
-     "cum": -10.94
+     "lose_streak": 7,
+     "cum": -13.42
     },
     "test": {
-     "n": 165,
+     "n": 164,
      "days": 20,
-     "avg": -0.439,
-     "win": 22.4,
-     "t": -1.17,
-     "avg_win": 1.78,
+     "avg": -0.47,
+     "win": 34.8,
+     "t": -3.39,
+     "avg_win": 0.67,
      "avg_loss": 1.08,
-     "payoff": 1.65,
+     "payoff": 0.62,
      "exits": {
-      "stop": 100,
-      "target": 17,
-      "close": 48
+      "stop": 83,
+      "target": 53,
+      "close": 28
      },
-     "mdd": 6.34,
-     "worst_day": -1.3,
-     "lose_streak": 5,
-     "cum": -5.99
+     "mdd": 9.07,
+     "worst_day": -1.33,
+     "lose_streak": 6,
+     "cum": -9.07
     },
     "all": {
-     "n": 578,
-     "days": 58,
-     "avg": -0.388,
-     "win": 22.8,
-     "t": -2.2,
-     "avg_win": 1.86,
-     "avg_loss": 1.05,
-     "payoff": 1.76,
+     "n": 588,
+     "days": 59,
+     "avg": -0.398,
+     "win": 36.9,
+     "t": -4.71,
+     "avg_win": 0.67,
+     "avg_loss": 1.02,
+     "payoff": 0.66,
      "exits": {
-      "stop": 329,
-      "target": 63,
-      "close": 186
+      "stop": 265,
+      "target": 204,
+      "close": 119
      },
-     "mdd": 17.28,
+     "mdd": 22.49,
      "worst_day": -1.35,
-     "lose_streak": 5,
-     "cum": -16.93
+     "lose_streak": 7,
+     "cum": -22.49
     }
    },
    "holds": false,
@@ -738,42 +738,42 @@
    "holds_watch": false,
    "top": {
     "all": {
-     "n": 1087,
-     "days": 58,
-     "avg": -0.426,
-     "win": 22.9,
-     "t": -6.01,
-     "avg_win": 1.81,
+     "n": 1100,
+     "days": 59,
+     "avg": -0.479,
+     "win": 34.5,
+     "t": -9.82,
+     "avg_win": 0.67,
      "avg_loss": 1.09,
-     "payoff": 1.66,
+     "payoff": 0.62,
      "exits": {
-      "stop": 645,
-      "target": 122,
-      "close": 320
+      "stop": 556,
+      "target": 352,
+      "close": 192
      },
-     "mdd": 24.5,
-     "worst_day": -1.31,
-     "lose_streak": 11,
-     "cum": -24.5
+     "mdd": 27.57,
+     "worst_day": -1.3,
+     "lose_streak": 18,
+     "cum": -27.57
     },
     "test": {
-     "n": 327,
+     "n": 321,
      "days": 19,
-     "avg": -0.358,
-     "win": 24.2,
-     "t": -3.56,
-     "avg_win": 1.91,
+     "avg": -0.517,
+     "win": 32.4,
+     "t": -7.13,
+     "avg_win": 0.67,
      "avg_loss": 1.08,
-     "payoff": 1.77,
+     "payoff": 0.62,
      "exits": {
-      "stop": 186,
-      "target": 44,
-      "close": 97
+      "stop": 166,
+      "target": 96,
+      "close": 59
      },
-     "mdd": 7.44,
-     "worst_day": -1.17,
-     "lose_streak": 11,
-     "cum": -7.03
+     "mdd": 10.1,
+     "worst_day": -1.22,
+     "lose_streak": 18,
+     "cum": -10.09
     }
    }
   },
@@ -785,61 +785,61 @@
     "stop": 1.0,
     "target": 3.0,
     "train": {
-     "n": 248,
-     "days": 32,
-     "avg": -0.273,
-     "win": 30.2,
-     "t": -1.1,
-     "avg_win": 1.71,
+     "n": 250,
+     "days": 33,
+     "avg": -0.269,
+     "win": 30.4,
+     "t": -1.07,
+     "avg_win": 1.69,
      "avg_loss": 1.13,
-     "payoff": 1.51,
+     "payoff": 1.5,
      "exits": {
       "stop": 140,
       "target": 32,
-      "close": 76
+      "close": 78
      },
      "mdd": 8.07,
      "worst_day": -1.31,
      "lose_streak": 3,
-     "cum": -5.81
+     "cum": -5.68
     },
     "test": {
-     "n": 181,
+     "n": 184,
      "days": 16,
-     "avg": -0.401,
-     "win": 27.6,
-     "t": -0.34,
-     "avg_win": 1.77,
+     "avg": -0.366,
+     "win": 28.3,
+     "t": -0.11,
+     "avg_win": 1.84,
      "avg_loss": 1.23,
-     "payoff": 1.44,
+     "payoff": 1.49,
      "exits": {
-      "stop": 119,
-      "target": 18,
-      "close": 44
+      "stop": 121,
+      "target": 21,
+      "close": 42
      },
      "mdd": 4.24,
      "worst_day": -1.3,
      "lose_streak": 3,
-     "cum": -1.45
+     "cum": -0.48
     },
     "all": {
-     "n": 429,
-     "days": 48,
-     "avg": -0.327,
-     "win": 29.1,
-     "t": -1.09,
-     "avg_win": 1.73,
+     "n": 434,
+     "days": 49,
+     "avg": -0.31,
+     "win": 29.5,
+     "t": -0.91,
+     "avg_win": 1.75,
      "avg_loss": 1.17,
-     "payoff": 1.48,
+     "payoff": 1.49,
      "exits": {
-      "stop": 259,
-      "target": 50,
+      "stop": 261,
+      "target": 53,
       "close": 120
      },
      "mdd": 11.76,
      "worst_day": -1.31,
      "lose_streak": 3,
-     "cum": -7.26
+     "cum": -6.16
     }
    },
    "holds": false,
@@ -848,42 +848,42 @@
    "holds_watch": false,
    "top": {
     "all": {
-     "n": 848,
-     "days": 56,
-     "avg": -0.316,
-     "win": 29.4,
-     "t": -1.14,
-     "avg_win": 1.78,
+     "n": 871,
+     "days": 57,
+     "avg": -0.273,
+     "win": 30.4,
+     "t": -0.91,
+     "avg_win": 1.82,
      "avg_loss": 1.19,
-     "payoff": 1.5,
+     "payoff": 1.53,
      "exits": {
-      "stop": 517,
-      "target": 111,
-      "close": 220
+      "stop": 524,
+      "target": 124,
+      "close": 223
      },
      "mdd": 11.49,
      "worst_day": -1.33,
      "lose_streak": 6,
-     "cum": -7.4
+     "cum": -6.09
     },
     "test": {
-     "n": 345,
+     "n": 365,
      "days": 19,
-     "avg": -0.498,
-     "win": 25.2,
-     "t": -0.93,
-     "avg_win": 1.53,
-     "avg_loss": 1.18,
-     "payoff": 1.3,
+     "avg": -0.377,
+     "win": 28.2,
+     "t": -0.29,
+     "avg_win": 1.68,
+     "avg_loss": 1.19,
+     "payoff": 1.42,
      "exits": {
-      "stop": 220,
-      "target": 24,
-      "close": 101
+      "stop": 224,
+      "target": 37,
+      "close": 104
      },
-     "mdd": 5.43,
+     "mdd": 4.43,
      "worst_day": -1.3,
      "lose_streak": 5,
-     "cum": -3.82
+     "cum": -1.21
     }
    }
   },
@@ -973,61 +973,61 @@
     "stop": 1.0,
     "target": 2.0,
     "train": {
-     "n": 1220,
-     "days": 32,
-     "avg": -0.261,
+     "n": 1248,
+     "days": 33,
+     "avg": -0.262,
      "win": 36.1,
-     "t": -4.41,
-     "avg_win": 1.4,
+     "t": -4.53,
+     "avg_win": 1.41,
      "avg_loss": 1.2,
      "payoff": 1.17,
      "exits": {
-      "stop": 681,
-      "target": 314,
-      "close": 225
+      "stop": 698,
+      "target": 322,
+      "close": 228
      },
-     "mdd": 11.22,
+     "mdd": 11.42,
      "worst_day": -1.17,
      "lose_streak": 14,
-     "cum": -10.82
+     "cum": -11.11
     },
     "test": {
-     "n": 551,
+     "n": 549,
      "days": 16,
-     "avg": -0.315,
-     "win": 32.7,
-     "t": -3.98,
+     "avg": -0.341,
+     "win": 31.9,
+     "t": -4.19,
      "avg_win": 1.43,
-     "avg_loss": 1.16,
-     "payoff": 1.23,
+     "avg_loss": 1.17,
+     "payoff": 1.22,
      "exits": {
-      "stop": 298,
-      "target": 138,
-      "close": 115
+      "stop": 302,
+      "target": 133,
+      "close": 114
      },
-     "mdd": 6.45,
+     "mdd": 6.99,
      "worst_day": -1.19,
-     "lose_streak": 4,
-     "cum": -6.45
+     "lose_streak": 5,
+     "cum": -6.99
     },
     "all": {
-     "n": 1771,
-     "days": 48,
-     "avg": -0.278,
-     "win": 35.1,
-     "t": -5.92,
+     "n": 1797,
+     "days": 49,
+     "avg": -0.286,
+     "win": 34.8,
+     "t": -6.12,
      "avg_win": 1.41,
      "avg_loss": 1.19,
      "payoff": 1.19,
      "exits": {
-      "stop": 979,
-      "target": 452,
-      "close": 340
+      "stop": 1000,
+      "target": 455,
+      "close": 342
      },
-     "mdd": 17.58,
+     "mdd": 18.41,
      "worst_day": -1.19,
      "lose_streak": 14,
-     "cum": -17.27
+     "cum": -18.09
     }
    },
    "holds": false,
@@ -1036,42 +1036,42 @@
    "holds_watch": false,
    "top": {
     "all": {
-     "n": 2845,
-     "days": 48,
-     "avg": -0.294,
-     "win": 34.6,
-     "t": -5.09,
+     "n": 2895,
+     "days": 49,
+     "avg": -0.302,
+     "win": 34.3,
+     "t": -5.29,
      "avg_win": 1.38,
      "avg_loss": 1.18,
      "payoff": 1.17,
      "exits": {
-      "stop": 1549,
-      "target": 700,
-      "close": 596
+      "stop": 1588,
+      "target": 707,
+      "close": 600
      },
-     "mdd": 13.77,
+     "mdd": 14.3,
      "worst_day": -0.8,
      "lose_streak": 14,
-     "cum": -13.45
+     "cum": -14.19
     },
     "test": {
-     "n": 929,
+     "n": 922,
      "days": 16,
-     "avg": -0.254,
-     "win": 34.8,
-     "t": -2.14,
+     "avg": -0.268,
+     "win": 34.4,
+     "t": -2.23,
      "avg_win": 1.42,
      "avg_loss": 1.15,
-     "payoff": 1.24,
+     "payoff": 1.23,
      "exits": {
-      "stop": 484,
-      "target": 243,
-      "close": 202
+      "stop": 487,
+      "target": 236,
+      "close": 199
      },
-     "mdd": 3.36,
+     "mdd": 3.75,
      "worst_day": -0.75,
      "lose_streak": 5,
-     "cum": -3.16
+     "cum": -3.45
     }
    }
   },
@@ -1102,42 +1102,42 @@
      "cum": -7.27
     },
     "test": {
-     "n": 577,
-     "days": 13,
-     "avg": 0.314,
-     "win": 55.1,
-     "t": 0.43,
-     "avg_win": 1.59,
-     "avg_loss": 1.25,
-     "payoff": 1.27,
+     "n": 636,
+     "days": 14,
+     "avg": 0.256,
+     "win": 53.8,
+     "t": 0.34,
+     "avg_win": 1.56,
+     "avg_loss": 1.27,
+     "payoff": 1.24,
      "exits": {
-      "stop": 143,
-      "target": 113,
-      "close": 321
+      "stop": 163,
+      "target": 120,
+      "close": 353
      },
      "mdd": 3.27,
      "worst_day": -0.87,
      "lose_streak": 4,
-     "cum": 1.45
+     "cum": 1.14
     },
     "all": {
-     "n": 1543,
-     "days": 36,
-     "avg": -0.024,
-     "win": 46.3,
-     "t": -1.05,
-     "avg_win": 1.59,
+     "n": 1602,
+     "days": 37,
+     "avg": -0.035,
+     "win": 46.1,
+     "t": -1.11,
+     "avg_win": 1.57,
      "avg_loss": 1.41,
-     "payoff": 1.12,
+     "payoff": 1.11,
      "exits": {
-      "stop": 566,
-      "target": 243,
-      "close": 734
+      "stop": 586,
+      "target": 250,
+      "close": 766
      },
      "mdd": 11.93,
      "worst_day": -1.8,
      "lose_streak": 4,
-     "cum": -5.82
+     "cum": -6.13
     }
    },
    "holds": false,
@@ -1146,42 +1146,42 @@
    "holds_watch": false,
    "top": {
     "all": {
-     "n": 2372,
-     "days": 35,
-     "avg": -0.168,
-     "win": 42.1,
-     "t": -2.43,
+     "n": 2482,
+     "days": 36,
+     "avg": -0.17,
+     "win": 41.9,
+     "t": -2.48,
      "avg_win": 1.49,
      "avg_loss": 1.37,
      "payoff": 1.09,
      "exits": {
-      "stop": 872,
-      "target": 316,
-      "close": 1184
+      "stop": 914,
+      "target": 335,
+      "close": 1233
      },
      "mdd": 12.77,
      "worst_day": -1.38,
      "lose_streak": 8,
-     "cum": -9.58
+     "cum": -9.8
     },
     "test": {
-     "n": 969,
-     "days": 13,
-     "avg": 0.098,
-     "win": 48.9,
-     "t": -0.31,
-     "avg_win": 1.54,
-     "avg_loss": 1.29,
+     "n": 1079,
+     "days": 14,
+     "avg": 0.066,
+     "win": 47.8,
+     "t": -0.38,
+     "avg_win": 1.56,
+     "avg_loss": 1.3,
      "payoff": 1.2,
      "exits": {
-      "stop": 278,
-      "target": 158,
-      "close": 533
+      "stop": 320,
+      "target": 177,
+      "close": 582
      },
      "mdd": 4.07,
      "worst_day": -0.98,
      "lose_streak": 8,
-     "cum": -0.88
+     "cum": -1.1
     }
    }
   },
@@ -1193,61 +1193,61 @@
     "stop": 1.0,
     "target": 2.0,
     "train": {
-     "n": 757,
-     "days": 32,
-     "avg": -0.289,
-     "win": 36.3,
-     "t": -5.14,
-     "avg_win": 1.31,
+     "n": 776,
+     "days": 33,
+     "avg": -0.293,
+     "win": 36.1,
+     "t": -5.33,
+     "avg_win": 1.32,
      "avg_loss": 1.2,
-     "payoff": 1.09,
+     "payoff": 1.1,
      "exits": {
-      "stop": 420,
-      "target": 181,
-      "close": 156
+      "stop": 433,
+      "target": 186,
+      "close": 157
      },
-     "mdd": 12.53,
+     "mdd": 12.99,
      "worst_day": -1.3,
      "lose_streak": 11,
-     "cum": -12.53
+     "cum": -12.99
     },
     "test": {
-     "n": 348,
+     "n": 340,
      "days": 15,
-     "avg": -0.348,
-     "win": 32.5,
-     "t": -3.42,
-     "avg_win": 1.39,
-     "avg_loss": 1.18,
-     "payoff": 1.18,
+     "avg": -0.357,
+     "win": 32.4,
+     "t": -3.54,
+     "avg_win": 1.38,
+     "avg_loss": 1.19,
+     "payoff": 1.16,
      "exits": {
-      "stop": 199,
-      "target": 82,
+      "stop": 195,
+      "target": 78,
       "close": 67
      },
-     "mdd": 6.88,
+     "mdd": 7.23,
      "worst_day": -1.32,
-     "lose_streak": 4,
-     "cum": -6.88
+     "lose_streak": 5,
+     "cum": -7.23
     },
     "all": {
-     "n": 1105,
-     "days": 47,
-     "avg": -0.308,
-     "win": 35.1,
-     "t": -6.2,
+     "n": 1116,
+     "days": 48,
+     "avg": -0.313,
+     "win": 34.9,
+     "t": -6.41,
      "avg_win": 1.34,
      "avg_loss": 1.2,
      "payoff": 1.12,
      "exits": {
-      "stop": 619,
-      "target": 263,
-      "close": 223
+      "stop": 628,
+      "target": 264,
+      "close": 224
      },
-     "mdd": 19.41,
+     "mdd": 20.22,
      "worst_day": -1.32,
      "lose_streak": 11,
-     "cum": -19.41
+     "cum": -20.22
     }
    },
    "holds": false,
@@ -1256,42 +1256,42 @@
    "holds_watch": false,
    "top": {
     "all": {
-     "n": 925,
-     "days": 36,
-     "avg": -0.333,
-     "win": 32.1,
-     "t": -6.4,
+     "n": 936,
+     "days": 37,
+     "avg": -0.331,
+     "win": 32.2,
+     "t": -6.53,
      "avg_win": 1.42,
      "avg_loss": 1.16,
      "payoff": 1.22,
      "exits": {
-      "stop": 525,
-      "target": 223,
-      "close": 177
+      "stop": 532,
+      "target": 226,
+      "close": 178
      },
-     "mdd": 14.17,
+     "mdd": 14.4,
      "worst_day": -1.3,
      "lose_streak": 16,
-     "cum": -14.11
+     "cum": -14.4
     },
     "test": {
-     "n": 369,
+     "n": 349,
      "days": 12,
-     "avg": -0.231,
-     "win": 35.5,
-     "t": -2.93,
+     "avg": -0.203,
+     "win": 36.7,
+     "t": -2.81,
      "avg_win": 1.42,
      "avg_loss": 1.14,
-     "payoff": 1.25,
+     "payoff": 1.24,
      "exits": {
-      "stop": 193,
-      "target": 97,
-      "close": 79
+      "stop": 179,
+      "target": 93,
+      "close": 77
      },
-     "mdd": 3.39,
+     "mdd": 3.09,
      "worst_day": -0.99,
-     "lose_streak": 4,
-     "cum": -3.34
+     "lose_streak": 3,
+     "cum": -3.09
     }
    }
   },
@@ -1322,42 +1322,42 @@
      "cum": -5.44
     },
     "test": {
-     "n": 388,
-     "days": 12,
-     "avg": -0.02,
-     "win": 61.6,
-     "t": -1.33,
-     "avg_win": 0.67,
-     "avg_loss": 1.13,
-     "payoff": 0.6,
+     "n": 433,
+     "days": 13,
+     "avg": -0.029,
+     "win": 61.2,
+     "t": -1.38,
+     "avg_win": 0.68,
+     "avg_loss": 1.14,
+     "payoff": 0.59,
      "exits": {
-      "stop": 119,
-      "target": 222,
-      "close": 47
+      "stop": 136,
+      "target": 248,
+      "close": 49
      },
      "mdd": 3.9,
      "worst_day": -1.3,
      "lose_streak": 6,
-     "cum": -2.65
+     "cum": -2.76
     },
     "all": {
-     "n": 949,
-     "days": 31,
-     "avg": -0.232,
-     "win": 50.7,
-     "t": -2.88,
+     "n": 994,
+     "days": 32,
+     "avg": -0.227,
+     "win": 51.0,
+     "t": -2.92,
      "avg_win": 0.67,
-     "avg_loss": 1.15,
+     "avg_loss": 1.16,
      "payoff": 0.58,
      "exits": {
-      "stop": 387,
-      "target": 441,
-      "close": 121
+      "stop": 404,
+      "target": 467,
+      "close": 123
      },
      "mdd": 9.34,
      "worst_day": -1.3,
      "lose_streak": 7,
-     "cum": -8.09
+     "cum": -8.2
     }
    },
    "holds": false,
@@ -1366,42 +1366,42 @@
    "holds_watch": false,
    "top": {
     "all": {
-     "n": 607,
-     "days": 28,
-     "avg": -0.25,
-     "win": 49.3,
-     "t": -4.85,
+     "n": 646,
+     "days": 29,
+     "avg": -0.271,
+     "win": 48.3,
+     "t": -5.12,
      "avg_win": 0.67,
-     "avg_loss": 1.14,
-     "payoff": 0.59,
+     "avg_loss": 1.15,
+     "payoff": 0.58,
      "exits": {
-      "stop": 247,
-      "target": 276,
-      "close": 84
+      "stop": 269,
+      "target": 289,
+      "close": 88
      },
      "mdd": 9.76,
      "worst_day": -0.86,
      "lose_streak": 20,
-     "cum": -8.72
+     "cum": -9.33
     },
     "test": {
-     "n": 336,
-     "days": 11,
-     "avg": -0.165,
-     "win": 53.3,
-     "t": -1.59,
+     "n": 375,
+     "days": 12,
+     "avg": -0.211,
+     "win": 51.2,
+     "t": -1.94,
      "avg_win": 0.67,
-     "avg_loss": 1.12,
-     "payoff": 0.6,
+     "avg_loss": 1.14,
+     "payoff": 0.59,
      "exits": {
-      "stop": 120,
-      "target": 163,
-      "close": 53
+      "stop": 142,
+      "target": 176,
+      "close": 57
      },
      "mdd": 3.37,
      "worst_day": -0.78,
      "lose_streak": 6,
-     "cum": -2.33
+     "cum": -2.93
     }
    }
   },
@@ -1413,61 +1413,61 @@
     "stop": 1.0,
     "target": 3.0,
     "train": {
-     "n": 1052,
-     "days": 37,
-     "avg": -0.264,
-     "win": 32.1,
-     "t": -4.23,
+     "n": 1080,
+     "days": 38,
+     "avg": -0.277,
+     "win": 31.7,
+     "t": -4.42,
      "avg_win": 1.6,
-     "avg_loss": 1.14,
+     "avg_loss": 1.15,
      "payoff": 1.39,
      "exits": {
-      "stop": 577,
-      "target": 126,
-      "close": 349
+      "stop": 597,
+      "target": 128,
+      "close": 355
      },
-     "mdd": 16.24,
+     "mdd": 16.84,
      "worst_day": -1.34,
      "lose_streak": 6,
-     "cum": -16.07
+     "cum": -16.84
     },
     "test": {
-     "n": 473,
+     "n": 470,
      "days": 19,
-     "avg": -0.428,
-     "win": 25.2,
-     "t": -4.21,
-     "avg_win": 1.61,
-     "avg_loss": 1.11,
-     "payoff": 1.45,
-     "exits": {
-      "stop": 265,
-      "target": 50,
-      "close": 158
-     },
-     "mdd": 10.06,
-     "worst_day": -1.3,
-     "lose_streak": 5,
-     "cum": -10.06
-    },
-    "all": {
-     "n": 1525,
-     "days": 56,
-     "avg": -0.315,
-     "win": 30.0,
-     "t": -5.86,
-     "avg_win": 1.6,
-     "avg_loss": 1.13,
+     "avg": -0.435,
+     "win": 25.3,
+     "t": -4.25,
+     "avg_win": 1.58,
+     "avg_loss": 1.12,
      "payoff": 1.41,
      "exits": {
-      "stop": 842,
-      "target": 176,
-      "close": 507
+      "stop": 266,
+      "target": 48,
+      "close": 156
      },
-     "mdd": 26.14,
+     "mdd": 10.24,
+     "worst_day": -1.3,
+     "lose_streak": 6,
+     "cum": -10.24
+    },
+    "all": {
+     "n": 1550,
+     "days": 57,
+     "avg": -0.325,
+     "win": 29.7,
+     "t": -6.03,
+     "avg_win": 1.59,
+     "avg_loss": 1.14,
+     "payoff": 1.4,
+     "exits": {
+      "stop": 863,
+      "target": 176,
+      "close": 511
+     },
+     "mdd": 27.08,
      "worst_day": -1.34,
      "lose_streak": 6,
-     "cum": -26.14
+     "cum": -27.08
     }
    },
    "holds": false,
@@ -1476,42 +1476,42 @@
    "holds_watch": false,
    "top": {
     "all": {
-     "n": 2317,
-     "days": 47,
-     "avg": -0.378,
+     "n": 2356,
+     "days": 48,
+     "avg": -0.382,
      "win": 29.0,
-     "t": -6.25,
+     "t": -6.45,
+     "avg_win": 1.43,
+     "avg_loss": 1.12,
+     "payoff": 1.28,
+     "exits": {
+      "stop": 1293,
+      "target": 240,
+      "close": 823
+     },
+     "mdd": 18.3,
+     "worst_day": -1.14,
+     "lose_streak": 18,
+     "cum": -18.3
+    },
+    "test": {
+     "n": 772,
+     "days": 16,
+     "avg": -0.426,
+     "win": 27.2,
+     "t": -3.26,
      "avg_win": 1.44,
      "avg_loss": 1.12,
      "payoff": 1.28,
      "exits": {
-      "stop": 1266,
-      "target": 238,
-      "close": 813
+      "stop": 432,
+      "target": 76,
+      "close": 264
      },
-     "mdd": 17.68,
-     "worst_day": -1.14,
-     "lose_streak": 18,
-     "cum": -17.68
-    },
-    "test": {
-     "n": 783,
-     "days": 16,
-     "avg": -0.448,
-     "win": 26.1,
-     "t": -3.31,
-     "avg_win": 1.46,
-     "avg_loss": 1.12,
-     "payoff": 1.3,
-     "exits": {
-      "stop": 444,
-      "target": 77,
-      "close": 262
-     },
-     "mdd": 6.15,
-     "worst_day": -0.92,
-     "lose_streak": 10,
-     "cum": -6.15
+     "mdd": 5.84,
+     "worst_day": -0.91,
+     "lose_streak": 11,
+     "cum": -5.84
     }
    }
   },
@@ -1523,61 +1523,61 @@
     "stop": 1.0,
     "target": 3.0,
     "train": {
-     "n": 694,
-     "days": 29,
-     "avg": -0.216,
-     "win": 35.2,
-     "t": -1.14,
+     "n": 696,
+     "days": 30,
+     "avg": -0.218,
+     "win": 35.1,
+     "t": -1.3,
      "avg_win": 1.52,
-     "avg_loss": 1.16,
+     "avg_loss": 1.15,
      "payoff": 1.31,
      "exits": {
-      "stop": 370,
+      "stop": 371,
       "target": 70,
-      "close": 254
+      "close": 255
      },
-     "mdd": 7.2,
+     "mdd": 7.3,
      "worst_day": -1.3,
      "lose_streak": 5,
-     "cum": -4.74
+     "cum": -5.44
     },
     "test": {
-     "n": 427,
+     "n": 460,
      "days": 18,
-     "avg": -0.16,
-     "win": 41.7,
-     "t": -1.87,
-     "avg_win": 1.12,
+     "avg": -0.179,
+     "win": 41.3,
+     "t": -1.81,
+     "avg_win": 1.09,
      "avg_loss": 1.08,
-     "payoff": 1.04,
+     "payoff": 1.02,
      "exits": {
-      "stop": 177,
+      "stop": 191,
       "target": 29,
-      "close": 221
+      "close": 240
      },
-     "mdd": 7.56,
+     "mdd": 6.86,
      "worst_day": -1.3,
-     "lose_streak": 7,
-     "cum": -5.82
+     "lose_streak": 6,
+     "cum": -5.57
     },
     "all": {
-     "n": 1121,
-     "days": 47,
-     "avg": -0.195,
-     "win": 37.6,
-     "t": -2.05,
-     "avg_win": 1.35,
-     "avg_loss": 1.13,
-     "payoff": 1.2,
+     "n": 1156,
+     "days": 48,
+     "avg": -0.202,
+     "win": 37.5,
+     "t": -2.13,
+     "avg_win": 1.33,
+     "avg_loss": 1.12,
+     "payoff": 1.18,
      "exits": {
-      "stop": 547,
+      "stop": 562,
       "target": 99,
-      "close": 475
+      "close": 495
      },
      "mdd": 14.15,
      "worst_day": -1.3,
      "lose_streak": 7,
-     "cum": -10.56
+     "cum": -11.01
     }
    },
    "holds": false,
@@ -1586,42 +1586,42 @@
    "holds_watch": false,
    "top": {
     "all": {
-     "n": 1601,
-     "days": 35,
-     "avg": -0.247,
+     "n": 1670,
+     "days": 36,
+     "avg": -0.249,
      "win": 34.3,
-     "t": -1.11,
-     "avg_win": 1.34,
+     "t": -1.18,
+     "avg_win": 1.33,
      "avg_loss": 1.07,
-     "payoff": 1.25,
+     "payoff": 1.24,
      "exits": {
-      "stop": 761,
-      "target": 142,
-      "close": 698
+      "stop": 790,
+      "target": 147,
+      "close": 733
      },
      "mdd": 6.68,
      "worst_day": -1.3,
      "lose_streak": 10,
-     "cum": -4.69
+     "cum": -4.99
     },
     "test": {
-     "n": 638,
+     "n": 706,
      "days": 14,
-     "avg": -0.296,
-     "win": 34.2,
-     "t": -2.27,
+     "avg": -0.294,
+     "win": 34.3,
+     "t": -2.12,
      "avg_win": 1.11,
-     "avg_loss": 1.02,
+     "avg_loss": 1.03,
      "payoff": 1.08,
      "exits": {
-      "stop": 280,
-      "target": 46,
-      "close": 312
+      "stop": 308,
+      "target": 51,
+      "close": 347
      },
-     "mdd": 4.76,
-     "worst_day": -1.3,
-     "lose_streak": 10,
-     "cum": -4.2
+     "mdd": 3.46,
+     "worst_day": -0.88,
+     "lose_streak": 9,
+     "cum": -3.19
     }
    }
   },
@@ -1652,42 +1652,42 @@
      "cum": -1.12
     },
     "test": {
-     "n": 157,
-     "days": 12,
-     "avg": -0.75,
-     "win": 36.9,
-     "t": -0.81,
-     "avg_win": 1.39,
-     "avg_loss": 2.0,
-     "payoff": 0.69,
+     "n": 188,
+     "days": 13,
+     "avg": -0.669,
+     "win": 38.8,
+     "t": -0.88,
+     "avg_win": 1.4,
+     "avg_loss": 1.98,
+     "payoff": 0.71,
      "exits": {
-      "stop": 44,
-      "target": 44,
-      "close": 69
+      "stop": 52,
+      "target": 56,
+      "close": 80
      },
-     "mdd": 4.71,
+     "mdd": 4.97,
      "worst_day": -2.24,
      "lose_streak": 4,
-     "cum": -3.28
+     "cum": -3.54
     },
     "all": {
-     "n": 362,
-     "days": 30,
-     "avg": -0.44,
-     "win": 43.4,
-     "t": -0.69,
+     "n": 393,
+     "days": 31,
+     "avg": -0.425,
+     "win": 43.8,
+     "t": -0.74,
      "avg_win": 1.44,
      "avg_loss": 1.88,
      "payoff": 0.77,
      "exits": {
-      "stop": 88,
-      "target": 121,
-      "close": 153
+      "stop": 96,
+      "target": 133,
+      "close": 164
      },
-     "mdd": 7.39,
+     "mdd": 7.65,
      "worst_day": -2.8,
      "lose_streak": 4,
-     "cum": -4.4
+     "cum": -4.66
     }
    },
    "holds": false,
@@ -1696,42 +1696,42 @@
    "holds_watch": false,
    "top": {
     "all": {
-     "n": 297,
-     "days": 28,
-     "avg": -0.437,
-     "win": 42.1,
-     "t": -1.42,
+     "n": 323,
+     "days": 29,
+     "avg": -0.472,
+     "win": 41.5,
+     "t": -1.6,
      "avg_win": 1.52,
-     "avg_loss": 1.86,
-     "payoff": 0.82,
+     "avg_loss": 1.88,
+     "payoff": 0.81,
      "exits": {
-      "stop": 73,
-      "target": 101,
-      "close": 123
+      "stop": 83,
+      "target": 108,
+      "close": 132
      },
-     "mdd": 6.82,
+     "mdd": 7.68,
      "worst_day": -2.19,
      "lose_streak": 4,
-     "cum": -6.25
+     "cum": -7.11
     },
     "test": {
-     "n": 152,
-     "days": 11,
-     "avg": -0.521,
-     "win": 40.1,
-     "t": -0.9,
-     "avg_win": 1.5,
-     "avg_loss": 1.87,
-     "payoff": 0.8,
+     "n": 178,
+     "days": 12,
+     "avg": -0.571,
+     "win": 39.3,
+     "t": -1.16,
+     "avg_win": 1.49,
+     "avg_loss": 1.91,
+     "payoff": 0.78,
      "exits": {
-      "stop": 38,
-      "target": 47,
-      "close": 67
+      "stop": 48,
+      "target": 54,
+      "close": 76
      },
-     "mdd": 3.92,
+     "mdd": 4.79,
      "worst_day": -2.19,
-     "lose_streak": 2,
-     "cum": -2.92
+     "lose_streak": 3,
+     "cum": -3.79
     }
    }
   },
@@ -1743,105 +1743,105 @@
     "stop": 2.5,
     "target": null,
     "train": {
-     "n": 356,
-     "days": 29,
-     "avg": 0.428,
-     "win": 48.3,
-     "t": 1.67,
-     "avg_win": 2.64,
-     "avg_loss": 1.64,
+     "n": 361,
+     "days": 30,
+     "avg": 0.449,
+     "win": 48.8,
+     "t": 1.86,
+     "avg_win": 2.66,
+     "avg_loss": 1.65,
      "payoff": 1.61,
      "exits": {
-      "stop": 74,
+      "stop": 75,
       "target": 0,
-      "close": 282
+      "close": 286
      },
      "mdd": 3.41,
      "worst_day": -2.8,
      "lose_streak": 5,
-     "cum": 16.63
+     "cum": 18.64
     },
     "test": {
-     "n": 118,
+     "n": 115,
      "days": 15,
-     "avg": 0.505,
-     "win": 47.5,
-     "t": 2.1,
-     "avg_win": 2.93,
-     "avg_loss": 1.69,
-     "payoff": 1.74,
+     "avg": 0.506,
+     "win": 46.1,
+     "t": 2.22,
+     "avg_win": 3.02,
+     "avg_loss": 1.64,
+     "payoff": 1.84,
      "exits": {
-      "stop": 25,
+      "stop": 24,
       "target": 0,
-      "close": 93
+      "close": 91
      },
      "mdd": 2.03,
      "worst_day": -1.42,
      "lose_streak": 1,
-     "cum": 16.33
+     "cum": 18.65
     },
     "all": {
-     "n": 474,
-     "days": 44,
-     "avg": 0.447,
+     "n": 476,
+     "days": 45,
+     "avg": 0.463,
      "win": 48.1,
-     "t": 2.62,
-     "avg_win": 2.71,
+     "t": 2.85,
+     "avg_win": 2.74,
      "avg_loss": 1.65,
-     "payoff": 1.64,
+     "payoff": 1.66,
      "exits": {
       "stop": 99,
       "target": 0,
-      "close": 375
+      "close": 377
      },
      "mdd": 3.41,
      "worst_day": -2.8,
      "lose_streak": 5,
-     "cum": 32.95
+     "cum": 37.29
     }
    },
    "holds": false,
    "tested": 12,
-   "n_positive_train": 4,
+   "n_positive_train": 5,
    "holds_watch": false,
    "top": {
     "all": {
-     "n": 461,
-     "days": 36,
-     "avg": -0.101,
-     "win": 42.1,
-     "t": 0.45,
+     "n": 468,
+     "days": 37,
+     "avg": -0.109,
+     "win": 41.9,
+     "t": 0.33,
      "avg_win": 2.07,
      "avg_loss": 1.68,
      "payoff": 1.23,
      "exits": {
-      "stop": 109,
+      "stop": 111,
       "target": 0,
-      "close": 352
+      "close": 357
      },
      "mdd": 3.87,
      "worst_day": -1.77,
      "lose_streak": 7,
-     "cum": 2.54
+     "cum": 1.9
     },
     "test": {
-     "n": 165,
+     "n": 158,
      "days": 12,
-     "avg": -0.139,
-     "win": 44.2,
-     "t": -0.09,
-     "avg_win": 1.99,
-     "avg_loss": 1.83,
-     "payoff": 1.09,
+     "avg": -0.166,
+     "win": 43.7,
+     "t": -0.31,
+     "avg_win": 1.93,
+     "avg_loss": 1.79,
+     "payoff": 1.08,
      "exits": {
-      "stop": 42,
+      "stop": 39,
       "target": 0,
-      "close": 123
+      "close": 119
      },
-     "mdd": 2.71,
+     "mdd": 2.63,
      "worst_day": -1.36,
-     "lose_streak": 5,
-     "cum": -0.21
+     "lose_streak": 4,
+     "cum": -0.77
     }
    }
   },
@@ -1853,56 +1853,56 @@
     "stop": 1.5,
     "target": 1.0,
     "train": {
-     "n": 249,
-     "days": 39,
-     "avg": -0.305,
-     "win": 48.6,
-     "t": -1.9,
+     "n": 266,
+     "days": 40,
+     "avg": -0.33,
+     "win": 47.4,
+     "t": -2.06,
      "avg_win": 0.62,
-     "avg_loss": 1.18,
-     "payoff": 0.53,
+     "avg_loss": 1.19,
+     "payoff": 0.52,
      "exits": {
-      "stop": 57,
-      "target": 103,
-      "close": 89
+      "stop": 62,
+      "target": 108,
+      "close": 96
      },
-     "mdd": 9.58,
+     "mdd": 10.21,
      "worst_day": -1.8,
      "lose_streak": 5,
-     "cum": -7.99
+     "cum": -8.68
     },
     "test": {
-     "n": 208,
+     "n": 202,
      "days": 20,
-     "avg": -0.73,
-     "win": 29.3,
-     "t": -2.07,
-     "avg_win": 0.63,
-     "avg_loss": 1.29,
+     "avg": -0.693,
+     "win": 31.7,
+     "t": -1.86,
+     "avg_win": 0.62,
+     "avg_loss": 1.3,
      "payoff": 0.48,
      "exits": {
-      "stop": 77,
-      "target": 52,
-      "close": 79
+      "stop": 74,
+      "target": 54,
+      "close": 74
      },
-     "mdd": 6.58,
+     "mdd": 6.31,
      "worst_day": -1.8,
      "lose_streak": 6,
-     "cum": -6.58
+     "cum": -5.89
     },
     "all": {
-     "n": 457,
-     "days": 59,
-     "avg": -0.499,
-     "win": 39.8,
+     "n": 468,
+     "days": 60,
+     "avg": -0.487,
+     "win": 40.6,
      "t": -2.78,
      "avg_win": 0.62,
-     "avg_loss": 1.24,
+     "avg_loss": 1.25,
      "payoff": 0.5,
      "exits": {
-      "stop": 134,
-      "target": 155,
-      "close": 168
+      "stop": 136,
+      "target": 162,
+      "close": 170
      },
      "mdd": 16.1,
      "worst_day": -1.8,
@@ -1916,42 +1916,42 @@
    "holds_watch": false,
    "top": {
     "all": {
-     "n": 870,
-     "days": 59,
-     "avg": -0.38,
-     "win": 42.5,
-     "t": -3.86,
-     "avg_win": 0.61,
+     "n": 893,
+     "days": 60,
+     "avg": -0.364,
+     "win": 43.6,
+     "t": -3.78,
+     "avg_win": 0.62,
      "avg_loss": 1.12,
      "payoff": 0.55,
      "exits": {
-      "stop": 194,
-      "target": 306,
-      "close": 370
+      "stop": 198,
+      "target": 324,
+      "close": 371
      },
      "mdd": 18.35,
      "worst_day": -1.8,
      "lose_streak": 5,
-     "cum": -17.5
+     "cum": -17.25
     },
     "test": {
-     "n": 408,
+     "n": 400,
      "days": 20,
-     "avg": -0.506,
-     "win": 37.0,
-     "t": -3.27,
-     "avg_win": 0.59,
-     "avg_loss": 1.15,
-     "payoff": 0.52,
+     "avg": -0.457,
+     "win": 40.8,
+     "t": -2.77,
+     "avg_win": 0.6,
+     "avg_loss": 1.19,
+     "payoff": 0.51,
      "exits": {
-      "stop": 104,
-      "target": 120,
-      "close": 184
+      "stop": 103,
+      "target": 132,
+      "close": 165
      },
-     "mdd": 6.41,
+     "mdd": 5.83,
      "worst_day": -1.25,
      "lose_streak": 5,
-     "cum": -6.41
+     "cum": -5.59
     }
    }
   },
@@ -1963,61 +1963,61 @@
     "stop": 1.0,
     "target": null,
     "train": {
-     "n": 40,
-     "days": 24,
-     "avg": -0.193,
-     "win": 35.0,
-     "t": -1.06,
+     "n": 43,
+     "days": 25,
+     "avg": -0.257,
+     "win": 32.6,
+     "t": -1.21,
      "avg_win": 1.4,
-     "avg_loss": 1.05,
+     "avg_loss": 1.06,
      "payoff": 1.33,
      "exits": {
-      "stop": 17,
+      "stop": 19,
       "target": 0,
-      "close": 23
+      "close": 24
      },
-     "mdd": 10.11,
+     "mdd": 11.16,
      "worst_day": -1.3,
      "lose_streak": 6,
-     "cum": -7.21
+     "cum": -8.31
     },
     "test": {
-     "n": 27,
+     "n": 26,
      "days": 13,
-     "avg": -0.368,
-     "win": 22.2,
-     "t": -0.84,
-     "avg_win": 1.35,
-     "avg_loss": 0.86,
-     "payoff": 1.57,
+     "avg": -0.193,
+     "win": 26.9,
+     "t": -0.32,
+     "avg_win": 1.57,
+     "avg_loss": 0.84,
+     "payoff": 1.87,
      "exits": {
-      "stop": 9,
+      "stop": 8,
       "target": 0,
       "close": 18
      },
      "mdd": 4.19,
      "worst_day": -1.3,
      "lose_streak": 4,
-     "cum": -3.1
+     "cum": -1.19
     },
     "all": {
-     "n": 67,
-     "days": 37,
-     "avg": -0.263,
-     "win": 29.9,
-     "t": -1.34,
-     "avg_win": 1.39,
+     "n": 69,
+     "days": 38,
+     "avg": -0.233,
+     "win": 30.4,
+     "t": -1.23,
+     "avg_win": 1.46,
      "avg_loss": 0.97,
-     "payoff": 1.44,
+     "payoff": 1.5,
      "exits": {
-      "stop": 26,
+      "stop": 27,
       "target": 0,
-      "close": 41
+      "close": 42
      },
      "mdd": 13.15,
      "worst_day": -1.3,
      "lose_streak": 6,
-     "cum": -10.31
+     "cum": -9.5
     }
    },
    "holds": false,
@@ -2026,42 +2026,42 @@
    "holds_watch": false,
    "top": {
     "all": {
-     "n": 185,
-     "days": 49,
-     "avg": -0.444,
-     "win": 25.4,
-     "t": -3.68,
-     "avg_win": 1.15,
+     "n": 194,
+     "days": 50,
+     "avg": -0.463,
+     "win": 24.7,
+     "t": -3.82,
+     "avg_win": 1.12,
      "avg_loss": 0.99,
-     "payoff": 1.16,
+     "payoff": 1.14,
      "exits": {
-      "stop": 76,
+      "stop": 81,
       "target": 0,
-      "close": 109
+      "close": 113
      },
-     "mdd": 21.36,
+     "mdd": 22.22,
      "worst_day": -1.36,
      "lose_streak": 11,
-     "cum": -21.24
+     "cum": -22.09
     },
     "test": {
-     "n": 69,
+     "n": 68,
      "days": 18,
-     "avg": -0.444,
-     "win": 24.6,
-     "t": -2.5,
-     "avg_win": 0.94,
-     "avg_loss": 0.9,
-     "payoff": 1.05,
+     "avg": -0.491,
+     "win": 23.5,
+     "t": -2.59,
+     "avg_win": 0.79,
+     "avg_loss": 0.89,
+     "payoff": 0.9,
      "exits": {
-      "stop": 23,
+      "stop": 24,
       "target": 0,
-      "close": 46
+      "close": 44
      },
-     "mdd": 7.37,
+     "mdd": 8.23,
      "worst_day": -1.3,
-     "lose_streak": 10,
-     "cum": -7.36
+     "lose_streak": 11,
+     "cum": -7.72
     }
    }
   }
@@ -2070,34 +2070,155 @@
   "date": "2026-10-24",
   "basis": "前一交易日成交值",
   "stocks": 149,
-  "days": 59,
+  "days": 60,
   "checked": true,
   "min_test_n": 30,
   "t_min": 1.0
  },
  "bars1m_saved": [
-  "2026-10-15",
   "2026-10-16",
   "2026-10-19",
   "2026-10-20",
   "2026-10-21",
-  "2026-10-22"
+  "2026-10-22",
+  "2026-10-27"
  ],
  "method": "5分K,觸發後下一根開盤成交;同根同時碰停損停利算停損;13:20 那根收盤強制出場;前 2/3 交易日挑參數,後 1/3 驗證",
  "note": "歷史統計,不是預測,不構成買賣建議。當沖風險高,實際成交會有滑價。",
  "live": {
-  "days": 0,
-  "n": 0,
-  "first": null,
-  "last": null,
-  "rules": {}
+  "days": 1,
+  "n": 215,
+  "first": "2026-10-27",
+  "last": "2026-10-27",
+  "rules": {
+   "fade_long": {
+    "name": "超跌反向做多",
+    "n": 32,
+    "days": 1,
+    "avg": 0.151,
+    "win": 59.4,
+    "t": null,
+    "slip": -0.055,
+    "n_holds": 0,
+    "mdd": 0.0,
+    "worst_day": 0.15,
+    "lose_streak": 0,
+    "cum": 0.15,
+    "backtest_test_avg": -0.669
+   },
+   "fade_short": {
+    "name": "超漲反向放空",
+    "n": 5,
+    "days": 1,
+    "avg": 3.345,
+    "win": 100.0,
+    "t": null,
+    "slip": -0.521,
+    "n_holds": 0,
+    "mdd": 0.0,
+    "worst_day": 3.34,
+    "lose_streak": 0,
+    "cum": 3.34,
+    "backtest_test_avg": 0.506
+   },
+   "pb_long": {
+    "name": "拉回均價線做多",
+    "n": 23,
+    "days": 1,
+    "avg": -0.711,
+    "win": 21.7,
+    "t": null,
+    "slip": 0.252,
+    "n_holds": 0,
+    "mdd": 0.71,
+    "worst_day": -0.71,
+    "lose_streak": 1,
+    "cum": -0.71,
+    "backtest_test_avg": -0.435
+   },
+   "pb_short": {
+    "name": "反彈均價線放空",
+    "n": 14,
+    "days": 1,
+    "avg": -0.824,
+    "win": 14.3,
+    "t": null,
+    "slip": -0.009,
+    "n_holds": 0,
+    "mdd": 0.82,
+    "worst_day": -0.82,
+    "lose_streak": 1,
+    "cum": -0.82,
+    "backtest_test_avg": -0.179
+   },
+   "score_long": {
+    "name": "多空分數做多",
+    "n": 29,
+    "days": 1,
+    "avg": -0.764,
+    "win": 20.7,
+    "t": null,
+    "slip": 0.294,
+    "n_holds": 0,
+    "mdd": 0.76,
+    "worst_day": -0.76,
+    "lose_streak": 1,
+    "cum": -0.76,
+    "backtest_test_avg": -0.341
+   },
+   "score_long_80": {
+    "name": "多空分數做多(強)",
+    "n": 11,
+    "days": 1,
+    "avg": -1.111,
+    "win": 9.1,
+    "t": null,
+    "slip": 0.195,
+    "n_holds": 0,
+    "mdd": 1.11,
+    "worst_day": -1.11,
+    "lose_streak": 1,
+    "cum": -1.11,
+    "backtest_test_avg": -0.357
+   },
+   "score_short": {
+    "name": "多空分數放空",
+    "n": 57,
+    "days": 1,
+    "avg": -0.016,
+    "win": 43.9,
+    "t": null,
+    "slip": 0.232,
+    "n_holds": 0,
+    "mdd": 0.02,
+    "worst_day": -0.02,
+    "lose_streak": 1,
+    "cum": -0.02,
+    "backtest_test_avg": 0.256
+   },
+   "score_short_80": {
+    "name": "多空分數放空(強)",
+    "n": 44,
+    "days": 1,
+    "avg": -0.217,
+    "win": 52.3,
+    "t": null,
+    "slip": 0.006,
+    "n_holds": 0,
+    "mdd": 0.22,
+    "worst_day": -0.22,
+    "lose_streak": 1,
+    "cum": -0.22,
+    "backtest_test_avg": -0.029
+   }
+  }
  },
  "archive": {
-  "days": 59,
+  "days": 60,
   "first": "2026-07-29",
-  "last": "2026-10-22",
-  "saved_now": 0,
-  "added_beyond_yahoo": 0
+  "last": "2026-10-27",
+  "saved_now": 1,
+  "added_beyond_yahoo": 68
  },
- "replay_new_days": 0
+ "replay_new_days": 1
 }
