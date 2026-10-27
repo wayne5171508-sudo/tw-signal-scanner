@@ -1,13 +1,13 @@
 {
-  "checked_at": "2026-10-27T00:50:37+08:00",
-  "trade_date": "2026-10-22",
-  "ok": true,
+  "checked_at": "2026-10-27T09:01:00+08:00",
+  "trade_date": "2026-10-27",
+  "ok": false,
   "items": [
     {
       "key": "quotes",
       "name": "盤中報價",
-      "ok": true,
-      "detail": "2026-10-22 最後一輪 13:33,有報價 78/79 檔"
+      "ok": false,
+      "detail": "2026-10-27 最後一輪 09:00,有報價 75/79 檔"
     },
     {
       "key": "bars",
@@ -19,25 +19,13 @@
       "key": "market",
       "name": "全市場爆量榜",
       "ok": true,
-      "detail": "2026-10-22 3 次都有"
+      "detail": "2026-10-27 0 次都有"
     },
     {
-      "key": "review",
-      "name": "收盤復盤",
+      "key": "amount",
+      "name": "成交金額單位",
       "ok": true,
-      "detail": "最新一份是 2026-10-22"
-    },
-    {
-      "key": "archive",
-      "name": "盤中走勢存檔",
-      "ok": true,
-      "detail": "2026-10-22.json 有"
-    },
-    {
-      "key": "lab",
-      "name": "策略驗證室",
-      "ok": true,
-      "detail": "最後更新 2026-10-22 14:26"
+      "detail": "單位 1"
     },
     {
       "key": "scan",

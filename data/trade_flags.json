@@ -1,0 +1,268 @@
+{
+ "date": "2026-10-27",
+ "fetched_at": "2026-10-27T01:01:57",
+ "daytrade_list_date": "2026-10-27",
+ "status": {
+  "twse_daytrade": "ok",
+  "tpex_daytrade": "ok",
+  "twse_punish": "ok",
+  "tpex_punish": "ok",
+  "twse_notice": "ok",
+  "tpex_notice": "ok",
+  "twse_accum": "ok",
+  "tpex_accum": "ok",
+  "twse_change": "ok"
+ },
+ "flags": {
+  "2455": {
+   "daytrade": true
+  },
+  "3374": {
+   "daytrade": true,
+   "notice": {
+    "date": "2026-10-22",
+    "reason": "當日本益比為72.76、股價淨值比為12.76且為其所屬產業類別股價淨值比之2.63倍、當日週轉率達7.63%(第六款)"
+   }
+  },
+  "2408": {
+   "daytrade": true
+  },
+  "2344": {
+   "daytrade": true
+  },
+  "6147": {
+   "daytrade": true
+  },
+  "8021": {
+   "daytrade": true
+  },
+  "8039": {
+   "daytrade": true
+  },
+  "8358": {
+   "daytrade": false,
+   "notice": {
+    "date": "2026-10-22",
+    "reason": "當日本益比為65.35、股價淨值比為11.9且為其所屬產業類別股價淨值比之3.09倍、當日週轉率達6.95%(第六款)"
+   }
+  },
+  "3264": {
+   "daytrade": true
+  },
+  "4979": {
+   "daytrade": false
+  },
+  "3105": {
+   "daytrade": true
+  },
+  "6173": {
+   "daytrade": true
+  },
+  "3016": {
+   "daytrade": true
+  },
+  "1727": {
+   "daytrade": true
+  },
+  "8042": {
+   "daytrade": true
+  },
+  "3027": {
+   "daytrade": true
+  },
+  "4303": {
+   "daytrade": true
+  },
+  "8111": {
+   "daytrade": true
+  },
+  "1815": {
+   "daytrade": true,
+   "notice": {
+    "date": "2026-10-22",
+    "reason": "最近六個營業日(含當日)之累積週轉率為144.05%，當日週轉率達24.48%(第十款)"
+   }
+  },
+  "2630": {
+   "daytrade": true
+  },
+  "2883": {
+   "daytrade": true
+  },
+  "2881": {
+   "daytrade": true
+  },
+  "2313": {
+   "daytrade": true
+  },
+  "4919": {
+   "daytrade": true
+  },
+  "6217": {
+   "daytrade": true
+  },
+  "1303": {
+   "daytrade": true
+  },
+  "3051": {
+   "daytrade": true
+  },
+  "6937": {
+   "daytrade": true
+  },
+  "2337": {
+   "daytrade": true
+  },
+  "6257": {
+   "daytrade": true
+  },
+  "3090": {
+   "daytrade": true
+  },
+  "2303": {
+   "daytrade": true
+  },
+  "2379": {
+   "daytrade": true
+  },
+  "2609": {
+   "daytrade": true
+  },
+  "3231": {
+   "daytrade": true
+  },
+  "3707": {
+   "daytrade": true
+  },
+  "5425": {
+   "daytrade": true
+  },
+  "2481": {
+   "daytrade": true
+  },
+  "3588": {
+   "daytrade": true
+  },
+  "5347": {
+   "daytrade": true
+  },
+  "6182": {
+   "daytrade": true
+  },
+  "2351": {
+   "daytrade": true
+  },
+  "2449": {
+   "daytrade": true
+  },
+  "6239": {
+   "daytrade": true
+  },
+  "8150": {
+   "daytrade": true
+  },
+  "4958": {
+   "daytrade": true
+  },
+  "3037": {
+   "daytrade": true
+  },
+  "6488": {
+   "daytrade": true
+  },
+  "3490": {
+   "daytrade": true
+  },
+  "2409": {
+   "daytrade": true
+  },
+  "2882": {
+   "daytrade": true
+  },
+  "2327": {
+   "daytrade": true
+  },
+  "3624": {
+   "daytrade": true
+  },
+  "3605": {
+   "daytrade": true
+  },
+  "6456": {
+   "daytrade": true
+  },
+  "2492": {
+   "daytrade": true
+  },
+  "4991": {
+   "daytrade": true
+  },
+  "6278": {
+   "daytrade": true
+  },
+  "3042": {
+   "daytrade": true
+  },
+  "2606": {
+   "daytrade": true
+  },
+  "6140": {
+   "daytrade": false
+  },
+  "1316": {
+   "daytrade": true
+  },
+  "1802": {
+   "daytrade": true
+  },
+  "3706": {
+   "daytrade": true
+  },
+  "2365": {
+   "daytrade": true
+  },
+  "7781": {
+   "daytrade": false
+  },
+  "2887": {
+   "daytrade": true
+  },
+  "2049": {
+   "daytrade": true
+  },
+  "4576": {
+   "daytrade": true
+  },
+  "2359": {
+   "daytrade": true
+  },
+  "0050": {
+   "daytrade": true
+  },
+  "009816": {
+   "daytrade": true
+  },
+  "00981A": {
+   "daytrade": true
+  },
+  "00685L": {
+   "daytrade": true
+  },
+  "00631L": {
+   "daytrade": true
+  },
+  "8033": {
+   "daytrade": true
+  },
+  "6505": {
+   "daytrade": true
+  },
+  "2368": {
+   "daytrade": true
+  },
+  "6209": {
+   "daytrade": true
+  }
+ },
+ "note": "官方交易限制提醒(證交所/櫃買 OpenAPI),實際以券商下單系統為準,不是買賣建議。"
+}
