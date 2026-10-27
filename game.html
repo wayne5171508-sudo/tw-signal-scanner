@@ -625,6 +625,7 @@ function renderHud(it){
     const tp = new Date(Date.now() + 8 * 3600000), tpm = tp.getUTCHours() * 60 + tp.getUTCMinutes(), wd = tp.getUTCDay();
     const open = wd >= 1 && wd <= 5 && tpm >= 9 * 60 && tpm <= 13 * 60 + 35;
     if(open && mins <= 20){ pill.classList.add('live'); txt.textContent = `LIVE ${tw(it.data_as_of)}`; }
+    else if(open && it.data_as_of.slice(0, 10) !== tp.toISOString().slice(0, 10)){ pill.classList.add('stale'); txt.textContent = '等今日資料'; }
     else if(open){ pill.classList.add('stale'); txt.textContent = `延遲 ${mins} 分`; }
     else { const d = it.data_as_of.slice(5, 10).replace('-', '/'); txt.textContent = `收盤 ${d}`; }
   } else txt.textContent = '無資料';
@@ -768,7 +769,11 @@ function logTrade(sign){
 function phaseOf(it){
   const t = tpNow(), live = (window.__NOW ? true : !!(it && it.data_as_of && it.data_as_of.slice(0, 10) === t.date)) && t.wd >= 1 && t.wd <= 5;
   const last = riskCfg().lastEntry;
-  if(!live) return {k: 'closed', name: '休市', i: 5};
+  if(!live){
+    // 交易日盤中但今天的資料還沒進來(例如剛開盤、GitHub 還在部署),不要誤判成休市
+    if(!window.__NOW && t.wd >= 1 && t.wd <= 5 && t.hm < '13:35') return t.hm < '09:00' ? {k: 'pre', name: '準備', i: 0} : {k: 'nodata', name: '等資料', i: -1};
+    return {k: 'closed', name: '休市', i: 5};
+  }
   if(t.hm < '09:00') return {k: 'pre', name: '準備', i: 0};
   if(t.hm < '09:15') return {k: 'open', name: '開盤混戰', i: 1};
   if(t.hm < last) return {k: 'battle', name: '主戰場', i: 2};
@@ -812,7 +817,7 @@ function renderBattle(it){
   const qs = ((it && it.watchlist_quotes) || []).filter(q => !String(q.code).startsWith('00') && num(q.last) !== null);
   const B = (it && it.bias && it.bias.items) || [];
   const op = {}; (((it && it.opening_alerts) || {}).items || []).forEach(x => { if(x.hot_now) op[x.code] = 1; });
-  const reviewMode = ph.k === 'closed' || ph.k === 'done';
+  const reviewMode = ph.k === 'closed' || ph.k === 'done' || ph.k === 'nodata';
   RISK_IGNORE_TIME = reviewMode;
   const cands = mood ? qs.filter(q => (num(q.pace) || 0) >= 2 || op[q.code] || B.some(x => x.code === q.code && x.fresh))
     .map(q => ({q, t: teamCheck(q, mood)})).filter(x => x.t).map(x => ({...x, g: gameLabel(x.t)})) : [];
@@ -823,6 +828,7 @@ function renderBattle(it){
   const mins = window.__NOW ? 0 : (it && it.data_as_of ? Math.round((Date.now() - Date.parse(it.data_as_of)) / 60000) : 999);
   let st, big, emoji, why, sub;
   if(ph.k === 'closed' || ph.k === 'done'){ st = 'stop'; big = '停'; emoji = '🌙'; why = ph.k === 'closed' ? '今天休市或已收盤,收工休息。' : '13:20 收工時間,手上的部位全部出場。'; sub = '收盤後 14:30 系統會自動回測、更新明天要用的資料。可以到「地圖」看今天的熱度,或用經典版的回放複習。'; }
+  else if(ph.k === 'nodata'){ st = 'stop'; big = '停'; emoji = '📡'; why = tpNow().hm < '09:20' ? '剛開盤,今天的第一筆資料還在路上。' : '已經開盤,但今天的資料還沒進來。'; sub = tpNow().hm < '09:20' ? '第一筆通常 09:02~09:05 進來,頁面每分鐘會自己更新,等一下就好。' : '可能今天休市,或抓資料的排程沒跑。按右上角重新整理;一直這樣就跟 Claude 說。'; }
   else if(r.block){ st = 'stop'; big = '停'; emoji = '🛑'; why = '今日風控:' + r.reasons.join('、') + '。'; sub = '今天不再新進場,只處理手上部位的出場。守住紀律,明天再戰。'; }
   else if(ph.k === 'pre'){ st = 'stop'; big = '停'; emoji = '⏳'; why = '還沒開盤,先看台指期和昨晚的重大訊息。'; sub = '09:00 開盤後的前 15 分鐘是混戰,先別衝。'; }
   else if(ph.k === 'open'){ st = 'stop'; big = '停'; emoji = '⚔️'; why = '開盤混戰中,等 09:15 開盤區間形成再說。'; sub = '開盤前 15 分鐘波動最亂,回測也顯示一開盤就追的平均成本最高。'; }
