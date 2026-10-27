@@ -623,3 +623,58 @@ def test_web_pages_javascript_syntax(tmp_path):
             f.write_text(js, encoding="utf-8")
             r = subprocess.run([node, "--check", str(f)], capture_output=True, text=True)
             assert r.returncode == 0, f"{page} 第 {i + 1} 段 script 語法錯誤:\n{r.stderr[-800:]}"
+
+
+# ---------- overnight.py ----------
+
+import overnight  # noqa: E402
+
+
+def test_overnight_classify():
+    assert overnight.classify(0.5, -2) == ("順風", "夜盤")
+    assert overnight.classify(-0.3, 3) == ("逆風", "夜盤")
+    assert overnight.classify(0.1, None) == ("中性", "夜盤")
+    assert overnight.classify(None, 1.2) == ("順風", "費半")
+    assert overnight.classify(None, None) == (None, None)
+
+
+def _on_rows(txf_ts):
+    us_ts = int(dt.datetime(2026, 10, 28, 4, 0, tzinfo=TPE).timestamp())
+    return {
+        overnight.TXF: {"6": 46300, "56": -0.5, "21": 46532, "200007": txf_ts},
+        "GI:SOX:INDEX": {"6": 11000, "56": 1.5, "200007": us_ts},
+        overnight.TSM: {"6": 400, "56": 1, "200007": us_ts},
+        overnight.FX: {"6": 32.5},
+        overnight.TW2330: {"6": 2400, "21": 2380, "200007": int(dt.datetime(2026, 10, 27, 13, 30, tzinfo=TPE).timestamp())},
+    }
+
+
+def test_overnight_snapshot_preopen_uses_night_session():
+    night = int(dt.datetime(2026, 10, 28, 5, 0, tzinfo=TPE).timestamp())
+    s = overnight.build_snapshot(_on_rows(night), dt.datetime(2026, 10, 28, 7, 0, tzinfo=TPE))
+    assert s["wind"] == "逆風" and s["basis"] == "夜盤"
+    assert s["diverge"] is True                      # 費半 +1.5% 和夜盤 -0.5% 方向相反
+    assert s["adr"]["premium"] == round((400 * 32.5 / 5 / 2400 - 1) * 100, 2)
+
+
+def test_overnight_snapshot_after_open_drops_txf():
+    # 08:45 之後(或下午新的夜盤)台指期報價不是昨晚的夜盤,不能拿來判斷
+    evening = int(dt.datetime(2026, 10, 28, 16, 0, tzinfo=TPE).timestamp())
+    s = overnight.build_snapshot(_on_rows(evening), dt.datetime(2026, 10, 28, 9, 10, tzinfo=TPE))
+    assert s["items"][0]["pct"] is None
+    assert s["basis"] == "費半" and s["wind"] == "順風"
+
+
+def test_overnight_stats_groups_by_wind():
+    log = {"days": {
+        "2026-10-27": {"wind": "順風", "items": [{"code": overnight.TXF, "pct": 0.8}], "outcome": {"gap": 1.0, "oc": -0.2}},
+        "2026-10-28": {"wind": "逆風", "items": [{"code": overnight.TXF, "pct": -0.6}], "outcome": {"gap": 0.3}},
+        "2026-10-29": {"wind": "中性", "items": []},   # 沒有開盤結果(休市)不算
+    }}
+    focus = {"days": {"2026-10-27": {"evaluated": True, "picks": {"2330": {"side": "in", "ret": 1.2}, "2303": {"side": "out", "ret": 0.5}}}}}
+    st = overnight.stats(log, focus)
+    assert st["days"] == 2
+    assert st["by"]["順風"]["hit"] == 1 and st["by"]["逆風"]["hit"] == 0
+    assert st["by"]["順風"]["f_in"] == {"n": 1, "win": 1, "avg": 1.2}
+    assert st["by"]["順風"]["f_out"]["win"] == 0
+    assert st["by"]["中性"]["days"] == 0

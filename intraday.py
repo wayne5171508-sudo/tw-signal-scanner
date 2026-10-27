@@ -2175,6 +2175,11 @@ def main():
     except Exception as e:  # noqa: BLE001  成績單/量能曲線是加分功能,不能影響報價
         print(f"[警告] 歷史/成績單/量能曲線處理失敗: {e}")
     try:
+        import overnight
+        overnight.record_outcome(run_time, watchlist_out, GROUP_OF)
+    except Exception as e:  # noqa: BLE001  隔夜風向驗證是加分功能
+        print(f"[警告] 隔夜風向驗證記錄失敗: {e}")
+    try:
         result["bias"] = compute_bias(run_time, indices_out, watchlist_out, official)
     except Exception as e:  # noqa: BLE001  多空判斷是加分功能,不能影響報價
         print(f"[警告] 多空判斷失敗: {e}")

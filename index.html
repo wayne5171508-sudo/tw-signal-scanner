@@ -284,6 +284,12 @@
   .sigbox{margin:8px 0 12px;padding:12px;border-radius:12px;background:var(--card);border:1px solid var(--border)}
   .sigbox .sh{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:6px}
   .sigbox .sh b{font-size:14px} .sigbox .sh small{font-size:11px;color:var(--muted)}
+  .onwind{font-size:12px;font-weight:700;padding:2px 9px;border-radius:999px;background:#f1f0ea;color:var(--muted)}
+  .onwind.up{background:var(--up-fill);color:var(--up)} .onwind.down{background:var(--down-fill);color:var(--down)}
+  .onrow{display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-top:1px solid var(--border);font-size:13px;font-variant-numeric:tabular-nums}
+  .onrow:first-of-type{border-top:none}
+  .onrow span:first-child{min-width:0} .onrow small{color:var(--muted);font-size:11px}
+  .onrow.main{font-size:15px;font-weight:600}
   .sigrow{padding:8px 0;border-top:1px solid var(--border);font-size:13px}
   .sigrow .l1{display:flex;justify-content:space-between;align-items:center;gap:8px}
   .sigrow .l2{font-size:12px;color:var(--muted);margin-top:2px;line-height:1.5}
@@ -402,6 +408,7 @@
 </div>
 
 <div data-pane="today">
+<div id="overnightBox" style="display:none"></div>
 <div id="teamBox" style="display:none"></div>
 <div id="riskBox" style="display:none"></div>
 <div id="biasBox" style="display:none"></div>
@@ -446,6 +453,7 @@
 <div id="bearCardBox" style="display:none"></div>
 <div id="dtBox" style="display:none"></div>
 <div id="signalBox" style="display:none"></div>
+<div id="overnightLabBox" style="display:none"></div>
 <div id="labBox" style="display:none"></div>
 <details class="more" id="reviewPastWrap" style="display:none">
   <summary>復盤紀錄(最近30個交易日)</summary>
@@ -1268,6 +1276,8 @@ async function loadAll(opts){
     try{ const r = await fetch('data/bear_scorecard.json', {cache:'no-store'}); if(r.ok) BEAR = await r.json(); }catch(e){ /* 還沒有利空成績單 */ }
     try{ const r = await fetch('data/daytrade.json', {cache:'no-store'}); if(r.ok) DAYTRADE = await r.json(); }catch(e){ /* 還沒有當沖回測 */ }
   }
+  // 隔夜風向開盤前才更新,但開盤前盤中檔案不會動,所以每次都重抓(檔案很小)
+  try{ const r = await fetch('data/overnight.json', {cache:'no-store'}); if(r.ok) OVERNIGHT = await r.json(); }catch(e){ /* 還沒有隔夜風向 */ }
   try{ const r = await fetch('data/health.json', {cache:'no-store'}); if(r.ok) HEALTH = await r.json(); }catch(e){ /* 沒有健康檢查就不顯示 */ }
 
   CHIP = chip; INTRADAY = intraday; HISTORY = history;
@@ -1275,6 +1285,7 @@ async function loadAll(opts){
   const safe = (name, fn) => { try { fn(); } catch(e) { console.error('render ' + name, e); } };
   safe('fresh', () => renderFresh(intraday));
   safe('health', () => renderHealth(HEALTH));
+  safe('overnight', () => renderOvernight(OVERNIGHT));
   safe('team', () => renderTeam(intraday));
   safe('risk', () => renderRisk());
   safe('bias', () => renderBias(intraday));
@@ -1734,6 +1745,72 @@ function renderSignals(intraday){
     <div class="onote" style="margin:0 0 4px">每天 09:30、10:30、12:00、13:00 記下符合條件的股票,假設當下進場抱到收盤,和同時點全部股票的平均比較。「差距」要穩定大於 ${ss.cost_pct}%(來回成本)、樣本累積到 ${SIG_MIN_N} 筆以上,才算有優勢跡象。驗證前只是觀察,不是買賣建議。</div>`
     + `<div class="onote" style="margin:8px 0 0"><b>自選股樣本</b></div>` + sigRowsHtml(ss)
     + (ms && ms.days ? `<div class="onote" style="margin:12px 0 0"><b>全市場樣本</b>(${ms.days} 個交易日)</div><div class="onote" style="margin:0 0 4px">範圍是上市櫃成交量較大的約 660 檔,每天符合的筆數比自選股多很多,所以驗證得比較快。量能倍數用較粗的算法,和自選股的不完全一樣,兩邊分開看。</div>` + sigRowsHtml(ms) : '');
+  el.style.display = '';
+}
+
+// ================= 隔夜風向(data/overnight.json,overnight.py 開盤前拍) =================
+let OVERNIGHT = null;
+const ON_CLASS = {'順風': 'up', '逆風': 'down', '中性': ''};
+
+function onTime(ts){
+  if(!ts) return '';
+  const d = new Date(ts * 1000);
+  return d.toLocaleString('zh-TW', {month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit', hour12:false, timeZone:'Asia/Taipei'});
+}
+
+function onLabLine(st){
+  if(!st || !st.days) return '還沒有驗證樣本';
+  return st.days < st.min_days ? `驗證中 ${st.days}/${st.min_days} 天` : `已累積 ${st.days} 天,看「更多 > 隔夜風向驗證」`;
+}
+
+function renderOvernight(on){
+  const el = document.getElementById('overnightBox');
+  if(!el) return;
+  const s = on && on.days && on.days[on.latest];
+  if(!s){ el.style.display = 'none'; return; }
+  const today = new Date().toLocaleDateString('sv-SE', {timeZone:'Asia/Taipei'});
+  const md = s.date.slice(5).replace('-', '/');
+  const sg = x => num(x) === null ? '-' : (x > 0 ? '+' : '') + Number(x).toFixed(2) + '%';
+  const rows = (s.items || []).map((it, i) => {
+    const main = i === 0;
+    const val = it.pct == null ? `<small>${it.note || '無資料'}</small>` : `<span class="${PCT_CLASS(it.pct)}">${sg(it.pct)}</span>`;
+    const sub = [it.last != null ? fmtNum(it.last) : '', it.rel ? '關聯:' + it.rel : '', (it.pct != null && it.note) ? it.note : ''].filter(Boolean).join(' · ');
+    return `<div class="onrow${main ? ' main' : ''}"><span>${it.name}${main ? ' <small>主指標</small>' : ''}<br><small>${sub}${it.ts ? ' · ' + onTime(it.ts) : ''}</small></span>${val}</div>`;
+  }).join('');
+  const a = s.adr;
+  const adr = a ? `<div class="onrow"><span>台積電ADR換算溢價<br><small>ADR ${a.adr} × 匯率 ${a.fx} ÷ 5 = ${a.eq} 元,台股昨收 ${fmtNum(a.tw_close)}</small></span><span class="${PCT_CLASS(a.premium)}">${sg(a.premium)}</span></div>` : '';
+  const o = s.outcome || {};
+  const res = o.gap != null ? `<div class="onote" style="margin-top:8px">${s.date === today ? '今天' : '當天'}結果:自選股平均開盤 <b class="${PCT_CLASS(o.gap)}">${sg(o.gap)}</b>${o.oc != null ? `,開盤到收盤 <b class="${PCT_CLASS(o.oc)}">${sg(o.oc)}</b>` : ''}</div>` : '';
+  const st = on.stats || {};
+  const why = s.wind ? `依${s.basis}漲跌${s.basis === '夜盤' ? '±' + (st.th_txf ?? 0.3) : '±' + (st.th_sox ?? 1)}%判斷` : '';
+  el.className = 'sigbox';
+  el.innerHTML = `<div class="sh"><b>隔夜風向 <span class="onwind ${ON_CLASS[s.wind] || ''}">${s.wind || '無資料'}</span></b><small>${md}${s.date === today ? '' : '(非今天)'} ${s.taken_at.slice(11, 16)} 記錄</small></div>
+    ${s.diverge ? '<div class="onote" style="margin:0 0 4px;color:var(--text)">⚠ 費半和夜盤方向相反,風向參考性較低</div>' : ''}
+    ${rows}${adr}${res}
+    <div class="onote">${why}。只說明開盤是順風還是逆風,不會告訴你哪一檔會爆量,也不是買賣建議。門檻是暫定的,${onLabLine(st)}。</div>`;
+  el.style.display = '';
+  renderOvernightLab(st);
+}
+
+function renderOvernightLab(st){
+  const el = document.getElementById('overnightLabBox');
+  if(!el) return;
+  if(!st || !st.by){ el.style.display = 'none'; return; }
+  const sg = x => num(x) === null ? '-' : (x > 0 ? '+' : '') + Number(x).toFixed(2) + '%';
+  const hitName = {'順風': '開高', '逆風': '開低', '中性': '開平(±0.5%內)'};
+  const rows = ['順風', '中性', '逆風'].map(w => {
+    const b = st.by[w] || {};
+    if(!b.days) return `<div class="sigrow"><div class="l1"><span><b>${w}</b></span><span class="sigv">尚無資料</span></div></div>`;
+    const fi = b.f_in || {}, fo = b.f_out || {};
+    const f = [fi.n ? `焦點偏多 ${fi.n} 檔收盤上漲 ${Math.round(fi.win / fi.n * 100)}%(平均 ${sg(fi.avg)})` : '', fo.n ? `焦點偏空 ${fo.n} 檔收盤下跌 ${Math.round(fo.win / fo.n * 100)}%` : ''].filter(Boolean).join(';');
+    return `<div class="sigrow"><div class="l1"><span><b>${w}</b> <small style="color:var(--muted)">${b.days} 天</small></span><span class="sigv">${hitName[w]} ${b.hit}/${b.days} 天</span></div>
+      <div class="l2">自選股平均開盤 ${sg(b.gap)},開盤到收盤 ${sg(b.oc)}${f ? '<br>' + f : ''}</div></div>`;
+  }).join('');
+  el.className = 'sigbox';
+  el.innerHTML = `<div class="sh"><b>隔夜風向驗證</b><small>${st.days} 個交易日${st.days < st.min_days ? `,驗證中 ${st.days}/${st.min_days}` : ''}</small></div>
+    <div class="onote" style="margin:0 0 4px">每天開盤前記下風向,開盤後對照自選股(不含ETF)平均跳空、開盤到收盤、焦點名單收盤成績。要看的是:風向能不能說中開盤方向(預期可以),以及能不能說中盤中走勢(預期不太行)。只觀察,不拿來下單。</div>
+    ${rows}
+    ${st.corr_txf_gap != null ? `<div class="onote">夜盤漲跌和自選股平均開盤的相關係數 <b>${st.corr_txf_gap}</b>(1=完全同向,0=沒關係)</div>` : ''}`;
   el.style.display = '';
 }
 
