@@ -77,7 +77,10 @@ jobs:
         run: |
           git config user.name "tw-signal-scanner-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add data/bear_scorecard.json data/corp_actions.json data/daytrade.json data/bias_log.json data/bars5m/ data/replay/ data/bars5m_top/ data/top_universe.json data/news.json
+          # 只加存在的檔案:某個檔案還沒產生(例如當天沒有盤中觸發就沒有 bias_log.json)時,git add 會整步失敗
+          for p in data/bear_scorecard.json data/corp_actions.json data/daytrade.json data/bias_log.json data/bars5m/ data/replay/ data/bars5m_top/ data/top_universe.json data/news.json; do
+            if [ -e "$p" ]; then git add "$p"; else echo "略過不存在的 $p"; fi
+          done
           if git diff --quiet --cached; then echo "沒有變動"; exit 0; fi
           git commit -m "利空回測成績單 $(TZ=Asia/Taipei date +'%Y-%m-%d %H:%M')"
           for i in 1 2 3; do
