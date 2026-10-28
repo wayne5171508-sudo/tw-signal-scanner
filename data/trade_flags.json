@@ -1,7 +1,7 @@
 {
- "date": "2026-10-27",
- "fetched_at": "2026-10-27T01:01:57",
- "daytrade_list_date": "2026-10-27",
+ "date": "2026-10-28",
+ "fetched_at": "2026-10-28T00:56:05",
+ "daytrade_list_date": "2026-10-28",
  "status": {
   "twse_daytrade": "ok",
   "tpex_daytrade": "ok",
@@ -41,6 +41,11 @@
   },
   "8358": {
    "daytrade": false,
+   "disposal": {
+    "start": "2026-10-23",
+    "end": "2026-10-30",
+    "measure": "每2分鐘撮合・預收款券"
+   },
    "notice": {
     "date": "2026-10-22",
     "reason": "當日本益比為65.35、股價淨值比為11.9且為其所屬產業類別股價淨值比之3.09倍、當日週轉率達6.95%(第六款)"
