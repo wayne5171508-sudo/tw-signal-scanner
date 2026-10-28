@@ -1,19 +1,31 @@
 {
-  "checked_at": "2026-10-28T08:58:01+08:00",
-  "trade_date": null,
+  "checked_at": "2026-10-28T09:01:01+08:00",
+  "trade_date": "2026-10-28",
   "ok": false,
   "items": [
     {
       "key": "quotes",
       "name": "盤中報價",
       "ok": false,
-      "detail": "None 最後一輪 ,有報價 78/79 檔"
+      "detail": "2026-10-28 最後一輪 09:00,有報價 73/79 檔"
     },
     {
       "key": "bars",
       "name": "日K資料",
       "ok": true,
       "detail": "ok 79/79(來源無日K:7781)"
+    },
+    {
+      "key": "market",
+      "name": "全市場爆量榜",
+      "ok": true,
+      "detail": "2026-10-28 0 次都有"
+    },
+    {
+      "key": "amount",
+      "name": "成交金額單位",
+      "ok": true,
+      "detail": "單位 1"
     },
     {
       "key": "scan",
