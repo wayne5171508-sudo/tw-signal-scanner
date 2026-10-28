@@ -1,5 +1,5 @@
 {
-  "checked_at": "2026-10-28T12:06:01+08:00",
+  "checked_at": "2026-10-28T12:11:01+08:00",
   "trade_date": "2026-10-28",
   "ok": true,
   "items": [
@@ -7,7 +7,7 @@
       "key": "quotes",
       "name": "盤中報價",
       "ok": true,
-      "detail": "最後報價 12:06,距今 0 分鐘"
+      "detail": "最後報價 12:11,距今 0 分鐘"
     },
     {
       "key": "bars",
@@ -19,7 +19,7 @@
       "key": "market",
       "name": "全市場爆量榜",
       "ok": true,
-      "detail": "2026-10-28 2 次都有"
+      "detail": "2026-10-28 3 次都有"
     },
     {
       "key": "amount",
@@ -31,7 +31,7 @@
       "key": "bias",
       "name": "多空判斷",
       "ok": true,
-      "detail": "12:06 更新,規則站得住 0 條"
+      "detail": "12:11 更新,規則站得住 0 條"
     },
     {
       "key": "scan",
