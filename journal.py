@@ -8,14 +8,16 @@
   python journal.py list [--date 2026-10-30]
   python journal.py remove <id>
 
-- 損益:張數 × 1000 股;手續費 0.1425% × FEE_DISCOUNT(買賣各收一次,每次最低 FEE_MIN 元),
-  當沖證交稅 0.15%(賣出那一邊收);做空(先賣後買)一樣算法。股數用 --shares 可以記零股。
+- 損益:張數 × 1000 股;手續費 0.1425% × FEE_DISCOUNT(買賣各收一次,每次最低 FEE_MIN 元,小數無條件捨去),
+  當沖證交稅 0.15%(賣出那一邊收,無條件捨去);做空(先賣後買)一樣算法。股數用 --shares 可以記零股。
+  已用 10/29 永豐對帳單驗證:4979 華星光 10/14 579 買、580 賣 1 張 → 手續費 231+231、稅 870、損益 -332,完全一致。
 - 自動對照當天的推薦:全市場雷達(data/market/日期.json)和自選股觀測員(data/team/日期.json)
   有沒有推薦這檔、推薦方向是不是一樣、第一次推薦的時間/價格/結論,存在 rec 裡,網頁用來算「照推薦做」和「自己判斷」的勝率。
 """
 
 import argparse
 import json
+import math
 import os
 import sys
 from datetime import datetime
@@ -45,8 +47,8 @@ def costs(side, entry, exit_, shares):
     """回傳 (毛損益, 手續費, 證交稅, 淨損益)。做多:entry 買、exit 賣;做空:entry 賣、exit 買。"""
     buy, sell = (entry, exit_) if side == "long" else (exit_, entry)
     gross = (sell - buy) * shares
-    fee = sum(max(FEE_MIN, round(p * shares * FEE_RATE * FEE_DISCOUNT)) for p in (buy, sell))
-    tax = round(sell * shares * DAYTRADE_TAX)
+    fee = sum(max(FEE_MIN, math.floor(p * shares * FEE_RATE * FEE_DISCOUNT + 1e-9)) for p in (buy, sell))   # 券商無條件捨去
+    tax = math.floor(sell * shares * DAYTRADE_TAX + 1e-9)
     return round(gross), fee, tax, round(gross - fee - tax)
 
 
