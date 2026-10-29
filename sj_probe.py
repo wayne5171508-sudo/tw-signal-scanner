@@ -29,12 +29,14 @@ def usage():
 
 
 show("用量", usage)
+show("加權類指數", lambda: [(k.code, k.name) for k in list(api.Contracts.Indexs.TSE) if "加權" in k.name or k.code in ("001", "TSE001", "IX0001")][:10])
+show("櫃買類指數", lambda: [(k.code, k.name) for k in list(api.Contracts.Indexs.OTC) if "櫃買指數" in k.name or "加權" in k.name or k.code in ("101", "OTC101", "IX0043")][:10])
 show("指數合約 TSE", lambda: [(k.code, k.name) for k in list(api.Contracts.Indexs.TSE)[:5]])
 show("指數合約 OTC", lambda: [(k.code, k.name) for k in list(api.Contracts.Indexs.OTC)[:5]])
 
 
 def idx_snap():
-    ks = [api.Contracts.Indexs.TSE["001"], api.Contracts.Indexs.OTC["101"]]
+    ks = [k for k in list(api.Contracts.Indexs.TSE) + list(api.Contracts.Indexs.OTC) if k.code in ("001", "101", "TSE001", "OTC101", "IX0001", "IX0043")]
     return [(s.code, s.close, s.open, s.high, s.low, s.change_price, s.change_rate, s.ts) for s in api.snapshots(ks)]
 
 
@@ -42,7 +44,8 @@ show("指數快照", idx_snap)
 
 
 def idx_kbars():
-    kb = api.kbars(api.Contracts.Indexs.TSE["001"], start=today, end=today)
+    k = next(k for k in api.Contracts.Indexs.TSE if k.code in ("001", "TSE001", "IX0001"))
+    kb = api.kbars(k, start=today, end=today)
     return len(kb.ts), kb.ts[:2], kb.Close[:2], kb.Volume[:2]
 
 
