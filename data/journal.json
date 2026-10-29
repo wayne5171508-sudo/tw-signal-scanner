@@ -1,0 +1,24 @@
+{
+ "trades": [
+  {
+   "id": 1,
+   "date": "2026-10-14",
+   "code": "4979",
+   "name": "華星光",
+   "side": "long",
+   "entry": 579.0,
+   "exit": 580.0,
+   "shares": 1000,
+   "time_in": null,
+   "time_out": null,
+   "gross": 1000,
+   "fee": 462,
+   "tax": 870,
+   "net": -332,
+   "pct": 0.173,
+   "note": "永豐對帳單補記(現沖,進出時間不明;方向依買賣價記為做多)",
+   "rec": null,
+   "added_at": "2026-10-29T14:13:50"
+  }
+ ]
+}
