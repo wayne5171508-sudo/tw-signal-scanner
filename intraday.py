@@ -676,6 +676,7 @@ def _to_float(x):
 
 
 UNIVERSE_SOURCES = (("twse", TWSE_ALL_URL, "Code", "TradeVolume"), ("tpex", TPEX_ALL_URL, "SecuritiesCompanyCode", "TradingShares"))
+UNIVERSE_HLC = {"twse": ("HighestPrice", "LowestPrice", "ClosingPrice", "Name"), "tpex": ("High", "Low", "Close", "CompanyName")}   # 全市場 CDP 用
 UNIVERSE_TIMEOUT = 12
 UNIVERSE_HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36",
                     "Accept": "application/json", "Accept-Encoding": "identity"}   # identity:避免櫃買回傳到一半被切斷
@@ -686,9 +687,10 @@ def load_universe(run_time, errors):
     某一邊失敗下一輪只補抓失敗的那邊,不會拖累已成功的。"""
     today = run_time.strftime("%Y-%m-%d")
     cached = load_json_safe(UNIVERSE_FILE, {}) or {}
-    if cached.get("date") != today:
-        cached = {"date": today, "ok": {}, "stocks": {}}
+    if cached.get("date") != today or "hlc" not in cached:      # 舊格式沒有前一日高低收,重抓一次
+        cached = {"date": today, "ok": {}, "stocks": {}, "hlc": {}}
     stocks, ok, changed = cached["stocks"], cached.setdefault("ok", {}), False
+    hlc = cached["hlc"]
     for key, url, ck, vk in UNIVERSE_SOURCES:
         if ok.get(key):
             continue
@@ -704,6 +706,10 @@ def load_universe(run_time, errors):
                     if re.fullmatch(r"[1-9]\d{3}", code) and vol:
                         stocks[code] = round(vol / 1000)
                         n += 1
+                        hk, lk, ck_, nk = UNIVERSE_HLC[key]
+                        h, l, c = (_to_float(r.get(x)) for x in (hk, lk, ck_))
+                        if h and l and c:
+                            hlc[code] = [h, l, c, str(r.get(nk) or "").strip()]
                 if n:
                     ok[key] = n
                     changed = True
@@ -929,18 +935,20 @@ LIVE_KEEP = 40          # 每輪全市場榜保留前幾名
 def scan_live(run_time, watch_codes):
     """每一輪都用永豐快照掃一次全市場(一次 500 檔,約幾秒),結果存在 market_scan.json 的 "live"。
     09:30/10:30/12:00 的固定快照照舊保留(給策略驗證與量能校正用),這裡只負責「盤中隨時看」。
-    沒有永豐(沒金鑰、登入失敗)就跳過,網頁會自動顯示最近一次固定掃描。"""
+    沒有永豐(沒金鑰、登入失敗)就跳過,網頁會自動顯示最近一次固定掃描。
+    回傳這一輪的全市場資料給 market.py(全市場雷達)用,不用再抓一次:
+    {"rows": 永豐快照列, "uni": 前一日量, "hlc": 前一日高低收, "pace": {代號: 量能倍數}};沒有資料回傳 None。"""
     if sjquote is None:
-        return
+        return None
     m = (run_time - _day_start(run_time)).total_seconds() / 60
-    if m < 1 or m > 271:
-        return
+    if m < 1 or m > 276:
+        return None
     today = run_time.strftime("%Y-%m-%d")
     errors = []
     t0 = time.time()
     uni, _ok = load_universe(run_time, errors)
     if not uni:
-        return
+        return None
     codes = [c for c, v in uni.items() if v >= MARKET_MIN_PREV]
     _per, pooled = load_curves()
     base, _days = volume_baselines(uni)
@@ -949,14 +957,16 @@ def scan_live(run_time, watch_codes):
     sc_now = scale.get(str(sn), {})
     rows = _sj_rows(codes)
     if not rows:
-        return
-    items = []
+        return None
+    items, paces = [], {}
     for code, row in rows.items():
         vol, last, prev = row.get("200013"), row.get("6"), base.get(code)
-        if not (_num_ok(vol, last) and prev) or vol < MARKET_MIN_VOL:
+        if not (_num_ok(vol, last) and prev):
             continue
         f = frac_for(code, m, {}, pooled) * sc_now.get("L" if prev >= MARKET_LARGE_BASE else "S", 1.0)
-        pace = round(vol / (prev * max(f, 0.003)), 2)
+        pace = paces[code] = round(vol / (prev * max(f, 0.003)), 2)
+        if vol < MARKET_MIN_VOL:
+            continue
         items.append({"code": code, "name": row.get("200009") or code, "last": last, "pct": row.get("56"),
                       "vol": vol, "prev": prev, "pace": pace, "in_watch": code in watch_codes})
     items.sort(key=lambda x: -x["pace"])
@@ -965,7 +975,9 @@ def scan_live(run_time, watch_codes):
         log = {"date": today, "scans": {}, "tries": {}}
     log["live"] = {"as_of": run_time.strftime("%H:%M"), "items": items[:LIVE_KEEP], "src": "sj",
                    "diag": {"codes": len(codes), "sj_rows": len(rows), "rows": len(items), "seconds": round(time.time() - t0, 1)}}
-    write_json_atomic(MARKET_FILE, log, separators=(",", ":"))
+    if m <= 271:
+        write_json_atomic(MARKET_FILE, log, separators=(",", ":"))
+    return {"rows": rows, "uni": uni, "hlc": (load_json_safe(UNIVERSE_FILE, {}) or {}).get("hlc") or {}, "pace": paces}
 
 
 def dump_fields(all_rows, run_time):
@@ -2283,6 +2295,30 @@ def load_trade_flags(run_time):
         return cur
 
 
+MARKET_FLAGS_FILE = os.path.join(DATA_DIR, "trade_flags_market.json")
+
+
+def load_market_flags(run_time, codes):
+    """全市場的處置/注意/不可當沖(一天抓一次,只存有限制的股票,檔案才不會太大)。
+    回傳 {代號: flags};名單裡沒有的代號 = 可以現股當沖、沒有其他限制。"""
+    today = run_time.strftime("%Y-%m-%d")
+    cur = load_json_safe(MARKET_FLAGS_FILE, {}) or {}
+    if cur.get("date") == today and (not any(v == "fail" for v in (cur.get("status") or {}).values())
+                                     or run_time.isoformat() < (cur.get("retry_at") or "")):
+        return cur.get("flags") or {}
+    try:
+        import tradeflags
+        new = tradeflags.fetch_flags(sorted(codes), today)
+        new["flags"] = {c: f for c, f in new["flags"].items() if f != {"daytrade": True}}
+        if any(v == "fail" for v in new["status"].values()):
+            new["retry_at"] = (run_time + timedelta(minutes=30)).isoformat()
+        write_json_atomic(MARKET_FLAGS_FILE, new, separators=(",", ":"))
+        return new["flags"]
+    except Exception as e:  # noqa: BLE001
+        print(f"[警告] 全市場交易限制抓取失敗: {e}")
+        return cur.get("flags") or {}
+
+
 def main():
     run_time = taipei_now()
 
@@ -2421,9 +2457,17 @@ def main():
     except Exception as e:  # noqa: BLE001  試跑功能,任何錯誤都不能影響主流程
         print(f"[警告] 全市場掃描/欄位樣本失敗: {e}")
     try:
-        scan_live(run_time, set(WATCHLIST_NAMES))   # 每輪全市場爆量榜(永豐)
+        live = scan_live(run_time, set(WATCHLIST_NAMES))   # 每輪全市場爆量榜(永豐)
     except Exception as e:  # noqa: BLE001
         print(f"[警告] 每輪全市場掃描失敗: {e}")
+        live = None
+    try:
+        import market        # 全市場雷達:全部股票打多空分數、市場統計、做多/做空推薦與每日紀錄
+        if live:
+            market.run(run_time, live, indices_out, set(WATCHLIST_NAMES), lambda codes: load_k5(run_time, codes),
+                       lambda codes: load_market_flags(run_time, codes))
+    except Exception as e:  # noqa: BLE001  全市場雷達是加分功能
+        print(f"[警告] 全市場雷達失敗: {type(e).__name__}: {e}")
     end_of_day_extras(run_time, indices_out, watchlist_out, (touch_summary or {}).get("regime_today"))
 
     if health is not None:

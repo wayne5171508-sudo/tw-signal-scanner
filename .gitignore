@@ -3,3 +3,4 @@ __pycache__/
 .pytest_cache/
 data/bars1m/
 data/k1m_today.json
+data/mkt_state_today.json

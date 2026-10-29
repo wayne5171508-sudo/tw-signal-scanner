@@ -147,8 +147,9 @@ def market_mood(indices, watch):
             "up": up, "down": dn}
 
 
-def team_check(q, mood, bias_items, vwap=None):
-    """一檔的六個觀測員結果:{"side", "S", "ck": [{"r","s","t"}], "v", "vc", "rule"}。s/vc:ok 通過、warn 警示、bad 硬限制、na 中性。"""
+def team_check(q, mood, bias_items, vwap=None, side=None):
+    """一檔的六個觀測員結果:{"side", "S", "ck": [{"r","s","t"}], "v", "vc", "rule"}。s/vc:ok 通過、warn 警示、bad 硬限制、na 中性。
+    side 不給就照網頁的方式決定(剛觸發的多空判斷,沒有就看漲跌幅);全市場雷達用多空分數的方向直接指定。"""
     p = _n(q.get("last"))
     if p is None:
         return None
@@ -158,7 +159,8 @@ def team_check(q, mood, bias_items, vwap=None):
     conflict = len(sides) > 1
     pick = fresh if not conflict else (held if len({x["side"] for x in held}) == 1 else [])
     pct = _n(q.get("pct"))
-    side = (1 if pick[0]["side"] == "long" else -1) if pick else (1 if pct is not None and pct >= 0.5 else -1 if pct is not None and pct <= -0.5 else 0)
+    if side is None:
+        side = (1 if pick[0]["side"] == "long" else -1) if pick else (1 if pct is not None and pct >= 0.5 else -1 if pct is not None and pct <= -0.5 else 0)
     ck = []
     # 1 機會掃描員
     pace = _n(q.get("pace"))
@@ -169,8 +171,11 @@ def team_check(q, mood, bias_items, vwap=None):
     ck.append(c)
     # 2 新聞分析員
     nw = q.get("news") or []
-    ck.append({"r": "消息", "s": "warn" if nw else "ok",
-               "t": f"{nw[0].get('date', '')[5:]} {nw[0].get('cat', '')}:{(nw[0].get('title') or '')[:28]}(事件可能放大波動)" if nw else "近兩天沒有重大訊息"})
+    if q.get("news_checked") is False:
+        ck.append({"r": "消息", "s": "na", "t": "全市場掃描沒有逐檔查重大訊息(下單前自己看一下公開資訊觀測站)"})
+    else:
+        ck.append({"r": "消息", "s": "warn" if nw else "ok",
+                   "t": f"{nw[0].get('date', '')[5:]} {nw[0].get('cat', '')}:{(nw[0].get('title') or '')[:28]}(事件可能放大波動)" if nw else "近兩天沒有重大訊息"})
     # 3 市場情緒員
     if not mood or not side:
         ck.append({"r": "情緒", "s": "na", "t": f"大盤{mood['label']}({mood['score']:+d})" if mood else "沒有大盤資料"})

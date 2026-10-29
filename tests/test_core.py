@@ -871,3 +871,61 @@ def test_team_record_keeps_first_pick_and_logs_changes(tmp_path, monkeypatch):
     assert pk["close"]["net"] == pytest.approx((102.5 / 101 - 1) * 100 - team.COST_PCT, abs=1e-3) and day["closed"]
     idx = json.loads((tmp_path / "index.json").read_text())["days"]["2026-10-29"]
     assert idx["picks"] == 1 and idx["n_close"] == 1 and idx["closed"]
+
+
+# ---------- market.py(全市場雷達)與 journal.py(我的交易) ----------
+
+import journal  # noqa: E402
+import market  # noqa: E402
+
+
+def _mkt_live(n=80):
+    rows, pace = {}, {}
+    for i in range(n):
+        c = str(1101 + i)
+        pct = (i - n / 2) / 10                                    # -4% ~ +4%
+        last = round(100 * (1 + pct / 100), 2)
+        hi, lo = (last, 99.0) if pct > 0 else (101.0, last)       # 漲的收在最高、跌的收在最低
+        rows[c] = {"6": last, "21": 100, "56": pct, "19": 100, "12": hi, "13": lo, "200013": 5000, "200009": f"股{c}",
+                   "200067": 5000 * 1000 * 100, "75": 110, "76": 90, "cat": "24" if i % 2 else "28", "dt": "No" if i == n - 1 else "Yes"}
+        pace[c] = 3.0
+    return {"rows": rows, "uni": {c: 1000 for c in rows}, "hlc": {c: [101, 99, 100, ""] for c in rows}, "pace": pace}
+
+
+def test_market_run_stats_picks_and_record(tmp_path, monkeypatch):
+    for k, v in (("OUT_FILE", "r.json"), ("DAY_DIR", "m"), ("INDEX_FILE", "m/index.json"), ("STATE_FILE", "s.json")):
+        monkeypatch.setattr(market, k, str(tmp_path / v))
+    idx = [{"code": "TWS:TSE01:INDEX", "last": 100.5, "open": 100, "pct": 0.5}]
+    at = lambda h, m: dt.datetime(2026, 10, 29, h, m, 35, tzinfo=TPE)
+    flags = {"1102": {"disposal": {"measure": "分盤"}}}
+    out = market.run(at(10, 0), _mkt_live(), idx, {"1101"}, lambda c: {}, lambda c: flags)
+    st = out["stats"]
+    assert st["n"] == 80 and st["up"] + st["down"] + st["flat"] == 80 and sum(st["bands"].values()) == 80
+    assert out["longs"] and all(p["score"] >= market.PICK_MIN for p in out["longs"])
+    assert all(p["score"] <= -market.PICK_MIN for p in out["shorts"])
+    assert "1180" not in {p["code"] for p in out["longs"] + out["shorts"]}          # 不能當沖的不推薦
+    assert all(len(p["ck"]) == 5 and p["ck"][1]["s"] == "na" for p in out["longs"])  # 全市場沒查新聞 → 消息員中性
+    out2 = market.run(at(13, 31), _mkt_live(), idx, {"1101"}, lambda c: {}, lambda c: flags)
+    day = json.loads((tmp_path / "m" / "2026-10-29.json").read_text())
+    top = out2["longs"][0]["code"]
+    assert day["closed"] and day["picks"][top]["first"]["t"] == "10:00" and day["picks"][top]["close"]["net"] == pytest.approx(-team.COST_PCT)
+    assert json.loads((tmp_path / "m" / "index.json").read_text())["days"]["2026-10-29"]["long"]["n_close"] >= 1
+
+
+def test_journal_costs_and_recommendation_match(tmp_path, monkeypatch):
+    gross, fee, tax, net = journal.costs("long", 100, 102, 1000)
+    assert gross == 2000 and fee == 86 + 87 and tax == 153 and net == 2000 - 173 - 153      # 0.1425% 打 6 折,買賣各一次
+    assert journal.costs("long", 10, 10.1, 1000)[1] == 40                                   # 小金額:每邊最低 20 元
+    g2, f2, t2, n2 = journal.costs("short", 102, 100, 1000)                                 # 做空:102 賣、100 買回
+    assert g2 == 2000 and t2 == 153 and n2 == 2000 - f2 - t2
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "data" / "market").mkdir(parents=True)
+    (tmp_path / "data" / "market" / "2026-10-29.json").write_text(json.dumps({"picks": {"2330": {"name": "台積電", "first": {"t": "09:40", "price": 1000, "side": 1, "vc": "na"}}}}))
+    monkeypatch.setattr(journal, "FILE", str(tmp_path / "data" / "journal.json"))
+    journal.main(["add", "--date", "2026-10-29", "--code", "2330", "--side", "long", "--entry", "1000", "--exit", "1010", "--qty", "1"])
+    journal.main(["add", "--date", "2026-10-29", "--code", "2317", "--side", "short", "--entry", "200", "--exit", "199", "--qty", "2"])
+    t = json.loads((tmp_path / "data" / "journal.json").read_text())["trades"]
+    assert t[0]["name"] == "台積電" and t[0]["rec"]["src"] == "market" and t[0]["rec"]["same_side"] and t[1]["rec"] is None
+    assert t[1]["shares"] == 2000 and t[0]["net"] == journal.costs("long", 1000, 1010, 1000)[3]
+    journal.main(["remove", "1"])
+    assert [x["id"] for x in json.loads((tmp_path / "data" / "journal.json").read_text())["trades"]] == [2]

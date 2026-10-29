@@ -152,6 +152,8 @@ def _to_row(s, k):
         "200025": None,
         "200007": _epoch(getattr(s, "ts", None)),
         "src": "sj",
+        "cat": getattr(k, "category", None),                                        # 產業別代碼(例 24 = 半導體)
+        "dt": str(getattr(getattr(k, "day_trade", None), "value", getattr(k, "day_trade", "")) or ""),   # 現股當沖:Yes / OnlyBuy / No
     }
 
 
