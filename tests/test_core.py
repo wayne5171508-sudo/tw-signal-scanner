@@ -1110,3 +1110,18 @@ def test_curve_from_k1m_cache(tmp_path, monkeypatch):
     c = intraday.curves_from_k1m("2026-10-29")["A"]
     g = intraday.CURVE_GRID
     assert c[g.index(30)] == pytest.approx(30 / 270, abs=1e-3) and c[-1] == 1.0
+
+
+def test_trade_plan_ticks_structure_stop_and_target(monkeypatch):
+    monkeypatch.setattr(team, "_rule_params", lambda side: (1.0, 2.0) if side > 0 else (1.5, 3.0))
+    q = {"code": "2330", "last": 1050}
+    long = team.trade_plan(q, 1, {"均價線": 1042, "開盤區間": 1030, "支撐": 1000, "壓力": 1070})
+    assert long["stop"] == 1040 and long["stop_src"] == "固定 1%"             # 1039.5 往現價取到 5 元檔位,虧損不放大
+    assert long["target"] == 1070 and long["target_src"] == "前面的壓力"      # 固定 2% 是 1071,前面 1070 有壓力先到那
+    assert long["chase"] == 1055 and long["rr"] == pytest.approx(2.0)          # 至少多一檔
+    short = team.trade_plan(q, -1, {"均價線": 1056, "支撐": 1035})
+    assert short["stop"] == 1060 and short["stop_src"] == "均價線上一檔"        # 1056 + 一檔 5 = 1061 比固定 1.5% 近,取到 1060
+    assert short["target"] == 1035 and short["chase"] == 1045
+    near = team.trade_plan({"code": "3105", "last": 487.5}, 1, {"均價線": 486})  # 均價線只差 0.3%,太近不拿來當停損
+    assert near["stop_src"] == "固定 1%" and near["stop"] == 483
+    assert team.trade_plan(q, 0, {}) is None

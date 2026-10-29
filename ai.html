@@ -148,6 +148,15 @@ td.why{color:var(--muted);font-size:12.5px;min-width:240px;max-width:520px;white
 .warnc{color:var(--gold)}
 .msys{display:none}
 .stale{border-color:var(--gold);background:var(--gold-bg)}
+.pp{grid-column:1 / 4}
+.plan{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:4px}
+.plan span{background:var(--chip);border-radius:8px;padding:6px 8px;min-width:0}
+.plan em{display:block;font-style:normal;font-size:10.5px;color:var(--muted)}
+.plan b{display:block;font-size:14px;line-height:1.3}
+.plan small{display:block;font-size:10.5px;color:var(--muted);line-height:1.35}
+.goodc{color:var(--accent-ink)}
+.plan .down-ish{color:var(--gold)}
+@media (max-width:760px){ .plan{grid-template-columns:repeat(2,minmax(0,1fr))} }
 .theme{all:unset;cursor:pointer;color:var(--muted);font-size:12px;margin-top:8px}
 @media (max-width:1100px){ .kpis{grid-template-columns:repeat(3,minmax(0,1fr))} .grid2,.picks{grid-template-columns:1fr} }
 @media (max-width:900px){ .grid2.eq{grid-template-columns:1fr} }
@@ -369,6 +378,22 @@ function flowTag(p){
   const good = p.side === 'long' ? o >= 55 : o <= 45, bad = p.side === 'long' ? o <= 40 : o >= 60;   // 和 team.FLOW_AGAINST 一致
   return `・<span class="${good ? (p.side === 'long' ? 'up' : 'down') : bad ? 'warnc' : ''}">外盤 ${o.toFixed(0)}%</span>`;
 }
+// 交易計畫:進場參考、最高(最低)追到、停損、停利、損益比、建議張數。
+// 張數用經典版「部位試算」的本金(dt_capital,萬)和每筆最多虧(dt_risk,%),同一個網站共用設定,預設 100 萬、1%。
+function lsNum(k, d){ const v = Number(store.get(k)); return v > 0 ? v : d; }
+function planBox(pl){
+  if(!pl || !isNum(pl.entry) || !isNum(pl.stop)) return '';
+  const long = pl.side > 0, risk = Math.abs(pl.entry - pl.stop) * 1000;
+  const cap = lsNum('dt_capital', 100) * 10000, budget = cap * lsNum('dt_risk', 1) / 100;
+  const lots = risk > 0 ? Math.max(0, Math.min(Math.floor(budget / risk), Math.floor(cap / (pl.entry * 1000)))) : 0;
+  const rrCls = !isNum(pl.rr) ? '' : pl.rr >= 1.5 ? 'goodc' : pl.rr < 1 ? 'warnc' : '';   // 不用紅綠(台股紅綠是漲跌)
+  return `<div class="plan">
+    <span><em>進場</em><b class="num">${fmt(pl.entry)}</b><small>${long ? '最高追' : '最低追'} ${fmt(pl.chase)}</small></span>
+    <span><em>停損</em><b class="num down-ish">${fmt(pl.stop)}</b><small>${pl.stop_pct}%・${esc(pl.stop_src)}</small></span>
+    <span><em>停利</em><b class="num">${isNum(pl.target) ? fmt(pl.target) : '13:20 出場'}</b><small>${isNum(pl.target_pct) ? pl.target_pct + '%・' : ''}${esc(pl.target_src)}</small></span>
+    <span><em>損益比</em><b class="num ${rrCls}">${isNum(pl.rr) ? pl.rr.toFixed(1) : '—'}</b><small>${lots ? `最多 ${lots} 張・停損約虧 ${Math.round(lots * risk).toLocaleString()} 元` : '停損太遠,1 張就超過每筆風險'}</small></span>
+  </div>`;
+}
 function pickRow(p){
   const parts = Object.entries(p.parts || {}).filter(([, v]) => v).map(([k, v]) => `${({mkt: '大盤', vwap: '均價線', orb: '開盤區間', vol: '量能', pos: '位置', grp: '產業'})[k] || k} ${v > 0 ? '+' : ''}${v}`).join('・');
   return `<details class="prow" data-k="${esc(p.side + p.code + (p.counter ? 'c' : ''))}"><summary>
@@ -377,12 +402,13 @@ function pickRow(p){
         <div class="mut">${(p.reasons || []).map(esc).join('、') || '—'}・量能 ${fmt(p.pace, 1)} 倍${flowTag(p)}</div></span>
       <span class="r"><span class="num">${fmt(p.last)}</span><div class="num ${cls(p.pct)}" style="font-size:12px">${pct(p.pct)}</div></span>
       <span class="pv">${(p.ck || []).map(c => `<span class="om sm ${c.s}" title="${esc(ROLE_FULL[c.r] || c.r)}:${esc(c.t)}">${MARK[c.s]}</span>`).join('')}</span>
+      <span class="pp">${planBox(p.plan)}</span>
     </summary>
     <div class="pd">
       <div class="mut" style="margin-bottom:6px">分數組成:${parts || '—'}${p.vwap ? `・均價線 ${fmt(p.vwap)}` : ''}${p.orb ? `・開盤區間 ${fmt(p.orb[1])}~${fmt(p.orb[0])}` : ''}</div>
       ${(p.ck || []).map(c => `<div class="ob"><span class="om ${c.s}">${MARK[c.s]}</span><span class="on">${ROLE_FULL[c.r] || esc(c.r)}</span><span class="ot">${esc(c.t)}</span></div>`).join('')}
       <div class="ob dec"><span class="om ${p.vc}">${MARK[p.vc] || '·'}</span><span class="on">決策員</span><span class="ot">${esc(p.v)}</span></div>
-      <div class="mut" style="margin-top:6px">參考停損 <b class="num" style="color:var(--text)">${fmt(p.stop)}</b>(${p.stop_pct}%)${p.target ? `・停利 <b class="num" style="color:var(--text)">${fmt(p.target)}</b>(${p.target_pct}%)` : '・不設停利,13:20 出場'}</div>
+      ${p.plan ? '' : `<div class="mut" style="margin-top:6px">參考停損 <b class="num" style="color:var(--text)">${fmt(p.stop)}</b>(${p.stop_pct}%)${p.target ? `・停利 <b class="num" style="color:var(--text)">${fmt(p.target)}</b>(${p.target_pct}%)` : '・不設停利,13:20 出場'}</div>`}
     </div></details>`;
 }
 
@@ -501,6 +527,7 @@ function viewPicks(){
         <div class="r"><div class="num" style="font-size:16px;font-weight:650">${fmt((p.now || {}).price ?? L.price)}</div><div class="num ${cls(L.pct)}" style="font-size:12px">${pct(L.pct)}</div></div></div>
       <div class="obs">${L.ck.map(c => `<div class="ob"><span class="om ${c.s}">${MARK[c.s]}</span><span class="on">${ROLE_FULL[c.r] || esc(c.r)}</span><span class="ot">${esc(c.t)}</span></div>`).join('')}
         <div class="ob dec"><span class="om ${L.vc}">${MARK[L.vc]}</span><span class="on">決策員</span><span class="ot">${esc(L.v)}</span></div></div>
+      ${p.active && L.plan ? `<div style="padding:0 18px 10px">${planBox(L.plan)}</div>` : ''}
       <div class="pf">第一次 <b class="mono">${esc(F.t)}</b> @ <b class="num">${fmt(F.price)}</b>(${F.side > 0 ? '做多' : F.side < 0 ? '做空' : '觀望'}・${vcShort(F.vc, F.side)})
         ${F.side ? `・之後 <b class="num ${cls(mv)}">${pct(mv)}</b>${isNum(p.mfe) ? `・最大順向 <span class="num up">${pct(p.mfe)}</span>・最大逆向 <span class="num down">${pct(p.mae)}</span>` : ''}${p.close ? `・收盤淨 <b class="num ${cls(p.close.net)}">${pct(p.close.net)}</b>` : ''}` : ''}
         ${p.hist.length > 1 ? `<div class="hist">${p.hist.map(h => `<span><span class="mono">${esc(h.t)}</span> ${vcShort(h.vc, h.side)}</span>`).join('<i>→</i>')}</div>` : ''}</div>

@@ -2507,6 +2507,9 @@ def main():
     try:
         import team         # 交易小組六個觀測員:每輪的結果記進 data/team/今天.json
         vwaps = {q["code"]: _vwap_of(q.get("amt"), q.get("volume")) for q in watchlist_out}
+        orb_today = (load_json_safe(HISTORY_FILE, {}) or {}).get("orb") or {}
+        for q in watchlist_out:                                   # 開盤區間給交易計畫當停損參考
+            q["orb"] = orb_today.get(q["code"])
         _mood, cands = team.candidates(result, vwaps)
         for code, x in load_flow(run_time, [q["code"] for q, _t in cands]).items():   # 買賣力道給機會掃描員參考
             q = next(q for q in watchlist_out if q["code"] == code)

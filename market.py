@@ -171,7 +171,7 @@ def counter_trend(qs, m, longs, shorts):
     return up, dn
 
 
-def deep_check(q, side, k5, flags, hlc, mood, state, rules):
+def deep_check(q, side, k5, flags, hlc, mood, state):
     """挑出來的那檔:真實 5 分K 校正開盤區間、重算分數,再跑六個觀測員(方向用多空分數的方向)。"""
     f = dict(q["_f"])
     bars = (k5.get(q["code"]) or (None,))[0]
@@ -188,16 +188,15 @@ def deep_check(q, side, k5, flags, hlc, mood, state, rules):
     elif q["dt"] == "OnlyBuy":
         fl["no_sell_first"] = True
     sg = 1 if side == "long" else -1
-    obs_q = dict(q, flags=fl, news=[], news_checked=False, cdp=_cdp(hlc.get(q["code"])), swing=None, conf=None)
+    obs_q = dict(q, flags=fl, news=[], news_checked=False, cdp=_cdp(hlc.get(q["code"])), swing=None, conf=None,
+                 orb=[f.get("orb_hi"), f.get("orb_lo")])
     t = team.team_check(obs_q, mood, [], q["vwap"], side=sg)
-    rule = ((rules or {}).get("score_" + side) or {}).get("best") or {}
-    stop_pct, tgt_pct = rule.get("stop") or 1.0, rule.get("target")
+    plan = (t or {}).get("plan") or team.trade_plan(q, sg, {"均價線": q["vwap"]})
     return {"code": q["code"], "name": q["name"], "cat": cat_name(q["cat"]), "side": side, "score": r["score"], "parts": r["parts"],
             "reasons": bias.reasons(r["parts"], side), "strong": abs(r["score"]) >= bias.THRESHOLD,
             "last": q["last"], "pct": q["pct"], "pace": q["pace"], "vol": q["volume"], "vwap": round(q["vwap"], 2) if q["vwap"] else None,
             "orb": [f["orb_hi"], f["orb_lo"]] if f.get("orb_hi") else None, "in_watch": q["in_watch"], "bars": bool(bars),
-            "stop": round(q["last"] * (1 - sg * stop_pct / 100), 2), "target": round(q["last"] * (1 + sg * tgt_pct / 100), 2) if tgt_pct else None,
-            "stop_pct": stop_pct, "target_pct": tgt_pct,
+            "plan": plan, "stop": plan["stop"], "target": plan["target"], "stop_pct": plan["stop_pct"], "target_pct": plan["target_pct"],
             "ck": t["ck"] if t else [], "v": t["v"] if t else "", "vc": t["vc"] if t else "na", "rr": t["rr"] if t else None,
             "flags": fl, "flow": q.get("flow"), "book": q.get("book")}
 
@@ -221,7 +220,7 @@ def record(run_time, m, picks, qs, st, k5):
         sg = 1 if p["side"] == "long" else -1
         sides[p["code"]] = sg
         row = {"t": hm, "price": p["last"], "side": sg, "score": p["score"], "vc": p["vc"], "s": [c["s"] for c in p["ck"]],
-               "out15": team.flow_pct(p), "imb": (p.get("book") or {}).get("imb")}
+               "out15": team.flow_pct(p), "imb": (p.get("book") or {}).get("imb"), "plan": p.get("plan")}
         pk = day["picks"].get(p["code"])
         if (pk is None or pk["first"]["side"] != sg) and m >= NO_NEW_AFTER:
             continue
@@ -309,11 +308,10 @@ def run(run_time, live, indices, watch, k5_loader, flags_loader, flow_loader=Non
         x = flow.get(q["code"]) or {}
         q["flow"], q["book"] = x.get("flow"), x.get("book")
     hlc = live.get("hlc") or {}
-    rules = _load(os.path.join(DATA_DIR, "daytrade.json"), {}).get("rules") or {}
-    picks = [deep_check(q, "long", k5, flags, hlc, mood, state, rules) for q in longs] + \
-            [deep_check(q, "short", k5, flags, hlc, mood, state, rules) for q in shorts]
-    counter = [dict(deep_check(q, "long", k5, flags, hlc, mood, state, rules), counter=True) for q in c_up] + \
-              [dict(deep_check(q, "short", k5, flags, hlc, mood, state, rules), counter=True) for q in c_dn]
+    picks = [deep_check(q, "long", k5, flags, hlc, mood, state) for q in longs] + \
+            [deep_check(q, "short", k5, flags, hlc, mood, state) for q in shorts]
+    counter = [dict(deep_check(q, "long", k5, flags, hlc, mood, state), counter=True) for q in c_up] + \
+              [dict(deep_check(q, "short", k5, flags, hlc, mood, state), counter=True) for q in c_dn]
     team._write(STATE_FILE, state)
     out = {"as_of": run_time.strftime("%H:%M"), "date": today, "stats": st,
            "longs": [p for p in picks if p["side"] == "long"], "shorts": [p for p in picks if p["side"] == "short"], "counter": counter,

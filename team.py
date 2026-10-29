@@ -21,6 +21,7 @@
 """
 
 import json
+import math
 import os
 
 TEAM_DIR = os.path.join("data", "team")
@@ -61,6 +62,78 @@ def to_tick(p, code):
         return p
     t = tick_of(code, v)
     return round(round(v / t) * t, 2) if t else v
+
+
+def tick_floor(p, code):
+    """往下取到可下單的檔位(做多停損、停利用:寧可保守一點)。"""
+    v = _n(p)
+    t = tick_of(code, v) if v is not None else 0
+    return round(math.floor(v / t + 1e-9) * t, 2) if t else v
+
+
+def tick_ceil(p, code):
+    v = _n(p)
+    t = tick_of(code, v) if v is not None else 0
+    return round(math.ceil(v / t - 1e-9) * t, 2) if t else v
+
+
+# ---------- 交易計畫:進場參考、停損、停利(網頁推薦卡片直接顯示) ----------
+CHASE_PCT = 0.3            # 「最高追到」= 現價再 +0.3%(做空:-0.3%),超過就不追
+STRUCT_MIN, STRUCT_MAX = 0.5, 3.0   # 關鍵價位離現價 0.5%~3% 才拿來當停損/停利(太近會被正常波動洗掉,太遠虧太多)
+DEFAULT_RULE = {1: (1.0, 2.0), -1: (1.5, 3.0)}   # 回測還沒有參數時的預設 (停損%, 停利%)
+_RULES = {"mtime": None, "rules": {}}
+
+
+def _rule_params(side):
+    """多空分數規則回測挑出的停損停利 %(data/daytrade.json,每天收盤後重算)。"""
+    path = os.path.join("data", "daytrade.json")
+    try:
+        mt = os.path.getmtime(path)
+        if mt != _RULES["mtime"]:
+            _RULES.update(mtime=mt, rules=_load(path, {}).get("rules") or {})
+    except OSError:
+        pass
+    best = ((_RULES["rules"].get("score_long" if side > 0 else "score_short") or {}).get("best") or {})
+    stop, tgt = DEFAULT_RULE[side]
+    return best.get("stop") or stop, best.get("target") if best.get("stop") else tgt
+
+
+def trade_plan(q, side, levels):
+    """一檔的交易計畫。levels = {"均價線": 價, "開盤區間": 價, "支撐": 價, "壓力": 價, ...}(沒有的給 None)。
+    - 進場參考 = 現價;「最高追到」(做空是「最低追到」)= 現價 ±CHASE_PCT,超過就不追。
+    - 停損 = 「回測的固定 %」和「最近的關鍵價位外一檔」兩個取比較近的(離現價 0.5%~3% 的關鍵價位才算)。
+    - 停利 = 回測的固定 %;前面有更近的壓力(做空是支撐)就先到那裡。回測不設停利的就寫 13:20 出場。
+    - 全部取到可下單的檔位;損益比 = 停利空間 ÷ 停損空間。機械式參考,不是保證。"""
+    p, code = _n(q.get("last")), q.get("code")
+    if not p or not side:
+        return None
+    stop_pct, tgt_pct = _rule_params(side)
+    fixed_stop = p * (1 - side * stop_pct / 100)
+    stop, stop_src = fixed_stop, f"固定 {stop_pct:g}%"
+    for name, lv in (levels or {}).items():
+        lv = _n(lv)
+        if lv is None or name in ("壓力" if side > 0 else "支撐",):
+            continue
+        dist = side * (p - lv) / p * 100                  # 做多看下方、做空看上方的價位
+        if STRUCT_MIN <= dist <= STRUCT_MAX:
+            cand = lv - side * tick_of(code, lv)          # 跌破(突破)那條線再一檔
+            if side * (cand - stop) > 0:                  # 比目前的停損更靠近現價
+                stop, stop_src = cand, f"{name}{'下' if side > 0 else '上'}一檔"
+    target, target_src = (p * (1 + side * tgt_pct / 100), f"固定 {tgt_pct:g}%") if tgt_pct else (None, "不設,13:20 出場")
+    wall = _n((levels or {}).get("壓力" if side > 0 else "支撐"))
+    if wall is not None and STRUCT_MIN <= side * (wall - p) / p * 100 and (target is None or side * (target - wall) > 0):
+        target, target_src = wall, ("前面的壓力" if side > 0 else "下方的支撐")
+    # 取檔位:停損往現價那邊取(虧損不會比算出來的大),停利往保守那邊取(比較容易成交)
+    stop = tick_ceil(stop, code) if side > 0 else tick_floor(stop, code)
+    target = (tick_floor(target, code) if side > 0 else tick_ceil(target, code)) if target is not None else None
+    tk = tick_of(code, p) or 0.01
+    chase = max(p + tk, tick_floor(p * (1 + CHASE_PCT / 100), code)) if side > 0 else min(p - tk, tick_ceil(p * (1 - CHASE_PCT / 100), code))
+    chase = round(chase, 2)
+    risk = side * (p - stop)
+    rr = round(side * (target - p) / risk, 2) if target is not None and risk > 0 else None
+    return {"side": side, "entry": p, "chase": chase, "stop": stop, "stop_src": stop_src, "stop_pct": round(risk / p * 100, 2),
+            "target": target, "target_src": target_src,
+            "target_pct": round(side * (target - p) / p * 100, 2) if target is not None else None, "rr": rr}
 
 
 def _sw_ok(sw, n):
@@ -267,9 +340,11 @@ def team_check(q, mood, bias_items, vwap=None, side=None):
         v, vc = "已驗證規則觸發,但條件不夠完整:縮小部位", "warn"
     else:
         v, vc = "僅觀察:沒有回測站得住的規則觸發,只適合紙上交易", "na"
+    plan = trade_plan(q, side, {"均價線": vwap, "開盤區間": (q.get("orb") or [None, None])[1 if side > 0 else 0],
+                                "支撐": sup, "壓力": res}) if side else None
     return {"side": side, "S": "做多" if side > 0 else "做空" if side < 0 else "觀望", "ck": ck, "v": v, "vc": vc,
             "rule": (pick[0].get("rule_name") if pick else None), "rr": round(rr, 2) if rr is not None else None,
-            "stop": _n(stop), "res": res, "sup": sup}
+            "stop": _n(stop), "res": res, "sup": sup, "plan": plan}
 
 
 def candidates(result, vwaps=None):
@@ -338,7 +413,7 @@ def record(run_time, result, k5=None, vwaps=None):
         code = q["code"]
         now_pick.add(code)
         row = {"t": hm, "price": q["last"], "side": t["side"], "vc": t["vc"], "s": [c["s"] for c in t["ck"]],
-               "out15": flow_pct(q), "imb": (q.get("book") or {}).get("imb")}
+               "out15": flow_pct(q), "imb": (q.get("book") or {}).get("imb"), "plan": t.get("plan")}
         pk = day["picks"].get(code)
         if pk is None and m >= NO_NEW_AFTER:          # 收盤集合競價之後不新增
             continue
