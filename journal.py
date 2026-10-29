@@ -8,9 +8,10 @@
   python journal.py list [--date 2026-10-30]
   python journal.py remove <id>
 
-- 損益:張數 × 1000 股;手續費 0.1425% × FEE_DISCOUNT(買賣各收一次,每次最低 FEE_MIN 元,小數無條件捨去),
+- 損益:張數 × 1000 股;手續費 0.1425% × FEE_DISCOUNT(買賣各收一次,小數無條件捨去),
   當沖證交稅 0.15%(賣出那一邊收,無條件捨去);做空(先賣後買)一樣算法。股數用 --shares 可以記零股。
   已用 10/29 永豐對帳單驗證:4979 華星光 10/14 579 買、580 賣 1 張 → 手續費 231+231、稅 870、損益 -332,完全一致。
+  分好幾次成交的單,手續費是每一筆分開算,對帳單只給平均價,算出來會差 1~2 元;照對帳單補記時用 --net 直接填對帳單的損益。
 - 自動對照當天的推薦:全市場雷達(data/market/日期.json)和自選股觀測員(data/team/日期.json)
   有沒有推薦這檔、推薦方向是不是一樣、第一次推薦的時間/價格/結論,存在 rec 裡,網頁用來算「照推薦做」和「自己判斷」的勝率。
 """
@@ -23,7 +24,7 @@ import sys
 from datetime import datetime
 
 FILE = os.path.join("data", "journal.json")
-FEE_RATE, FEE_DISCOUNT, FEE_MIN = 0.001425, 0.28, 20     # 阿文的券商手續費 2.8 折
+FEE_RATE, FEE_DISCOUNT, FEE_MIN = 0.001425, 0.28, 1      # 阿文的券商手續費 2.8 折;對帳單 7781 每邊只收 11、9 元,沒有 20 元下限
 DAYTRADE_TAX = 0.0015
 
 
@@ -91,13 +92,16 @@ def name_of(date, code):
 def add(a):
     shares = a.shares if a.shares else round(a.qty * 1000)
     gross, fee, tax, net = costs(a.side, a.entry, a.exit, shares)
+    if a.net is not None:            # 對帳單上的實際損益(分次成交時比估算準)
+        net = int(a.net)
     j = load()
     tid = max([t["id"] for t in j["trades"]], default=0) + 1
     t = {"id": tid, "date": a.date, "code": a.code, "name": a.name or name_of(a.date, a.code), "side": a.side,
          "entry": a.entry, "exit": a.exit, "shares": shares, "time_in": a.time_in, "time_out": a.time_out,
          "gross": gross, "fee": fee, "tax": tax, "net": net,
          "pct": round(((a.exit / a.entry - 1) if a.side == "long" else (1 - a.exit / a.entry)) * 100, 3),
-         "note": a.note or "", "rec": match_rec(a.date, a.code, a.side), "added_at": datetime.now().isoformat(timespec="seconds")}
+         "note": a.note or "", "rec": match_rec(a.date, a.code, a.side), "added_at": datetime.now().isoformat(timespec="seconds"),
+         "net_src": "對帳單" if a.net is not None else "估算"}
     j["trades"].append(t)
     save(j)
     r = t["rec"]
@@ -122,6 +126,7 @@ def main(argv=None):
     p.add_argument("--in", dest="time_in")
     p.add_argument("--out", dest="time_out")
     p.add_argument("--note")
+    p.add_argument("--net", type=float, help="對帳單上的實際損益(元);有給就用它,不用估算的")
     ls = sub.add_parser("list")
     ls.add_argument("--date")
     rm = sub.add_parser("remove")

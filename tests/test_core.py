@@ -917,7 +917,7 @@ def test_journal_costs_and_recommendation_match(tmp_path, monkeypatch):
     gross, fee, tax, net = journal.costs("long", 100, 102, 1000)
     assert gross == 2000 and fee == 39 + 40 and tax == 153 and net == 2000 - 79 - 153       # 0.1425% 打 2.8 折,買賣各一次,無條件捨去
     assert journal.costs("long", 579, 580, 1000) == (1000, 462, 870, -332)                 # 永豐對帳單:4979 華星光 10/14
-    assert journal.costs("long", 10, 10.1, 1000)[1] == 40                                   # 小金額:每邊最低 20 元
+    assert journal.costs("long", 10, 10.1, 1000)[1] == 3 + 4                                # 小金額照實收(對帳單沒有 20 元下限)
     g2, f2, t2, n2 = journal.costs("short", 102, 100, 1000)                                 # 做空:102 賣、100 買回
     assert g2 == 2000 and t2 == 153 and n2 == 2000 - f2 - t2
     monkeypatch.chdir(tmp_path)
