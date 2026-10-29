@@ -1,0 +1,17 @@
+{
+ "as_of": "2026-10-29T14:05:38+08:00",
+ "window": [
+  "2025-10-14",
+  "2026-10-29"
+ ],
+ "trade_days": 252,
+ "codes_total": 222,
+ "codes_done_now": 120,
+ "codes_already": 0,
+ "stock_days_now": 27893,
+ "files_saved": 0,
+ "stopped": "今天的永豐資料額度只剩 102.7 MB",
+ "remaining_mb": 102.7,
+ "limit_mb": 524.3,
+ "seconds": 666
+}
