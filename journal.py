@@ -101,7 +101,7 @@ def add(a):
          "gross": gross, "fee": fee, "tax": tax, "net": net,
          "pct": round(((a.exit / a.entry - 1) if a.side == "long" else (1 - a.exit / a.entry)) * 100, 3),
          "note": a.note or "", "rec": match_rec(a.date, a.code, a.side), "added_at": datetime.now().isoformat(timespec="seconds"),
-         "net_src": "對帳單" if a.net is not None else "估算"}
+         "net_src": "對帳單" if a.net is not None else "估算", "side_known": not a.side_unknown}
     j["trades"].append(t)
     save(j)
     r = t["rec"]
@@ -127,6 +127,7 @@ def main(argv=None):
     p.add_argument("--out", dest="time_out")
     p.add_argument("--note")
     p.add_argument("--net", type=float, help="對帳單上的實際損益(元);有給就用它,不用估算的")
+    p.add_argument("--side-unknown", action="store_true", help="不確定先買還是先賣(統計做多/做空時排除)")
     ls = sub.add_parser("list")
     ls.add_argument("--date")
     rm = sub.add_parser("remove")

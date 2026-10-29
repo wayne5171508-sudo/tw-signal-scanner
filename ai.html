@@ -590,7 +590,8 @@ function viewJournal(){
   <div class="grid2">
     <div class="card"><h3>照推薦做 vs 自己判斷</h3><div class="scroll"><table><thead><tr><th>分組</th><th class="r">筆數</th><th class="r">勝率</th><th class="r">平均每筆</th><th class="r">賺賠比</th><th class="r">淨損益</th></tr></thead><tbody>
       ${row('照推薦方向做', follow)}${row('雷達沒推薦(自己判斷)', own)}${row('跟推薦反方向', against)}
-      ${row('做多', st(T.filter(t => t.side === 'long')))}${row('做空', st(T.filter(t => t.side === 'short')))}
+      ${row('做多', st(T.filter(t => t.side === 'long' && t.side_known !== false)))}${row('做空', st(T.filter(t => t.side === 'short' && t.side_known !== false)))}
+      ${T.some(t => t.side_known === false) ? row('方向不明(對帳單補記)', st(T.filter(t => t.side_known === false))) : ''}
       ${row('09:30 前進場', st(T.filter(t => tm(t) && tm(t) < '09:30')))}${row('09:30 後進場', st(T.filter(t => tm(t) >= '09:30')))}
     </tbody></table></div></div>
     <div class="card"><h3>每日統計</h3><div class="scroll"><table><thead><tr><th>日期</th><th class="r">筆數</th><th class="r">勝率</th><th class="r">淨損益</th></tr></thead><tbody>
@@ -599,7 +600,7 @@ function viewJournal(){
   </div>
   <div class="card"><h3>每一筆</h3><div class="scroll"><table><thead><tr><th>日期</th><th>標的</th><th>方向</th><th class="r">進 → 出</th><th class="r">股數</th><th class="r">報酬%</th><th class="r">淨損益</th><th>推薦對照</th><th>備註</th></tr></thead><tbody>
     ${T.map(t => `<tr><td class="mono mut">${t.date}${t.time_in ? '<br>' + esc(t.time_in) + (t.time_out ? '→' + esc(t.time_out) : '') : ''}</td><td class="code">${esc(t.code)}<span>${esc(t.name)}</span></td>
-      <td>${sideChip(t.side)}</td><td class="r num">${fmt(t.entry)} → ${fmt(t.exit)}</td><td class="r num">${t.shares.toLocaleString()}</td>
+      <td>${t.side_known === false ? '<span class="chip">方向不明</span>' : sideChip(t.side)}</td><td class="r num">${t.side_known === false ? `買 ${fmt(t.entry)} / 賣 ${fmt(t.exit)}` : `${fmt(t.entry)} → ${fmt(t.exit)}`}</td><td class="r num">${t.shares.toLocaleString()}</td>
       <td class="r num ${cls(t.pct)}">${pct(t.pct)}</td><td class="r num ${cls(t.net)}">${money(t.net)}<div class="mut" style="font-size:11px">費 ${t.fee}・稅 ${t.tax}</div></td>
       <td class="why">${t.rec ? `${t.rec.src === 'market' ? '雷達' : '自選'} ${esc(t.rec.first_t)} ${t.rec.same_side ? '同方向' : '<b class="down">反方向</b>'} @${fmt(t.rec.first_price)}${isNum(t.rec.score) ? `・分數 ${t.rec.score}` : ''}` : '<span class="mut">沒推薦</span>'}</td>
       <td class="why">${esc(t.note || '')}</td></tr>`).join('')}
