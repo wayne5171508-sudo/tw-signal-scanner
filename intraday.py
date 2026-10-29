@@ -923,6 +923,51 @@ def scan_market(run_time, watch_codes, regime=None):
     write_json_atomic(MARKET_FILE, log, separators=(",", ":"))
 
 
+LIVE_KEEP = 40          # 每輪全市場榜保留前幾名
+
+
+def scan_live(run_time, watch_codes):
+    """每一輪都用永豐快照掃一次全市場(一次 500 檔,約幾秒),結果存在 market_scan.json 的 "live"。
+    09:30/10:30/12:00 的固定快照照舊保留(給策略驗證與量能校正用),這裡只負責「盤中隨時看」。
+    沒有永豐(沒金鑰、登入失敗)就跳過,網頁會自動顯示最近一次固定掃描。"""
+    if sjquote is None:
+        return
+    m = (run_time - _day_start(run_time)).total_seconds() / 60
+    if m < 1 or m > 271:
+        return
+    today = run_time.strftime("%Y-%m-%d")
+    errors = []
+    t0 = time.time()
+    uni, _ok = load_universe(run_time, errors)
+    if not uni:
+        return
+    codes = [c for c, v in uni.items() if v >= MARKET_MIN_PREV]
+    _per, pooled = load_curves()
+    base, _days = volume_baselines(uni)
+    scale, _calib = market_calibration(pooled)
+    sn = max([x for x in MARKET_SNAPS if x <= m], default=MARKET_SNAPS[0])   # 量能校正用最近的固定時點
+    sc_now = scale.get(str(sn), {})
+    rows = _sj_rows(codes)
+    if not rows:
+        return
+    items = []
+    for code, row in rows.items():
+        vol, last, prev = row.get("200013"), row.get("6"), base.get(code)
+        if not (_num_ok(vol, last) and prev) or vol < MARKET_MIN_VOL:
+            continue
+        f = frac_for(code, m, {}, pooled) * sc_now.get("L" if prev >= MARKET_LARGE_BASE else "S", 1.0)
+        pace = round(vol / (prev * max(f, 0.003)), 2)
+        items.append({"code": code, "name": row.get("200009") or code, "last": last, "pct": row.get("56"),
+                      "vol": vol, "prev": prev, "pace": pace, "in_watch": code in watch_codes})
+    items.sort(key=lambda x: -x["pace"])
+    log = load_json_safe(MARKET_FILE, {}) or {}
+    if log.get("date") != today:
+        log = {"date": today, "scans": {}, "tries": {}}
+    log["live"] = {"as_of": run_time.strftime("%H:%M"), "items": items[:LIVE_KEEP], "src": "sj",
+                   "diag": {"codes": len(codes), "sj_rows": len(rows), "rows": len(items), "seconds": round(time.time() - t0, 1)}}
+    write_json_atomic(MARKET_FILE, log, separators=(",", ":"))
+
+
 def dump_fields(all_rows, run_time):
     """每天存一次幾檔報價的原始欄位,用來查有沒有內盤/外盤等可用欄位。"""
     today = run_time.strftime("%Y-%m-%d")
@@ -2242,6 +2287,10 @@ def main():
         close_market(run_time)
     except Exception as e:  # noqa: BLE001  試跑功能,任何錯誤都不能影響主流程
         print(f"[警告] 全市場掃描/欄位樣本失敗: {e}")
+    try:
+        scan_live(run_time, set(WATCHLIST_NAMES))   # 每輪全市場爆量榜(永豐)
+    except Exception as e:  # noqa: BLE001
+        print(f"[警告] 每輪全市場掃描失敗: {e}")
     end_of_day_extras(run_time, indices_out, watchlist_out, (touch_summary or {}).get("regime_today"))
 
     if health is not None:

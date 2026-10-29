@@ -1678,8 +1678,12 @@ function renderMarket(mk){
   if(!el) return;
   const today = new Date(Date.now() + 8*3600000).toISOString().slice(0, 10);
   const keys = mk && mk.date === today ? Object.keys(mk.scans || {}).filter(k => (mk.scans[k].items || []).length).sort((a, b) => b - a) : [];
-  if(!keys.length){ el.style.display = 'none'; return; }
-  const sc = mk.scans[keys[0]];
+  let sc = keys.length ? mk.scans[keys[0]] : null;
+  // 永豐每輪更新的全市場榜(live)比固定時點新,就優先顯示
+  const lv = mk && mk.date === today && mk.live && (mk.live.items || []).length ? mk.live : null;
+  const isLive = !!(lv && (!sc || lv.as_of >= sc.as_of));
+  if(isLive) sc = lv;
+  if(!sc){ el.style.display = 'none'; return; }
   const row = (x, i) => {
     const side = x.pct == null || Math.abs(x.pct) < 0.5 ? 'flat' : (x.pct > 0 ? 'in' : 'out');
     return `<div class="orow" ${x.in_watch ? `onclick="searchAndOpen('${x.code}')"` : ''}>
@@ -1690,9 +1694,9 @@ function renderMarket(mk){
     </div>`;
   };
   el.className = 'openbox';
-  el.innerHTML = `<div class="ohd"><b>全市場爆量榜(試跑)</b><small>${sc.as_of} 掃描,共 ${sc.diag && sc.diag.rows || '-'} 檔</small></div>`
+  el.innerHTML = `<div class="ohd"><b>全市場爆量榜${isLive ? '' : '(試跑)'}</b><small>${sc.as_of} 掃描,共 ${sc.diag && sc.diag.rows || '-'} 檔${isLive ? ' · 每2分鐘更新' : ''}</small></div>`
     + sc.items.slice(0, 10).map(row).join('')
-    + `<div class="onote">掃描全部上市櫃股票,倍數用「前一交易日全天量」粗估,比自選股的算法粗糙,只拿來找出沒在自選清單裡的爆量股。每天 09:30、10:30、12:00 各掃一次。試跑中,數字僅供參考。</div>`;
+    + `<div class="onote">掃描全部上市櫃股票,倍數用「前一交易日全天量」粗估,比自選股的算法粗糙,只拿來找出沒在自選清單裡的爆量股。盤中用永豐每 2 分鐘掃一次全市場;09:30、10:30、12:00 另外存快照做策略驗證。數字僅供參考。</div>`;
   el.style.display = '';
 }
 
