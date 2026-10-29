@@ -825,3 +825,49 @@ def test_sjquote_relogin_after_repeated_failures():
         assert sjquote._api is None and Api.out
     finally:
         sjquote._api, sjquote._fails = None, 0
+
+
+# ---------- team.py(六個觀測員每日紀錄) ----------
+
+import team  # noqa: E402
+
+
+def _team_result(last, pace=3.0, news=None, flags=None):
+    q = {"code": "2455", "name": "全新", "last": last, "prev_close": 100, "pct": last - 100, "open": 100, "high": max(last, 101),
+         "low": min(last, 99), "volume": 5000, "pace": pace, "upper_limit": 110, "lower_limit": 90, "news": news or [], "flags": flags,
+         "cdp": {"cdp": 100, "nh": 104, "nl": 98, "reliability": "ok"}, "swing": {"adr5": 4.0}}
+    return {"data_as_of": "2026-10-29T10:00:00+08:00", "watchlist_quotes": [q, dict(q, code="2330", pct=0.8, last=100.8, pace=1.0)],
+            "indices": [{"code": "TWS:TSE01:INDEX", "last": 101, "open": 100, "pct": 1.2}], "bias": {"items": []}, "opening_alerts": {}}
+
+
+def test_team_check_hard_limit_and_verdicts():
+    r = _team_result(101)
+    mood = team.market_mood(r["indices"], r["watchlist_quotes"])
+    t = team.team_check(r["watchlist_quotes"][0], mood, [])
+    assert t["side"] == 1 and [c["r"] for c in t["ck"]] == list(team.ROLES) and t["vc"] == "na"   # 沒有站得住的規則 → 僅觀察
+    bad = team.team_check(dict(r["watchlist_quotes"][0], flags={"daytrade": False}), mood, [])
+    assert bad["vc"] == "bad" and bad["ck"][4]["s"] == "bad"
+    ok = team.team_check(r["watchlist_quotes"][0], mood, [{"code": "2455", "fresh": True, "holds": True, "side": "long", "rule_name": "X"}])
+    assert ok["vc"] == "ok"
+
+
+def test_team_record_keeps_first_pick_and_logs_changes(tmp_path, monkeypatch):
+    monkeypatch.setattr(team, "TEAM_DIR", str(tmp_path))
+    monkeypatch.setattr(team, "INDEX_FILE", str(tmp_path / "index.json"))
+    at = lambda h, m: dt.datetime(2026, 10, 29, h, m, tzinfo=TPE)
+    team.record(at(10, 0), _team_result(101))
+    team.record(at(10, 5), _team_result(101.5))
+    day = team.record(at(10, 10), _team_result(102, flags={"disposal": {"measure": "分盤"}}))
+    pk = day["picks"]["2455"]
+    assert "2330" not in day["picks"]                                     # 量能 1 倍、沒事件 → 機會掃描員不挑
+    assert pk["first"]["t"] == "10:00" and pk["first"]["price"] == 101 and pk["n"] == 3
+    vcs = [h["vc"] for h in pk["hist"]]                                   # 結論有變才記一筆
+    assert vcs[0] == "na" and vcs[-1] == "bad" and len(vcs) == len(set(vcs))
+    assert pk["now"]["move"] == pytest.approx((102 / 101 - 1) * 100, abs=1e-3)
+    k5 = {"2455": ([{"t": "10:00", "h": 103, "l": 100.5}, {"t": "10:05", "h": 102.5, "l": 100}], None, 0)}
+    day = team.record(at(13, 31), _team_result(102.5), k5)
+    pk = day["picks"]["2455"]
+    assert pk["mfe"] == pytest.approx((103 / 101 - 1) * 100, abs=1e-3) and pk["mae"] == pytest.approx(-(1 - 100 / 101) * 100, abs=1e-3)
+    assert pk["close"]["net"] == pytest.approx((102.5 / 101 - 1) * 100 - team.COST_PCT, abs=1e-3) and day["closed"]
+    idx = json.loads((tmp_path / "index.json").read_text())["days"]["2026-10-29"]
+    assert idx["picks"] == 1 and idx["n_close"] == 1 and idx["closed"]

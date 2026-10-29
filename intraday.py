@@ -2398,6 +2398,15 @@ def main():
         result["bias"] = compute_bias(run_time, indices_out, watchlist_out, official, k5)
     except Exception as e:  # noqa: BLE001  多空判斷是加分功能,不能影響報價
         print(f"[警告] 多空判斷失敗: {e}")
+        k5 = None
+    try:
+        import team         # 交易小組六個觀測員:每輪的結果記進 data/team/今天.json
+        vwaps = {q["code"]: _vwap_of(q.get("amt"), q.get("volume")) for q in watchlist_out}
+        day = team.record(run_time, result, k5, vwaps)
+        if day:
+            result["team"] = {"as_of": day["as_of"], "picks": len(day["picks"]), "mood": (day.get("mood_now") or {}).get("score")}
+    except Exception as e:  # noqa: BLE001  觀測員紀錄是加分功能
+        print(f"[警告] 交易小組紀錄失敗: {e}")
     result["amount_unit"] = amount_unit
     try:
         if lab is not None:
