@@ -402,7 +402,7 @@ function roundTick(code, p, mode){
   const t = tickOf(code, p) || 0.01, f = mode === 'up' ? Math.ceil : Math.floor;
   return Math.round(f(p / t - 1e-9 * (mode === 'up' ? 1 : -1)) * t * 100) / 100;
 }
-const DT_FEE = 0.1425 * 0.6 / 100, DT_TAX = 0.15 / 100;
+const DT_FEE = 0.1425 * 0.28 / 100, DT_TAX = 0.15 / 100;   // 手續費 2.8 折、當沖稅減半(和 index.html 一致)
 
 // ---- 支撐壓力(同 index.html keyLevels / effectiveLevels,讀同一個 lvBasis 設定) ----
 let BASIS = 'auto';
@@ -982,7 +982,7 @@ function openSheet(code, silent){
   if(p){
     const bl = roundTick(q.code, p * (1 + DT_FEE) / (1 - DT_FEE - DT_TAX), 'up');
     const bs = roundTick(q.code, p * (1 - DT_FEE - DT_TAX) / (1 + DT_FEE), 'down');
-    be = `<div class="kv"><span>做多要賣在</span><b class="num up">${fmtNum(bl)} 以上</b></div><div class="kv"><span>做空要買回在</span><b class="num down">${fmtNum(bs)} 以下</b></div><div class="note">以現價 ${fmtNum(p)} 進場的損益兩平價,來回成本約 ${((2 * DT_FEE + DT_TAX) * 100).toFixed(2)}%(手續費 6 折、當沖稅減半)</div>`;
+    be = `<div class="kv"><span>做多要賣在</span><b class="num up">${fmtNum(bl)} 以上</b></div><div class="kv"><span>做空要買回在</span><b class="num down">${fmtNum(bs)} 以下</b></div><div class="note">以現價 ${fmtNum(p)} 進場的損益兩平價,來回成本約 ${((2 * DT_FEE + DT_TAX) * 100).toFixed(2)}%(手續費 2.8 折、當沖稅減半)</div>`;
   }
   const news = (q.news || []).slice(0, 3);
   document.getElementById('sheetIn').innerHTML = `

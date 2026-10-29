@@ -43,7 +43,7 @@ DATA_DIR = "data"
 LAB_FILE = os.path.join(DATA_DIR, "lab.json")
 SIGNAL_FILE = os.path.join(DATA_DIR, "signal_log.json")
 MARKET_DIR = os.path.join(DATA_DIR, "mkt")
-COST_PCT = 0.4
+COST_PCT = 0.23            # 當沖來回成本(手續費 2.8 折 + 當沖證交稅),和 daytrade_lab 一致
 
 RSI_S, RSI_L = 7, 14
 OVERSOLD, OVERBOUGHT, HOT = 30, 70, 80

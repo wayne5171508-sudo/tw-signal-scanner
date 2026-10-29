@@ -24,7 +24,7 @@ MARKET_DIR = os.path.join(DATA_DIR, "mkt")
 MARKET_FILE = os.path.join(DATA_DIR, "market_scan.json")
 ARCHIVE_KEEP_DAYS = 120     # 約半年;一天約60~90KB
 REVIEW_KEEP_DAYS = 30
-COST_PCT = 0.4          # 當沖來回成本(手續費+證交稅)粗估,和訊號實驗室一致
+COST_PCT = 0.23         # 當沖來回成本(手續費 2.8 折 + 當沖證交稅),和訊號實驗室、daytrade_lab 一致
 NEAR_HIGH_PCT = 1.0     # 收盤離今日最高/最低在 1% 以內算「收在高點/低點」
 
 

@@ -455,7 +455,7 @@ def test_bias_log_and_live_evaluation(tmp_path, monkeypatch):
     assert r["entry_t"] == "10:20" and r["exit"] == "target" and r["net"] == pytest.approx(2.0 - daytrade_lab.COST_PCT)
     assert r["slip"] == pytest.approx(-(100 / 100.2 - 1) * 100, abs=1e-3)
     st = daytrade_lab.live_stats(log, {"score_short": {"name": "多空分數放空", "best": {"test": {"avg": -0.2}}}})
-    assert st["n"] == 1 and st["rules"]["score_short"]["avg"] == pytest.approx(1.7) and st["rules"]["score_short"]["backtest_test_avg"] == -0.2
+    assert st["n"] == 1 and st["rules"]["score_short"]["avg"] == pytest.approx(2.0 - daytrade_lab.COST_PCT) and st["rules"]["score_short"]["backtest_test_avg"] == -0.2
 
 
 def _rsi_vol_day(reclaim=True):
@@ -915,7 +915,7 @@ def test_market_run_stats_picks_and_record(tmp_path, monkeypatch):
 
 def test_journal_costs_and_recommendation_match(tmp_path, monkeypatch):
     gross, fee, tax, net = journal.costs("long", 100, 102, 1000)
-    assert gross == 2000 and fee == 86 + 87 and tax == 153 and net == 2000 - 173 - 153      # 0.1425% 打 6 折,買賣各一次
+    assert gross == 2000 and fee == 40 + 41 and tax == 153 and net == 2000 - 81 - 153       # 0.1425% 打 2.8 折,買賣各一次
     assert journal.costs("long", 10, 10.1, 1000)[1] == 40                                   # 小金額:每邊最低 20 元
     g2, f2, t2, n2 = journal.costs("short", 102, 100, 1000)                                 # 做空:102 賣、100 買回
     assert g2 == 2000 and t2 == 153 and n2 == 2000 - f2 - t2

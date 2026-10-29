@@ -259,7 +259,7 @@ const IC = {
 };
 const kpi = (ic, lb, v, s, opt = {}) => `<div class="kpi"><div class="ic ${opt.gold ? 'gold' : ''}">${icon(IC[ic])}</div><div style="min-width:0"><div class="lb">${lb}</div><div class="v ${opt.cls || ''} ${opt.sm ? 'sm' : ''}">${v}</div>${s ? `<div class="s">${s}</div>` : ''}</div></div>`;
 
-// 盤中實際成績(收盤後 daytrade_lab.py 用當天 5 分K 模擬,已扣 0.3% 成本)
+// 盤中實際成績(收盤後 daytrade_lab.py 用當天 5 分K 模擬,已扣來回成本 DT.cost_pct)
 function trades(){
   const nm = names(), out = [];
   for(const [d, day] of Object.entries((LOG && LOG.days) || {})){
@@ -402,7 +402,7 @@ function tabCard(){
   const wins = all.filter(x => x.net > 0).length;
   return `
   <div class="head"><div><div class="eyebrow">SCORECARD</div><h1>建議成績單</h1>
-    <p class="sub">每筆盤中建議賺還是賠(用當天 5 分K 模擬下一根開盤進場,已扣 0.3% 手續費與稅),看出哪種建議會賺。</p></div>
+    <p class="sub">每筆盤中建議賺還是賠(用當天 5 分K 模擬下一根開盤進場,已扣 ${(DT && DT.cost_pct) ?? 0.23}% 手續費與稅),看出哪種建議會賺。</p></div>
     <div class="amt">每筆金額 <input id="amt" class="num" type="number" min="1000" step="10000" value="${AMOUNT}"></div></div>
   <div class="card"><div class="kpis">
     ${kpi('clock', '統計期間', days.length ? `${days.length} 天` : '—', days.length ? `${days[0].slice(5)} ~ ${days[days.length - 1].slice(5)}` : '')}
@@ -549,7 +549,7 @@ function viewTeam(){
     : '<th>日期</th><th class="r">挑出</th><th class="r">可執行</th><th class="r">警示</th><th class="r">收盤情緒</th><th class="r">平均淨報酬</th><th class="r">勝率</th>';
   return `
   <div class="head"><div><div class="eyebrow">OBSERVERS</div><h1>觀測員成績</h1>
-    <p class="sub">每天的推薦和觀測員判斷都記下來,收盤後算「照第一次推薦方向、用當時價格、收盤出場、扣 0.3% 成本」的結果,看哪些判斷有用。</p></div></div>
+    <p class="sub">每天的推薦和觀測員判斷都記下來,收盤後算「照第一次推薦方向、用當時價格、收盤出場、扣 0.23% 成本」的結果,看哪些判斷有用。</p></div></div>
   <div class="filters" style="border:0;padding:0 0 14px"><button data-tsrc="market" class="${mk ? 'on' : ''}">全市場雷達</button><button data-tsrc="watch" class="${mk ? '' : 'on'}">自選股觀測員</button></div>
   <div class="card"><h3>哪個觀測員準 <small>依第一次推薦時各觀測員的結果分組(${rows.length} 筆有收盤成績)</small></h3>
   ${rows.length ? `<div class="scroll"><table><thead><tr><th>觀測員</th><th class="r">✓ 通過</th><th class="r">! 警示</th><th class="r">· 中性</th><th class="r">✕ 硬限制</th><th class="r">通過 − 警示</th></tr></thead><tbody>${roleRows}</tbody></table></div>`
@@ -567,7 +567,7 @@ function viewJournal(){
     <p class="sub">你做的每一筆(跟 Claude 說,幫你記進 data/journal.json),自動對照當天雷達有沒有推薦,看「照推薦做」和「自己判斷」哪個勝率高。</p></div></div>`;
   const how = `<div class="card"><h3>怎麼記</h3><div style="padding:12px 18px;font-size:13px;line-height:1.9">跟 Claude 說,例如:
     <div class="mono" style="background:var(--chip);border-radius:8px;padding:8px 12px;margin:6px 0">今天做多 2330,09:35 1050 買,10:20 1062 賣,1 張</div>
-    <span class="mut">做空就說「做空 / 先賣後買」。損益用手續費 0.1425% 打 6 折(每邊最低 20 元)、當沖證交稅 0.15% 計算,實際以券商對帳單為準。</span></div></div>`;
+    <span class="mut">做空就說「做空 / 先賣後買」。損益用手續費 0.1425% 打 2.8 折(每邊最低 20 元)、當沖證交稅 0.15% 計算,實際以券商對帳單為準。</span></div></div>`;
   if(!T.length) return head + `<div class="card"><div class="empty">還沒有交易紀錄</div></div>` + how;
   const st = xs => { const n = xs.length, w = xs.filter(t => t.net > 0).length, net = xs.reduce((a, t) => a + t.net, 0);
     const wins = xs.filter(t => t.net > 0).map(t => t.net), losses = xs.filter(t => t.net <= 0).map(t => -t.net);

@@ -2110,7 +2110,7 @@ function renderDaytrade(dt){
   }).join('');
   el.className = 'sigbox';
   el.innerHTML = `<div class="sh"><b>當沖規則實驗室</b><small>${(dt.first || '').slice(5)} ~ ${(dt.last || '').slice(5)}・${dt.stocks} 檔・${dt.days} 天</small></div>
-    <div class="onote" style="margin:0 0 4px">用 5 分K 回測 ${keys.length} 種常見當沖規則,每種試 12 組停損停利。觸發後下一根開盤價成交,同一根同時碰到停損停利一律算停損,13:20 強制出場,每筆扣 ${dt.cost_pct}% 來回成本(手續費打 6 折 + 當沖證交稅)。前 2/3 天挑參數,${(dt.train_until || '').slice(5)} 起只用來驗證。兩段扣成本後都賺錢、t 值都 ≥ 2,${(dt.top_universe || {}).checked ? `同一組參數還要在成交值前 200 大裡、不在自選股的 ${dt.top_universe.stocks} 檔股票上驗證段也賺錢(t ≥ 1),避免只是剛好適合自選股,` : ''}才算站得住。最大回撤=假設每天把資金平均分給當天所有訊號,資金曲線從最高點最多回落幾 %(驗證段)。目前站得住:<b>${pass.length} 條</b>。</div>
+    <div class="onote" style="margin:0 0 4px">用 5 分K 回測 ${keys.length} 種常見當沖規則,每種試 12 組停損停利。觸發後下一根開盤價成交,同一根同時碰到停損停利一律算停損,13:20 強制出場,每筆扣 ${dt.cost_pct}% 來回成本(手續費打 2.8 折 + 當沖證交稅)。前 2/3 天挑參數,${(dt.train_until || '').slice(5)} 起只用來驗證。兩段扣成本後都賺錢、t 值都 ≥ 2,${(dt.top_universe || {}).checked ? `同一組參數還要在成交值前 200 大裡、不在自選股的 ${dt.top_universe.stocks} 檔股票上驗證段也賺錢(t ≥ 1),避免只是剛好適合自選股,` : ''}才算站得住。最大回撤=假設每天把資金平均分給當天所有訊號,資金曲線從最高點最多回落幾 %(驗證段)。目前站得住:<b>${pass.length} 條</b>。</div>
     ${rows}
     ${dtLive(dt)}
     <div class="onote">「扣成本前」接近 0 或為負,代表規則本身就沒賺頭;為正但扣成本後變負,代表賺的不夠付手續費和稅。每天收盤後用最新約 60 個交易日重算。${bearEsc(dt.note || '')}</div>`;
@@ -2279,7 +2279,7 @@ function rpRender(){
 
 // ================= 當沖工具:交易限制標籤、振幅進度、損益兩平、部位試算 =================
 // 交易限制來自證交所/櫃買 OpenAPI(data/trade_flags.json,intraday.py 每個交易日盤前抓一次)。
-const DT_FEE = 0.1425 * 0.6 / 100, DT_TAX = 0.15 / 100;   // 手續費打 6 折(買賣各一次)、當沖證交稅減半
+const DT_FEE = 0.1425 * 0.28 / 100, DT_TAX = 0.15 / 100;   // 手續費打 2.8 折(買賣各一次)、當沖證交稅減半
 function flagBadges(q){
   const f = q && q.flags;
   if(!f) return '';
@@ -2330,7 +2330,7 @@ function dtTools(q){
       <div class="dtbar"><i style="width:${w}%;background:${ratio >= 1.5 ? 'var(--up)' : ratio >= 1 ? '#c9a227' : 'var(--accent)'}"></i><em style="left:50%"></em></div>
       <div class="onote" style="margin-top:2px">${ratio >= 1.5 ? '已超過平常一天波動的 1.5 倍,追價空間通常有限、回檔也容易放大。' : ratio >= 1 ? '已走完平常一天的振幅。' : '還沒走完平常一天的振幅。'}(中線=平均振幅)</div></div>`;
   }
-  // 2) 當沖損益兩平價(手續費 6 折、當沖證交稅 0.15%)
+  // 2) 當沖損益兩平價(手續費 2.8 折、當沖證交稅 0.15%)
   const beLong = roundTick(q.code, p * (1 + DT_FEE) / (1 - DT_FEE - DT_TAX), 'up');
   const beShort = roundTick(q.code, p * (1 - DT_FEE - DT_TAX) / (1 + DT_FEE), 'down');
   const beHtml = `<div class="dtrow"><div class="dtlab">以現價 ${fmtNum(p)} 進場的損益兩平價</div>

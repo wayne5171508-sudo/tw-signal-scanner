@@ -55,7 +55,7 @@ from intraday import (BIAS_LOG_FILE, DATA_DIR, GROUP_OF, HISTORY_FILE, TAIPEI, T
 OUT_FILE = os.path.join(DATA_DIR, "daytrade.json")
 BARS_DIR = os.path.join(DATA_DIR, "bars5m")   # 每天一個 .json.gz,永久保存;Yahoo 只給最近 60 天,靠這裡讓樣本越累積越多
 INDEX_KEY = "^TWII"
-COST_PCT = 0.30
+COST_PCT = 0.23            # 來回成本:手續費 0.1425% × 2.8 折 × 2 + 當沖證交稅 0.15%(不含滑價)
 TRAIN_FRAC = 2 / 3
 T_MIN = 2.0
 MIN_TEST_N = 30

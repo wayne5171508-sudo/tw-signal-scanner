@@ -21,7 +21,7 @@ import sys
 from datetime import datetime
 
 FILE = os.path.join("data", "journal.json")
-FEE_RATE, FEE_DISCOUNT, FEE_MIN = 0.001425, 0.6, 20
+FEE_RATE, FEE_DISCOUNT, FEE_MIN = 0.001425, 0.28, 20     # 阿文的券商手續費 2.8 折
 DAYTRADE_TAX = 0.0015
 
 
