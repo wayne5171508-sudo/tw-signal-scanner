@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Trader</title>
+<!-- 爆量雷達的「AI 決策」版面:資料全部來自同一個 repo 的 data/*.json(和 index.html、game.html 共用),不下單、不連任何券商 -->
+<style>
+:root{
+  --bg:#f6f7f4; --panel:#ffffff; --side:#f9faf7; --line:#e6e8e1; --line2:#eef0ea;
+  --text:#1f2421; --muted:#7b827c; --faint:#a3a9a3;
+  --accent:#3a9a6c; --accent-bg:#e6f3ec; --accent-ink:#22734c;
+  --up:#d8453b; --down:#2f9a5a; --gold:#b98a2c; --gold-bg:#f7efdc; --warn:#b26a00;
+  --chip:#f0f2ed; --shadow:0 1px 2px rgba(20,30,20,.04),0 4px 14px rgba(20,30,20,.04);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#121513; --panel:#1a1e1b; --side:#161a17; --line:#2a302b; --line2:#232825;
+    --text:#e4e8e4; --muted:#8e968f; --faint:#6a716b;
+    --accent:#4fbf8a; --accent-bg:#1f3529; --accent-ink:#7fd8ac;
+    --up:#ff6b5e; --down:#4cc77e; --gold:#d9ad55; --gold-bg:#3a3020; --warn:#e0a040;
+    --chip:#232825; --shadow:none;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#121513; --panel:#1a1e1b; --side:#161a17; --line:#2a302b; --line2:#232825;
+  --text:#e4e8e4; --muted:#8e968f; --faint:#6a716b;
+  --accent:#4fbf8a; --accent-bg:#1f3529; --accent-ink:#7fd8ac;
+  --up:#ff6b5e; --down:#4cc77e; --gold:#d9ad55; --gold-bg:#3a3020; --warn:#e0a040;
+  --chip:#232825; --shadow:none;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--text);font:14px/1.55 -apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;-webkit-font-smoothing:antialiased}
+.num,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}
+a{color:inherit}
+.app{display:flex;min-height:100vh}
+/* ---- 側欄 ---- */
+.side{width:220px;flex:none;background:var(--side);border-right:1px solid var(--line);display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+.brand{display:flex;gap:10px;align-items:center;padding:20px 18px 18px}
+.logo{width:34px;height:34px;border-radius:9px;background:var(--accent);display:grid;place-items:center}
+.logo i{width:13px;height:13px;border:2px solid #fff;border-radius:4px}
+.brand b{display:block;font-size:13px;letter-spacing:.04em}
+.brand span{font-size:11px;color:var(--muted)}
+.nav{padding:6px 10px;display:flex;flex-direction:column;gap:2px}
+.nav button,.nav a{all:unset;cursor:pointer;display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:9px;color:var(--muted);font-size:13.5px;position:relative}
+.nav button:hover,.nav a:hover{background:var(--chip);color:var(--text)}
+.nav button.on{background:var(--accent-bg);color:var(--accent-ink);font-weight:600}
+.nav button.on::before{content:"";position:absolute;left:-10px;top:9px;bottom:9px;width:3px;border-radius:2px;background:var(--accent)}
+.nav svg{width:16px;height:16px;flex:none}
+.nav .sep{height:1px;background:var(--line);margin:10px 12px}
+.sys{margin-top:auto;border-top:1px solid var(--line);padding:14px 18px 18px;font-size:12px}
+.sys .cap{font-size:10px;letter-spacing:.12em;color:var(--faint);font-weight:600;margin-bottom:6px}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--faint);margin-right:6px;vertical-align:1px}
+.dot.ok{background:var(--accent)} .dot.warn{background:var(--warn)}
+.sys .tz{color:var(--muted);font-family:ui-monospace,Menlo,monospace;font-size:11px;margin-top:2px}
+/* ---- 主畫面 ---- */
+main{flex:1;min-width:0;padding:22px 32px 48px}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:22px;overflow-x:auto}
+.tabs button{all:unset;cursor:pointer;padding:10px 14px;font-size:13.5px;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.tabs button.on{color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+.eyebrow{font-size:11px;letter-spacing:.14em;color:var(--accent);font-weight:700}
+.head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:18px}
+h1{font-size:24px;margin:2px 0 4px;letter-spacing:.01em}
+.sub{color:var(--muted);font-size:13px;margin:0}
+.btn{all:unset;cursor:pointer;border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:7px 16px;font-size:13px;white-space:nowrap}
+.btn:hover{border-color:var(--accent)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);margin-bottom:16px}
+.card h3{font-size:13px;margin:0;padding:14px 18px;border-bottom:1px solid var(--line2);font-weight:600}
+.card h3 small{color:var(--muted);font-weight:400;margin-left:6px}
+.kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;padding:16px}
+.kpi{display:flex;gap:12px;align-items:center;padding:6px 8px;min-width:0}
+.kpi .ic{width:38px;height:38px;border-radius:10px;background:var(--accent-bg);color:var(--accent-ink);display:grid;place-items:center;flex:none}
+.kpi .ic.gold{background:var(--gold-bg);color:var(--gold)}
+.kpi .ic svg{width:17px;height:17px}
+.kpi .lb{font-size:10.5px;color:var(--muted);letter-spacing:.06em;white-space:nowrap}
+.kpi .v{font-size:20px;font-weight:650;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi .v.sm{font-size:15px}
+.kpi .s{font-size:11px;color:var(--muted);white-space:nowrap}
+.up{color:var(--up)} .down{color:var(--down)} .mut{color:var(--muted)}
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{font-size:11px;color:var(--muted);font-weight:500;text-align:left;padding:10px 16px;border-bottom:1px solid var(--line2);white-space:nowrap}
+td{padding:12px 16px;border-bottom:1px solid var(--line2);vertical-align:top;white-space:nowrap}
+tr:last-child td{border-bottom:0}
+th.r,td.r{text-align:right}
+td.code{font-weight:650;white-space:nowrap}
+td.code span{display:block;font-weight:400;color:var(--muted);font-size:12px}
+td.why{color:var(--muted);font-size:12.5px;min-width:240px;max-width:520px;white-space:normal}
+.chip{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11.5px;background:var(--chip);color:var(--muted);white-space:nowrap}
+.chip.green{background:var(--accent-bg);color:var(--accent-ink)}
+.chip.long{background:color-mix(in srgb,var(--up) 12%,transparent);color:var(--up)}
+.chip.short{background:color-mix(in srgb,var(--down) 14%,transparent);color:var(--down)}
+.chip.gold{background:var(--gold-bg);color:var(--gold)}
+.filters{display:flex;gap:6px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--line2)}
+.filters button{all:unset;cursor:pointer;padding:4px 12px;border-radius:999px;font-size:12.5px;background:var(--chip);color:var(--muted)}
+.filters button.on{background:var(--accent);color:#fff}
+.empty{padding:28px 18px;text-align:center;color:var(--muted);font-size:13px}
+.note{font-size:12px;color:var(--muted);margin:8px 2px 0;line-height:1.7}
+.grid2{display:grid;grid-template-columns:1.3fr 1fr;gap:16px}
+.grid2>*{min-width:0}
+.list{padding:6px 0}
+.row{display:flex;gap:12px;align-items:center;padding:10px 18px;border-bottom:1px solid var(--line2)}
+.row:last-child{border-bottom:0}
+.row .t{font-family:ui-monospace,Menlo,monospace;color:var(--muted);font-size:12px;width:42px;flex:none}
+.row .m{flex:1;min-width:0}
+.row .m b{font-weight:650}
+.row .m div{color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.amt{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted)}
+.amt input{width:110px;border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:8px;padding:5px 8px;font:inherit;font-family:ui-monospace,Menlo,monospace}
+.more{display:block;width:100%;text-align:center;padding:12px;color:var(--accent-ink);font-size:13px;cursor:pointer;border:0;background:none;border-top:1px solid var(--line2)}
+.bar{height:6px;border-radius:3px;background:var(--chip);overflow:hidden;min-width:60px}
+.bar i{display:block;height:100%;background:var(--accent)}
+.theme{all:unset;cursor:pointer;color:var(--muted);font-size:12px;margin-top:8px}
+@media (max-width:1100px){ .kpis{grid-template-columns:repeat(3,minmax(0,1fr))} .grid2{grid-template-columns:1fr} }
+@media (max-width:760px){
+  .app{display:block}
+  .side{position:sticky;top:0;z-index:5;width:auto;height:auto;flex-direction:row;align-items:center;border-right:0;border-bottom:1px solid var(--line);overflow-x:auto}
+  .brand{padding:10px 12px}
+  .brand div{display:none}
+  .nav{flex-direction:row;padding:6px 6px 6px 0}
+  .nav button,.nav a{padding:7px 10px;white-space:nowrap;font-size:13px}
+  .nav button.on::before,.nav .sep{display:none}
+  .nav a.ext{display:none}
+  .sys{display:none}
+  main{padding:16px 16px 40px}
+  h1{font-size:20px}
+  .head{flex-wrap:wrap}
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr));padding:10px}
+  .kpi{padding:6px 4px;gap:9px}
+  .kpi .ic{width:32px;height:32px}
+  .kpi .v{font-size:17px}
+  th,td{padding:10px 12px}
+  .hm{display:none}
+  td.why{min-width:200px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand"><div class="logo"><i></i></div><div><b>AI TRADER</b><span>台股・當沖決策</span></div></div>
+    <nav class="nav" id="nav">
+      <button data-v="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>指揮台</button>
+      <button data-v="ai"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/></svg>AI 決策</button>
+      <button data-v="rules"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12a9 9 0 1 1-9-9v9z"/><path d="M15 3.5A9 9 0 0 1 20.5 9H15z"/></svg>規則驗證</button>
+      <div class="sep"></div>
+      <a class="ext" href="index.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>市場分析(經典版)</a>
+      <a class="ext" href="game.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>遊戲版</a>
+    </nav>
+    <div class="sys">
+      <div class="cap">SYSTEM</div>
+      <div id="sysState"><span class="dot"></span>讀取中</div>
+      <div class="tz" id="sysTime">Asia/Taipei</div>
+      <button class="theme" id="themeBtn">切換深淺色</button>
+    </div>
+  </aside>
+  <main id="main"></main>
+</div>
+<script>
+// ---------- 資料 ----------
+let INTRA = null, LOG = null, DT = null, OVN = null, VIEW = 'home', TAB = 'card', FILTER = 'all', SHOW = 30;
+const RULE_TYPE = { score: '多空分數', pb: '拉回均價線', fade: '超漲超跌反向' };
+const EXIT = { stop: '停損', target: '停利', close: '收盤出場' };
+const AMT_KEY = 'aitrader.amount', TH_KEY = 'aitrader.theme';
+const store = { get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }, set(k, v){ try{ localStorage.setItem(k, v); }catch(e){} } };
+let AMOUNT = Number(store.get(AMT_KEY)) || 100000;
+
+async function getJson(p){ const r = await fetch(p, {cache: 'no-store'}); if(!r.ok) throw new Error(p); return r.json(); }
+async function loadAll(){
+  const [a, b, c, d] = await Promise.allSettled([getJson('data/intraday_latest.json'), getJson('data/bias_log.json'),
+    getJson('data/daytrade.json'), getJson('data/overnight.json')]);
+  if(a.status === 'fulfilled') INTRA = a.value;
+  if(b.status === 'fulfilled') LOG = b.value;
+  if(c.status === 'fulfilled') DT = c.value;
+  if(d.status === 'fulfilled') OVN = d.value;
+  render();
+}
+
+// ---------- 小工具 ----------
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const isNum = x => typeof x === 'number' && isFinite(x);
+const cls = x => !isNum(x) || x === 0 ? '' : (x > 0 ? 'up' : 'down');           // 台股習慣:紅漲綠跌
+const pct = (x, d = 2) => isNum(x) ? `${x > 0 ? '+' : ''}${x.toFixed(d)}%` : '—';
+const money = x => isNum(x) ? `${x > 0 ? '+' : x < 0 ? '-' : ''}$${Math.abs(Math.round(x)).toLocaleString()}` : '—';
+const fmt = (x, d = 2) => isNum(x) ? Number(x.toFixed(d)).toLocaleString() : '—';
+const names = () => Object.fromEntries(((INTRA && INTRA.watchlist_quotes) || []).map(q => [q.code, q.name]));
+const ruleName = rk => (DT && DT.rules && DT.rules[rk] && DT.rules[rk].name) || ((INTRA && INTRA.bias && INTRA.bias.rules || {})[rk] || {}).name || rk;
+const ruleType = rk => RULE_TYPE[rk.split('_')[0]] || rk;
+const band = s => Math.abs(s) >= 80 ? '高(≥80)' : '中(60–79)';
+const sideChip = s => s === 'long' ? '<span class="chip long">做多</span>' : '<span class="chip short">放空</span>';
+const icon = d => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+const IC = {
+  bolt: '<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>', doc: '<path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/>',
+  wallet: '<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M16 14.5h2"/>', split: '<path d="M6 3v6a6 6 0 0 0 6 6 6 6 0 0 0 6-6V3M12 15v6"/>',
+  cup: '<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', wind: '<path d="M3 8h11a3 3 0 1 0-3-3M3 16h15a3 3 0 1 1-3 3M3 12h9"/>',
+  shield: '<path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/>', target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>'
+};
+const kpi = (ic, lb, v, s, opt = {}) => `<div class="kpi"><div class="ic ${opt.gold ? 'gold' : ''}">${icon(IC[ic])}</div><div style="min-width:0"><div class="lb">${lb}</div><div class="v ${opt.cls || ''} ${opt.sm ? 'sm' : ''}">${v}</div>${s ? `<div class="s">${s}</div>` : ''}</div></div>`;
+
+// 盤中實際成績(收盤後 daytrade_lab.py 用當天 5 分K 模擬,已扣 0.3% 成本)
+function trades(){
+  const nm = names(), out = [];
+  for(const [d, day] of Object.entries((LOG && LOG.days) || {})){
+    for(const t of day.trig || []){
+      if(!t.result) continue;
+      out.push({ d, code: t.code, name: nm[t.code] || '', rule: t.rule, side: t.side, t: t.t, score: t.score, price: t.price,
+        holds: !!t.holds, r: t.result, net: t.result.net, pnl: AMOUNT * t.result.net / 100 });
+    }
+  }
+  return out.sort((a, b) => (b.d + b.t).localeCompare(a.d + a.t));
+}
+function stat(rows){
+  const n = rows.length, win = rows.filter(x => x.net > 0).length, sum = rows.reduce((s, x) => s + x.net, 0);
+  return { n, win: n ? win / n * 100 : null, avg: n ? sum / n : null, pnl: rows.reduce((s, x) => s + x.pnl, 0) };
+}
+
+// ---------- 畫面 ----------
+function render(){
+  document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.v === VIEW));
+  renderSys();
+  const m = document.getElementById('main');
+  try{
+    m.innerHTML = VIEW === 'home' ? viewHome() : VIEW === 'rules' ? viewRules() : viewAI();
+  }catch(e){
+    m.innerHTML = `<div class="card"><div class="empty">畫面產生失敗:${esc(e.message)}</div></div>`;
+  }
+  bind();
+}
+
+function renderSys(){
+  const el = document.getElementById('sysState'), tm = document.getElementById('sysTime');
+  const as = INTRA && INTRA.data_as_of ? new Date(INTRA.data_as_of) : null;
+  if(!as){ el.innerHTML = '<span class="dot warn"></span>沒有報價資料'; return; }
+  const age = (Date.now() - as) / 60000;
+  const tpe = new Date(Date.now() + 8 * 3600e3), hm = tpe.getUTCHours() * 60 + tpe.getUTCMinutes(), wd = tpe.getUTCDay();
+  const open = wd >= 1 && wd <= 5 && hm >= 540 && hm <= 815;
+  el.innerHTML = open ? (age <= 6 ? '<span class="dot ok"></span>已連線・永豐即時' : `<span class="dot warn"></span>資料延遲 ${Math.round(age)} 分鐘`)
+    : '<span class="dot"></span>休市中';
+  tm.textContent = `報價時間 ${INTRA.data_as_of.slice(5, 16).replace('T', ' ')}`;
+}
+
+function viewHome(){
+  const b = (INTRA && INTRA.bias) || {}, items = b.items || [], fresh = items.filter(x => x.fresh);
+  const tse = ((INTRA && INTRA.indices) || []).find(x => x.code === 'TWS:TSE01:INDEX') || {};
+  const wind = OVN && OVN.days && OVN.days[OVN.latest];
+  const all = stat(trades()), nHolds = b.n_holds ?? Object.values(b.rules || {}).filter(r => r.holds).length;
+  const nRules = Object.keys(b.rules || {}).length;
+  const row = x => `<div class="row"><div class="t">${esc(x.trig_t)}</div><div class="m"><b>${esc(x.code)} ${esc(x.name)}</b> ${sideChip(x.side)}
+      <div>${esc(x.rule_name)}・分數 ${x.trig_score}・${(x.reasons || []).map(esc).join('、') || '—'}</div></div>
+      <div class="r"><div class="num">${fmt(x.trig_price)}</div><div class="num ${cls(x.move_pct)}" style="font-size:12px">${pct(x.move_pct)}</div></div></div>`;
+  return `
+  <div class="head"><div><div class="eyebrow">COMMAND CENTER</div><h1>指揮台</h1>
+    <p class="sub">今天的盤勢、剛觸發的規則,和到目前為止盤中建議的實際成績。</p></div>
+    <button class="btn" data-act="reload">刷新</button></div>
+  <div class="card"><div class="kpis">
+    ${kpi('bolt', '今日觸發', items.length, `其中 ${fresh.length} 筆剛觸發`)}
+    ${kpi('shield', '回測站得住', `${nHolds} / ${nRules}`, nHolds ? '只有這些規則可考慮' : '全部僅觀察', {cls: nHolds ? '' : 'mut'})}
+    ${kpi('target', '加權指數', fmt(tse.last), `<span class="${cls(tse.pct)}">${pct(tse.pct)}</span>`)}
+    ${kpi('wind', '隔夜風向', esc(wind ? wind.wind : '—'), wind ? `依${esc(wind.basis)}` : '', {sm: false})}
+    ${kpi('wallet', '盤中建議累積', `<span class="${cls(all.pnl)}">${money(all.pnl)}</span>`, `${all.n} 筆・每筆 $${AMOUNT.toLocaleString()}`, {gold: true})}
+  </div></div>
+  <div class="grid2">
+    <div class="card"><h3>剛觸發 <small>${b.fresh_min || 10} 分鐘內,回測是下一根 5 分K 開盤進場</small></h3>
+      ${fresh.length ? `<div class="list">${fresh.slice(0, 8).map(row).join('')}</div>` : `<div class="empty">目前沒有剛觸發的規則</div>`}</div>
+    <div class="card"><h3>今天最近的觸發</h3>
+      ${items.length ? `<div class="list">${items.slice().sort((a, b) => (b.trig_t || '').localeCompare(a.trig_t || '')).slice(0, 8).map(row).join('')}</div>` : `<div class="empty">今天還沒有觸發</div>`}</div>
+  </div>
+  <p class="note">${nHolds ? '' : '目前沒有任何一條規則通過樣本外回測,所有觸發都只是「僅觀察」。'}這是機械式規則的整理,不是預測,也不構成買賣建議。</p>`;
+}
+
+function viewAI(){
+  const tabs = [['log', '決策日誌'], ['card', '建議成績單'], ['trades', '交易紀錄']];
+  const head = `<div class="tabs">${tabs.map(([k, l]) => `<button data-tab="${k}" class="${TAB === k ? 'on' : ''}">${l}</button>`).join('')}</div>`;
+  return head + (TAB === 'log' ? tabLog() : TAB === 'trades' ? tabTrades() : tabCard());
+}
+
+function tabLog(){
+  const b = (INTRA && INTRA.bias) || {};
+  let items = (b.items || []).slice().sort((x, y) => (y.trig_t || '').localeCompare(x.trig_t || ''));
+  const cnt = { all: items.length, fresh: items.filter(x => x.fresh).length, holds: items.filter(x => x.holds).length };
+  if(FILTER === 'fresh') items = items.filter(x => x.fresh);
+  if(FILTER === 'holds') items = items.filter(x => x.holds);
+  const f = (k, l) => `<button data-f="${k}" class="${FILTER === k ? 'on' : ''}">${l} ${cnt[k]}</button>`;
+  return `
+  <div class="head"><div><div class="eyebrow">DECISION LOG</div><h1>決策日誌</h1>
+    <p class="sub">今天每條規則第一次觸發的時間、價格與理由(${esc(b.as_of || '')} 更新)。</p></div>
+    <button class="btn" data-act="reload">刷新</button></div>
+  <div class="card"><div class="filters">${f('all', '全部')}${f('fresh', '剛觸發')}${f('holds', '回測站得住')}</div>
+  ${items.length ? `<div class="scroll"><table><thead><tr><th>時間</th><th>標的</th><th>方向</th><th>規則・理由</th><th class="r">分數</th><th class="r">觸發價</th><th class="r">停損 / 停利</th><th class="r">之後</th><th>狀態</th></tr></thead><tbody>
+    ${items.slice(0, SHOW).map(x => `<tr><td class="mono mut">${esc(x.trig_t)}</td><td class="code">${esc(x.code)}<span>${esc(x.name)}</span></td><td>${sideChip(x.side)}</td>
+      <td class="why"><b style="color:var(--text);font-weight:600">${esc(x.rule_name)}</b>・${(x.reasons || []).map(esc).join('、') || '—'}</td>
+      <td class="r num">${x.trig_score}</td><td class="r num">${fmt(x.trig_price)}</td>
+      <td class="r num mut">${fmt(x.stop)} / ${x.target ? fmt(x.target) : '收盤'}</td>
+      <td class="r num ${cls(x.move_pct)}">${pct(x.move_pct)}</td>
+      <td>${x.holds ? '<span class="chip green">可考慮</span>' : '<span class="chip">僅觀察</span>'} ${x.fresh ? '<span class="chip gold">剛觸發</span>' : ''}</td></tr>`).join('')}
+  </tbody></table></div>${items.length > SHOW ? `<button class="more" data-act="more">再顯示 30 筆(共 ${items.length})</button>` : ''}`
+    : `<div class="empty">沒有符合的觸發</div>`}</div>
+  <p class="note">「之後」= 觸發價到現價的變動(做空已轉成賺為正)。停損停利以觸發價計,和回測一致。</p>`;
+}
+
+function tabCard(){
+  const all = trades(), s = stat(all);
+  const groups = {};
+  for(const x of all){ const k = x.rule + '|' + band(x.score); (groups[k] = groups[k] || []).push(x); }
+  const rows = Object.entries(groups).map(([k, v]) => ({ rule: k.split('|')[0], band: k.split('|')[1], ...stat(v) }))
+    .sort((a, b) => b.pnl - a.pnl);
+  const best = rows.filter(r => r.n >= 5)[0] || rows[0];
+  const days = Object.keys((LOG && LOG.days) || {}).sort();
+  const wins = all.filter(x => x.net > 0).length;
+  return `
+  <div class="head"><div><div class="eyebrow">SCORECARD</div><h1>建議成績單</h1>
+    <p class="sub">每筆盤中建議賺還是賠(用當天 5 分K 模擬下一根開盤進場,已扣 0.3% 手續費與稅),看出哪種建議會賺。</p></div>
+    <div class="amt">每筆金額 <input id="amt" class="num" type="number" min="1000" step="10000" value="${AMOUNT}"></div></div>
+  <div class="card"><div class="kpis">
+    ${kpi('clock', '統計期間', days.length ? `${days.length} 天` : '—', days.length ? `${days[0].slice(5)} ~ ${days[days.length - 1].slice(5)}` : '')}
+    ${kpi('doc', '建議筆數', s.n, `賺 ${wins}・賠 ${s.n - wins}`)}
+    ${kpi('wallet', '淨損益', `<span class="${cls(s.pnl)}">${money(s.pnl)}</span>`, `平均每筆 <span class="${cls(s.avg)}">${pct(s.avg)}</span>`)}
+    ${kpi('split', '勝率', isNum(s.win) ? `${s.win.toFixed(0)}%` : '—', '扣成本後賺錢的比例')}
+    ${kpi('cup', '最賺類型', best ? esc(ruleName(best.rule)) : '—', best ? `勝率 ${best.win.toFixed(0)}%・<span class="${cls(best.pnl)}">${money(best.pnl)}</span>` : '', {gold: true, sm: true})}
+  </div></div>
+  <div class="card"><h3>哪種建議會賺・依規則 × 分數</h3>
+  ${rows.length ? `<div class="scroll"><table><thead><tr><th>規則</th><th class="hm">類型</th><th>分數</th><th class="r">筆數</th><th class="r">勝率</th><th class="hm"></th><th class="r">平均報酬</th><th class="r">淨損益</th></tr></thead><tbody>
+    ${rows.map(r => `<tr><td style="font-weight:600">${esc(ruleName(r.rule))}</td><td class="mut hm">${esc(ruleType(r.rule))}</td><td class="mut">${r.band}</td>
+      <td class="r num">${r.n}</td><td class="r num">${r.win.toFixed(0)}%</td><td class="hm" style="width:90px"><div class="bar"><i style="width:${r.win.toFixed(0)}%"></i></div></td>
+      <td class="r num ${cls(r.avg)}">${pct(r.avg)}</td><td class="r num ${cls(r.pnl)}">${money(r.pnl)}</td></tr>`).join('')}
+  </tbody></table></div>` : `<div class="empty">還沒有算過成績的建議(每天收盤後更新)</div>`}</div>
+  <div class="card"><h3>每筆建議 <small>最新的在上面</small></h3>${tradeTable(all)}</div>
+  <p class="note">成績每天收盤後由 daytrade_lab.py 計算。樣本只有 ${days.length} 天,勝率和平均報酬會隨天數累積變動很大;這是機械式規則的事後統計,不構成買賣建議。</p>`;
+}
+
+function tradeTable(all){
+  if(!all.length) return '<div class="empty">還沒有算過成績的建議</div>';
+  const shown = all.slice(0, SHOW);
+  return `<div class="scroll"><table><thead><tr><th>日期</th><th>標的</th><th>理由</th><th class="r">分數</th><th>結果</th><th class="r">報酬%</th><th class="r">淨損益</th></tr></thead><tbody>
+    ${shown.map(x => `<tr><td class="mono mut" style="white-space:nowrap">${x.d}<br>${esc(x.t)}</td><td class="code">${esc(x.code)}<span>${esc(x.name)}</span></td>
+      <td class="why">${sideChip(x.side)} <b style="color:var(--text);font-weight:600">${esc(ruleName(x.rule))}</b>・觸發 ${fmt(x.price)},${esc(x.r.entry_t)} 以 ${fmt(x.r.entry)} 進場,停損 ${x.r.stop}%${x.r.target ? '、停利 ' + x.r.target + '%' : '、不設停利'}</td>
+      <td class="r num">${Math.abs(x.score)}</td>
+      <td><span class="chip ${x.r.exit === 'target' ? 'green' : ''}">${EXIT[x.r.exit] || esc(x.r.exit)}</span></td>
+      <td class="r num ${cls(x.net)}">${pct(x.net)}</td><td class="r num ${cls(x.pnl)}">${money(x.pnl)}</td></tr>`).join('')}
+  </tbody></table></div>${all.length > SHOW ? `<button class="more" data-act="more">再顯示 30 筆(共 ${all.length})</button>` : ''}`;
+}
+
+function tabTrades(){
+  return `
+  <div class="head"><div><div class="eyebrow">TRADE LOG</div><h1>交易紀錄</h1>
+    <p class="sub">目前沒有串接自動下單,這裡列的是「如果照建議做」的模擬成交(下一根 5 分K 開盤進場、已扣成本)。</p></div></div>
+  <div class="card">${tradeTable(trades())}</div>`;
+}
+
+function viewRules(){
+  const rules = Object.entries((DT && DT.rules) || {});
+  const live = (DT && DT.live && DT.live.rules) || {};
+  const rows = rules.map(([k, r]) => ({ k, r, t: (r.best || {}).test || {}, lv: live[k] })).filter(x => isNum(x.t.avg))
+    .sort((a, b) => (b.r.holds - a.r.holds) || (b.t.avg - a.t.avg));
+  return `
+  <div class="head"><div><div class="eyebrow">VALIDATION</div><h1>規則驗證</h1>
+    <p class="sub">每條當沖規則的樣本外回測(用沒拿來調參數的日子測)和盤中實際成績。兩邊都賺錢才算站得住。</p></div></div>
+  <div class="card"><h3>當沖規則 <small>${DT ? `回測 ${DT.first || ''} ~ ${DT.last || ''},成本 ${DT.cost_pct}%` : ''}</small></h3>
+  ${rows.length ? `<div class="scroll"><table><thead><tr><th>規則</th><th>條件</th><th class="r">樣本外筆數</th><th class="r">勝率</th><th class="r">平均報酬</th><th class="r">盤中實際</th><th>判定</th></tr></thead><tbody>
+    ${rows.map(({k, r, t, lv}) => `<tr><td style="font-weight:600;white-space:nowrap">${esc(r.name)} ${sideChip(r.side)}</td><td class="why">${esc(r.desc)}</td>
+      <td class="r num">${t.n}</td><td class="r num">${isNum(t.win) ? t.win.toFixed(0) + '%' : '—'}</td><td class="r num ${cls(t.avg)}">${pct(t.avg, 3)}</td>
+      <td class="r num ${cls(lv && lv.avg)}">${lv ? `${pct(lv.avg, 3)}<div class="mut" style="font-size:11px">${lv.n} 筆</div>` : '—'}</td>
+      <td>${r.holds ? '<span class="chip green">站得住</span>' : '<span class="chip">不採用</span>'}</td></tr>`).join('')}
+  </tbody></table></div>` : `<div class="empty">還沒有回測結果</div>`}</div>
+  <p class="note">平均報酬是每筆扣成本後的百分比。樣本外平均是負的規則,盤中觸發一律只當作觀察。</p>`;
+}
+
+function bind(){
+  document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { TAB = b.dataset.tab; SHOW = 30; render(); });
+  document.querySelectorAll('[data-f]').forEach(b => b.onclick = () => { FILTER = b.dataset.f; SHOW = 30; render(); });
+  document.querySelectorAll('[data-act="reload"]').forEach(b => b.onclick = loadAll);
+  document.querySelectorAll('[data-act="more"]').forEach(b => b.onclick = () => { SHOW += 30; render(); });
+  const amt = document.getElementById('amt');
+  if(amt) amt.onchange = () => { const v = Number(amt.value); if(v > 0){ AMOUNT = v; store.set(AMT_KEY, String(v)); render(); } };
+}
+
+document.querySelectorAll('#nav button').forEach(b => b.onclick = () => { VIEW = b.dataset.v; SHOW = 30; render(); window.scrollTo(0, 0); });
+const th = store.get(TH_KEY); if(th) document.documentElement.dataset.theme = th;
+document.getElementById('themeBtn').onclick = () => {
+  const dark = document.documentElement.dataset.theme ? document.documentElement.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+  document.documentElement.dataset.theme = dark ? 'light' : 'dark'; store.set(TH_KEY, document.documentElement.dataset.theme);
+};
+loadAll();
+setInterval(() => { if(!document.hidden) loadAll(); }, 60000);
+// 盤中迴圈每輪寫 data/stamp.json,每 15 秒看一次,有新的一輪就馬上重抓
+setInterval(async () => {
+  if(document.hidden || !INTRA) return;
+  try{ const s = await getJson('data/stamp.json'); if(s.checked_at && s.checked_at !== INTRA.checked_at) loadAll(); }catch(e){}
+}, 15000);
+</script>
+</body>
+</html>
