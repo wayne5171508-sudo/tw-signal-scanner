@@ -150,11 +150,17 @@ def market_mood(indices, watch):
 FLOW_AGAINST = 40          # 做多時最近 15 分鐘外盤比 <= 40%(做空時 >= 60%)= 主動買賣方向和推薦相反,機會掃描員給警示
 
 
+def flow_pct(q):
+    """機會掃描員看的外盤比:最近 15 分鐘量夠(>= 50 張)就用最近 15 分鐘,不然用全天。每日紀錄也存這個值,分組才對得起來。"""
+    f = q.get("flow") or {}
+    return f.get("out15") if f.get("out15") is not None and (f.get("n15") or 0) >= 50 else f.get("out")
+
+
 def _flow_check(c, q, side):
     """機會掃描員加看買賣力道(永豐逐筆內外盤、五檔掛單)。資料沒有就照舊。
     外盤比和方向相反才改成警示;大單、五檔只寫進說明(還沒累積成績驗證,不改結論)。"""
     f, b = q.get("flow") or {}, q.get("book") or {}
-    o = f.get("out15") if f.get("out15") is not None and (f.get("n15") or 0) >= 50 else f.get("out")
+    o = flow_pct(q)
     notes = []
     if o is not None:
         notes.append(f"外盤 {o:.0f}%")
@@ -331,7 +337,7 @@ def record(run_time, result, k5=None, vwaps=None):
         code = q["code"]
         now_pick.add(code)
         row = {"t": hm, "price": q["last"], "side": t["side"], "vc": t["vc"], "s": [c["s"] for c in t["ck"]],
-               "out15": (q.get("flow") or {}).get("out15"), "imb": (q.get("book") or {}).get("imb")}
+               "out15": flow_pct(q), "imb": (q.get("book") or {}).get("imb")}
         pk = day["picks"].get(code)
         if pk is None:
             pk = day["picks"][code] = {"name": q.get("name"), "first": dict(row, ck=t["ck"], v=t["v"], rule=t["rule"], rr=t["rr"],
@@ -369,6 +375,7 @@ def record(run_time, result, k5=None, vwaps=None):
 
 def _update_index(day):
     idx = _load(INDEX_FILE, {"days": {}})
+    idx["cost_pct"] = COST_PCT            # 網頁顯示「扣多少成本」用,改手續費折扣時跟著變
     picks = list(day["picks"].values())
     moves = [p["close"]["net"] for p in picks if (p.get("close") or {}).get("net") is not None]
     idx.setdefault("days", {})[day["date"]] = {

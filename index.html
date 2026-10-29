@@ -771,7 +771,7 @@ function candleChart(code, q){
     <div class="candletime"><span>${fmtTime(bars[0].t)}</span><span>量能(區間實際成交量)</span><span>${fmtTime(bars[bars.length - 1].t)}</span></div>
     ${zi ? `<div class="zlegend"><span><i style="background:rgba(209,64,63,.25)"></i>做空區(平衡區上緣~壓力 ${fmtNum(zi.res)})</span><span><i style="background:rgba(138,92,199,.35)"></i>平衡區(${zi.vwapOut ? `均價 ${fmtNum(zi.vwap)} 在區間外,改用區間中點 ${fmtNum(zi.center)}` : `均價 ${fmtNum(zi.vwap)}`} ±${ZONE_BAND_PCT}%)</span><span><i style="background:rgba(24,143,99,.25)"></i>做多區(支撐 ${fmtNum(zi.sup)}~平衡區下緣)</span><span><b style="color:#d1403f">▲</b><b style="color:#188f63">▼</b> 多空判斷觸發(灰色=未通過回測)</span></div>
     <div class="meta" style="margin-top:2px">分區只是「現在在哪個位置」的參考,不是買賣訊號:觸及回測顯示碰到支撐壓力後的反彈和隨機價位差不多。</div>` : ''}
-    <div class="meta" style="margin-top:2px">近似K線:每約5分鐘一格,用當時成交價堆疊(非逐筆真實高低,沒有影線);下方量能是真實區間成交量,不是估的</div>`;
+    <div class="meta" style="margin-top:2px">近似K線:每輪報價(盤中約 2~3 分鐘)一格,用當時成交價堆疊(非逐筆真實高低,沒有影線);下方量能是真實區間成交量,不是估的</div>`;
 }
 
 function renderWatchlist(data, filterText){
@@ -1115,7 +1115,7 @@ function openDetail(code, isIndex, opts){
 
     <div class="sparkwrap">
       ${isIndex
-        ? `<div class="meta">今日走勢 + 壓力/交界/支撐參考線(從網頁開始記錄算起,每約5分鐘一個點)</div>${sparklineSvg(series, 272, 64, color, fillColor, refLines)}`
+        ? `<div class="meta">今日走勢 + 壓力/交界/支撐參考線(從網頁開始記錄算起,盤中約每 2~3 分鐘一個點)</div>${sparklineSvg(series, 272, 64, color, fillColor, refLines)}`
         : candleChart(code, q)}
     </div>
     ${!isIndex ? renderChipBox(code) : ''}
@@ -1208,7 +1208,7 @@ function setupSearch(){
     const list = matches(input.value);
     SEARCH_TEXT = input.value; renderLevels(INTRADAY);
     if(!list.length){ box.style.display = 'none'; return; }
-    box.innerHTML = list.map(s => `<div onclick="pickSuggest('${s.code}')">${s.code} ${s.name} <span style="color:var(--muted);float:right">${fmtNum(s.last)} ${fmtPct(s.pct)}</span></div>`).join('');
+    box.innerHTML = list.map(s => `<div onclick="pickSuggest('${bearEsc(s.code)}')">${bearEsc(s.code)} ${bearEsc(s.name)} <span style="color:var(--muted);float:right">${fmtNum(s.last)} ${fmtPct(s.pct)}</span></div>`).join('');
     box.style.display = '';
   });
   input.addEventListener('keydown', e => {
@@ -1243,7 +1243,13 @@ function renderHealth(h){
   box.style.display = '';
 }
 
+let LOADING = false;
 async function loadAll(opts){
+  if(LOADING) return;     // 60 秒計時、15 秒偵測新資料、手動重新整理可能同時觸發,同時只跑一個
+  LOADING = true;
+  try{ await loadAllInner(opts); } finally { LOADING = false; }
+}
+async function loadAllInner(opts){
   opts = opts || {};
   // silent:true 用在60秒自動刷新——不要每次都把畫面閃一下「載入中」;抓取失敗時也保留
   // 上一次抓到的好資料繼續顯示,不要用null把整個已經在看的畫面洗掉(手機網路本來就常常
@@ -1319,7 +1325,7 @@ async function loadAll(opts){
     (errs.length ? ' · ' + errs.join('、') : '');
 }
 
-// 排程每約5分鐘更新一次資料,頁面每60秒自動重新抓一次,盤中開著不用一直手動按「重新整理」;
+// 盤中約每 2~3 分鐘更新一次資料,頁面每 15 秒看有沒有新的一輪、每 60 秒自動重新抓一次,盤中開著不用一直手動按「重新整理」;
 // 分頁切到背景時瀏覽器本來就會自動降低timer頻率,不特別處理也不會浪費太多資源。
 
 // ================= 手機版:支撐壓力一覽 =================
@@ -1385,7 +1391,7 @@ function renderFresh(data){
     el.innerHTML = `報價時間 <b>${t}</b>(${ago}),收盤後屬正常;盤中若一直這樣代表資料來源延遲`;
   } else {
     el.className = 'freshbar';
-    el.innerHTML = `報價時間 <b>${t}</b>(${ago}),約每5分鐘更新,頁面每分鐘自動刷新`;
+    el.innerHTML = `報價時間 <b>${t}</b>(${ago}),盤中約每 2~3 分鐘更新,有新資料頁面會自動刷新`;
   }
 }
 
@@ -2058,7 +2064,7 @@ function renderBias(intraday){
       ${(() => { const q = ((INTRADAY && INTRADAY.watchlist_quotes) || []).find(w => w.code === x.code); return q ? zoneStrip(q) : ''; })()}
       <div class="onote" style="margin-top:2px">${bearEsc(x.rule_name)}・理由:${(x.reasons || []).join('、') || '-'}${x.vwap != null ? '・均價 ' + fmtNum(x.vwap) : ''}</div></div>`;
   };
-  const staleRow = x => `<div class="rvrow" style="font-size:12px;color:var(--muted)"><span>${bearEsc(x.name)} ${x.side === 'long' ? '做多' : '放空'}・${x.trig_t} @ ${fmtNum(x.trig_price)}</span><span class="${x.move_pct > 0 ? 'up' : 'down'}">${x.move_pct > 0 ? '+' : ''}${x.move_pct}%</span></div>`;
+  const staleRow = x => `<div class="rvrow" style="font-size:12px;color:var(--muted)"><span>${bearEsc(x.name)} ${x.side === 'long' ? '做多' : '放空'}・${x.trig_t} @ ${fmtNum(x.trig_price)}</span><span class="${x.move_pct > 0 ? 'up' : x.move_pct < 0 ? 'down' : ''}">${x.move_pct > 0 ? '+' : ''}${x.move_pct}%</span></div>`;
   const when = !b.active ? `<div class="onote" style="margin:0 0 4px"><b>${b.as_of < '09:15' ? '09:15 後才開始判斷(要先有開盤區間)' : '12:30 之後不再出新訊號,以下是今天的觸發紀錄'}</b></div>` : '';
   el.innerHTML = head + when +
     `<div class="onote" style="margin:0 0 4px"><span class="bst active">回測站得住 ${nHolds} 條</span> 只列這些規則的觸發。觸發 ${b.fresh_min} 分鐘內算「剛觸發」;回測是觸發後下一根(5 分鐘)進場,停損停利都以觸發價計。</div>` +
@@ -2468,7 +2474,7 @@ function renderTeam(intraday){
   const rows = cands.map(({q, t}) => `<div class="bsig" style="cursor:pointer" onclick="searchAndOpen('${q.code}')"><div class="l1"><span><b>${bearEsc(q.name)}</b> <small style="color:var(--muted)">${q.code}</small> <span class="bchip">${t.S}</span></span><span class="${num(q.pct) > 0 ? 'up' : num(q.pct) < 0 ? 'down' : ''}">${fmtNum(q.last)} ${fmtPct(q.pct)}</span></div>
     <div style="margin-top:4px">${teamIcons(t)}</div><div class="tcv ${t.vc}" style="margin-top:4px">${bearEsc(t.v)}</div></div>`).join('');
   const nw = qs.flatMap(q => (q.news || []).map(n => ({...n, name: q.name}))).sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time)).slice(0, 6);
-  const newsHtml = nw.length ? `<details style="margin-top:8px"><summary style="cursor:pointer;font-size:12.5px;color:var(--sec)">自選股重大訊息(近兩天 ${nw.length} 則)</summary><div class="rvbox">${nw.map(n => `<div class="rvrow" style="font-size:12px;cursor:pointer" onclick="searchAndOpen('${n.code}')"><span>${n.date.slice(5)} ${n.time} <b>${bearEsc(n.name)}</b> <small>${n.cat}</small> ${bearEsc(n.title.slice(0, 34))}</span></div>`).join('')}</div></details>` : '';
+  const newsHtml = nw.length ? `<details style="margin-top:8px"><summary style="cursor:pointer;font-size:12.5px;color:var(--sec)">自選股重大訊息(近兩天 ${nw.length} 則)</summary><div class="rvbox">${nw.map(n => `<div class="rvrow" style="font-size:12px;cursor:pointer" onclick="searchAndOpen('${n.code}')"><span>${bearEsc(n.date.slice(5))} ${bearEsc(n.time)} <b>${bearEsc(n.name)}</b> <small>${bearEsc(n.cat)}</small> ${bearEsc(n.title.slice(0, 34))}</span></div>`).join('')}</div></details>` : '';
   el.className = 'sigbox';
   el.innerHTML = `<div class="sh"><b>交易小組看板</b><small>機會・消息・情緒・圖表・風險 → 決策</small></div>
     <div class="rvsub" style="font-size:12px;color:var(--muted);margin:2px 0">市場情緒員(客觀市場資料,不是社群輿論)</div>${gauge}
@@ -2728,7 +2734,7 @@ function renderFlow(intraday, history){
       <div class="fctl"><button class="fbtn" id="flBtn" onclick="flowToggle()">▶</button><input type="range" id="flRange" min="0" max="${fl.frames.length - 1}" value="${FLOW_IDX}" oninput="flowScrub(this.value)"></div>
       <div class="fcap" style="margin-top:2px"><span>09:00</span><span>13:30</span></div>
       <div class="fstk" id="flStk" style="display:none"></div>
-      <div class="fnote">這是用約每5分鐘一次的報價推算:每段新增成交金額(有實際成交金額就用,沒有才用量×價估),價格上漲歸為買、下跌歸為賣、平盤沿用上一次方向。只含自選股、不含ETF,不是全市場也不是逐筆內外盤,只看「資金偏向哪一邊」,不要當精確金額。點族群可看裡面的個股。</div>`;
+      <div class="fnote">這是用盤中每輪(約 2~3 分鐘)的報價推算:每段新增成交金額(有實際成交金額就用,沒有才用量×價估),價格上漲歸為買、下跌歸為賣、平盤沿用上一次方向。只含自選股、不含ETF,不是全市場也不是逐筆內外盤,只看「資金偏向哪一邊」,不要當精確金額。點族群可看裡面的個股。</div>`;
   }
   el.style.display = '';
   const rng = document.getElementById('flRange');

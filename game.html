@@ -625,7 +625,7 @@ function renderHud(it){
     const tp = new Date(Date.now() + 8 * 3600000), tpm = tp.getUTCHours() * 60 + tp.getUTCMinutes(), wd = tp.getUTCDay();
     const open = wd >= 1 && wd <= 5 && tpm >= 9 * 60 && tpm <= 13 * 60 + 35;
     if(open && mins <= 20){ pill.classList.add('live'); txt.textContent = `LIVE ${tw(it.data_as_of)}`; }
-    else if(open && it.data_as_of.slice(0, 10) !== tp.toISOString().slice(0, 10)){ pill.classList.add('stale'); txt.textContent = '等今日資料'; }
+    else if(open && it.data_as_of.slice(0, 10) !== tp.toISOString().slice(0, 10)){ pill.classList.add('stale'); txt.textContent = tpm >= 9 * 60 + 30 ? '今天沒資料(可能休市)' : '等今日資料'; }
     else if(open){ pill.classList.add('stale'); txt.textContent = `延遲 ${mins} 分`; }
     else { const d = it.data_as_of.slice(5, 10).replace('-', '/'); txt.textContent = `收盤 ${d}`; }
   } else txt.textContent = '無資料';
@@ -771,7 +771,8 @@ function phaseOf(it){
   const last = riskCfg().lastEntry;
   if(!live){
     // 交易日盤中但今天的資料還沒進來(例如剛開盤、GitHub 還在部署),不要誤判成休市
-    if(!window.__NOW && t.wd >= 1 && t.wd <= 5 && t.hm < '13:35') return t.hm < '09:00' ? {k: 'pre', name: '準備', i: 0} : {k: 'nodata', name: '等資料', i: -1};
+    // 09:30 還沒有今天的資料:多半是平日國定假日或颱風假(也可能是盤中程式出問題),一律當作不能進場
+    if(!window.__NOW && t.wd >= 1 && t.wd <= 5 && t.hm < '13:35') return t.hm < '09:00' ? {k: 'pre', name: '準備', i: 0} : t.hm < '09:30' ? {k: 'nodata', name: '等資料', i: -1} : {k: 'closed', name: '今天沒資料', i: 5};
     return {k: 'closed', name: '休市', i: 5};
   }
   if(t.hm < '09:00') return {k: 'pre', name: '準備', i: 0};
@@ -1033,7 +1034,13 @@ document.getElementById('q').addEventListener('input', e => { SEARCH = e.target.
 // ---- 載入(同 index.html 的資料檔,60 秒自動刷新,失敗保留上次資料) ----
 let SLOW_AT = 0;
 async function getJson(u){ const r = await fetch(u, {cache:'no-store'}); if(!r.ok) throw new Error(r.status); return r.json(); }
+let LOADING = false;
 async function loadAll(opts){
+  if(LOADING) return;     // 60 秒計時、15 秒偵測新資料、手動重新整理可能同時觸發,同時只跑一個
+  LOADING = true;
+  try{ await loadAllInner(opts); } finally { LOADING = false; }
+}
+async function loadAllInner(opts){
   opts = opts || {};
   const btn = document.getElementById('refreshBtn');
   btn.classList.add('spin');

@@ -220,7 +220,7 @@ def record(run_time, m, picks, qs, st, k5):
         sg = 1 if p["side"] == "long" else -1
         sides[p["code"]] = sg
         row = {"t": hm, "price": p["last"], "side": sg, "score": p["score"], "vc": p["vc"], "s": [c["s"] for c in p["ck"]],
-               "out15": (p.get("flow") or {}).get("out15"), "imb": (p.get("book") or {}).get("imb")}
+               "out15": team.flow_pct(p), "imb": (p.get("book") or {}).get("imb")}
         pk = day["picks"].get(p["code"])
         if pk is None or pk["first"]["side"] != sg:
             if pk is not None:                       # 同一天方向翻轉:舊的那筆另存,重新開始算
@@ -263,6 +263,7 @@ def record(run_time, m, picks, qs, st, k5):
         xs = [p["close"]["net"] for p in ps if p["first"]["side"] == side and (p.get("close") or {}).get("net") is not None]
         return {"n": sum(p["first"]["side"] == side for p in ps), "n_close": len(xs),
                 "avg_net": round(sum(xs) / len(xs), 3) if xs else None, "win": round(sum(x > 0 for x in xs) / len(xs) * 100, 1) if xs else None}
+    idx["cost_pct"] = team.COST_PCT
     idx.setdefault("days", {})[today] = {"closed": bool(day.get("closed")), "long": summ(1), "short": summ(-1),
                                          "up": st["up"], "down": st["down"], "avg_pct": st["avg_pct"], "mood": (st["mood"] or {}).get("score")}
     team._write(INDEX_FILE, idx)
