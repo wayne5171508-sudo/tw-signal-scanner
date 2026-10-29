@@ -198,7 +198,7 @@ def deep_check(q, side, k5, flags, hlc, mood, state, rules):
             "stop": round(q["last"] * (1 - sg * stop_pct / 100), 2), "target": round(q["last"] * (1 + sg * tgt_pct / 100), 2) if tgt_pct else None,
             "stop_pct": stop_pct, "target_pct": tgt_pct,
             "ck": t["ck"] if t else [], "v": t["v"] if t else "", "vc": t["vc"] if t else "na", "rr": t["rr"] if t else None,
-            "flags": fl}
+            "flags": fl, "flow": q.get("flow"), "book": q.get("book")}
 
 
 def record(run_time, m, picks, qs, st, k5):
@@ -219,7 +219,8 @@ def record(run_time, m, picks, qs, st, k5):
     for p in picks:
         sg = 1 if p["side"] == "long" else -1
         sides[p["code"]] = sg
-        row = {"t": hm, "price": p["last"], "side": sg, "score": p["score"], "vc": p["vc"], "s": [c["s"] for c in p["ck"]]}
+        row = {"t": hm, "price": p["last"], "side": sg, "score": p["score"], "vc": p["vc"], "s": [c["s"] for c in p["ck"]],
+               "out15": (p.get("flow") or {}).get("out15"), "imb": (p.get("book") or {}).get("imb")}
         pk = day["picks"].get(p["code"])
         if pk is None or pk["first"]["side"] != sg:
             if pk is not None:                       # 同一天方向翻轉:舊的那筆另存,重新開始算
@@ -268,7 +269,7 @@ def record(run_time, m, picks, qs, st, k5):
     return day
 
 
-def run(run_time, live, indices, watch, k5_loader, flags_loader):
+def run(run_time, live, indices, watch, k5_loader, flags_loader, flow_loader=None):
     m = (run_time - run_time.replace(hour=9, minute=0, second=0, microsecond=0)).total_seconds() / 60
     if m < 1 or m > 276:
         return None
@@ -289,6 +290,10 @@ def run(run_time, live, indices, watch, k5_loader, flags_loader):
     codes = [q["code"] for q in longs + shorts + c_up + c_dn]
     k5 = k5_loader(codes) or {}
     flags = flags_loader(list((live.get("uni") or {}).keys())) or {}
+    flow = (flow_loader(codes) if flow_loader else None) or {}
+    for q in longs + shorts + c_up + c_dn:
+        x = flow.get(q["code"]) or {}
+        q["flow"], q["book"] = x.get("flow"), x.get("book")
     hlc = live.get("hlc") or {}
     rules = _load(os.path.join(DATA_DIR, "daytrade.json"), {}).get("rules") or {}
     picks = [deep_check(q, "long", k5, flags, hlc, mood, state, rules) for q in longs] + \

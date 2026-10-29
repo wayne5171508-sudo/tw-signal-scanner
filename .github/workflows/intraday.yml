@@ -78,6 +78,18 @@ jobs:
           git config user.email "actions@users.noreply.github.com"
           # repo 是公開的,執行記錄大家看得到:輸出先遮掉身分證字號格式的字串
           python -u loop.py 2>&1 | sed -u -E 's/[A-Z][12][0-9]{8}/[已遮蔽]/g'
+      - name: 收盤後存今天的永豐 5 分K(當沖回測樣本,同一個連線額度)
+        if: steps.relay.outputs.run == 'yes'
+        continue-on-error: true
+        env:
+          SJ_API_KEY: ${{ secrets.SJ_API_KEY }}
+          SJ_SECRET_KEY: ${{ secrets.SJ_SECRET_KEY }}
+        run: |
+          set -o pipefail
+          timeout 600 python -u sj_backfill.py --days 10 --max-seconds 480 2>&1 | sed -E 's/[A-Z][12][0-9]{8}/[已遮蔽]/g'
+          git add data/bars5m data/bars5m_top data/backfill_status.json
+          git diff --quiet --cached || git commit -m "永豐 5 分K 存檔 $(TZ=Asia/Taipei date +'%Y-%m-%d')"
+          for i in 1 2 3; do git pull --rebase origin main && git push && break; sleep 5; done
       - name: 收盤後叫醒下一棒(睡到下一個開盤日)
         if: always() && steps.relay.outputs.run == 'yes'
         run: gh workflow run intraday.yml -R "$GITHUB_REPOSITORY" --ref main || echo "叫醒失敗,明天靠 cron 備援"

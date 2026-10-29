@@ -201,6 +201,160 @@ def stock_rows(codes):
     return out
 
 
+INDEX_CODES = {"IX0001": "TWS:TSE01:INDEX", "IX0043": "TWS:OTC01:INDEX"}   # 永豐指數代碼 → 鉅亨代碼(加權、櫃買)
+
+
+def index_rows():
+    """加權、櫃買指數快照,格式同鉅亨:{鉅亨代碼: 報價列}。抓不到回傳 {},由鉅亨補。"""
+    api = _login()
+    if api is None:
+        return {}
+    try:
+        ks = [k for k in list(api.Contracts.Indexs.TSE) + list(api.Contracts.Indexs.OTC) if k.code in INDEX_CODES]
+        snaps = api.snapshots(ks)
+        _ok_call()
+    except Exception as e:  # noqa: BLE001
+        _log(f"指數快照失敗,改用鉅亨: {type(e).__name__}: {str(e)[:120]}")
+        _broken()
+        return {}
+    out = {}
+    for s in snaps:
+        cc, last, chg = INDEX_CODES.get(getattr(s, "code", None)), getattr(s, "close", None), getattr(s, "change_price", None)
+        if not cc or not _num(last) or last <= 0:
+            continue
+        prev = round(last - chg, 2) if _num(chg) else None
+        out[cc] = {"0": cc, "6": float(last), "11": chg, "21": prev, "56": getattr(s, "change_rate", None),
+                   "19": getattr(s, "open", None), "12": getattr(s, "high", None), "13": getattr(s, "low", None),
+                   "200007": _epoch(getattr(s, "ts", None)), "src": "sj"}
+    return out
+
+
+BIG_AMOUNT = 5_000_000      # 單筆成交金額 >= 500 萬元算大單
+TICK_GAP = 0.12             # 每檔逐筆查詢之間停多久(和 1 分K 共用查詢頻率上限)
+BOOK_STALE = 120            # 五檔超過幾秒沒更新就不用
+_BOOK = {}                  # 五檔訂閱收到的最新一筆:{代號: (收到時間, 委買 5 檔量合計, 委賣 5 檔量合計, 買一價, 賣一價)}
+_SUBS = set()
+_SUB_API = None
+
+
+def _wall_hms(ts_ns):
+    """逐筆時間戳 → 台北時間 "HH:MM:SS"(時間戳寫法判斷同 _wall_minute)。"""
+    wm = _wall_minute(ts_ns)
+    if not wm:
+        return None
+    sec = int(float(ts_ns) / 1e9) % 60
+    return f"{wm[1] // 60:02d}:{wm[1] % 60:02d}:{sec:02d}"
+
+
+def tick_flow(codes, day, state, now_hms, budget=20.0):
+    """逐筆成交的內外盤(主動買賣力道),每檔只抓上次之後的新逐筆,累積在 state(呼叫端負責存檔):
+      state[代號] = {"ts": 已抓到的最後一筆時間戳, "out": 外盤量, "in": 內盤量, "bo": 大單外盤量, "bi": 大單內盤量,
+                    "m": {"HH:MM"(每 5 分鐘): [外盤量, 內盤量]}}
+    tick_type 1 = 外盤(成交在賣價,買方主動)、2 = 內盤(成交在買價,賣方主動)、0 = 無法判斷(不計)。超過 budget 秒的下一輪再抓。"""
+    api = _login()
+    if api is None or not codes:
+        return state
+    import shioaji as sj
+    t0 = time.time()
+    for code in codes:
+        if time.time() - t0 > budget:
+            break
+        k = _contract(api, code)
+        if k is None:
+            continue
+        st = state.setdefault(code, {"ts": 0, "out": 0, "in": 0, "bo": 0, "bi": 0, "m": {}})
+        start = _wall_hms(st["ts"]) if st["ts"] else "09:00:00"
+        try:
+            tk = api.ticks(contract=k, date=day, query_type=sj.constant.TicksQueryType.RangeTime, time_start=start, time_end=now_hms)
+            _ok_call()
+        except Exception as e:  # noqa: BLE001
+            _log(f"{code} 逐筆失敗: {type(e).__name__}: {str(e)[:100]}")
+            _broken()
+            if _api is None:
+                break
+            continue
+        for ts, px, v, tt in zip(tk.ts, tk.close, tk.volume, tk.tick_type):
+            if ts <= st["ts"] or tt not in (1, 2):
+                st["ts"] = max(st["ts"], ts)
+                continue
+            st["ts"] = ts
+            side = "out" if tt == 1 else "in"
+            st[side] += v
+            if px * v * 1000 >= BIG_AMOUNT:
+                st["bo" if tt == 1 else "bi"] += v
+            hm = _wall_minute(ts)
+            if hm:
+                b5 = hm[1] // 5 * 5
+                b = st["m"].setdefault(f"{b5 // 60:02d}:{b5 % 60:02d}", [0, 0])
+                b[0 if tt == 1 else 1] += v
+        time.sleep(TICK_GAP)
+    STATS["seconds"] += round(time.time() - t0, 1)
+    return state
+
+
+def flow_metrics(st, now_min):
+    """state 一檔 → {"out": 全天外盤比 %, "out15": 最近 15 分鐘外盤比 %, "big": 大單淨買比 %(-100~100), "n15": 最近 15 分鐘內外盤量}。"""
+    if not st:
+        return None
+    tot = st["out"] + st["in"]
+    recent = [v for k, v in st["m"].items() if int(k[:2]) * 60 + int(k[3:]) >= now_min - 15]
+    o15, i15 = sum(x[0] for x in recent), sum(x[1] for x in recent)
+    big = st["bo"] + st["bi"]
+    return {"out": round(st["out"] / tot * 100, 1) if tot else None, "out15": round(o15 / (o15 + i15) * 100, 1) if o15 + i15 else None,
+            "n15": o15 + i15, "big": round((st["bo"] - st["bi"]) / big * 100) if big else None, "big_vol": big}
+
+
+def _on_bidask(exchange, ba):
+    try:
+        _BOOK[ba.code] = (time.time(), sum(ba.bid_volume[:5]), sum(ba.ask_volume[:5]), ba.bid_price[0], ba.ask_price[0])
+    except Exception:  # noqa: BLE001  回呼在永豐的執行緒裡,任何錯誤都不能往外丟
+        pass
+
+
+def watch_books(codes):
+    """五檔即時訂閱(盤中常駐迴圈才有用,因為要一直開著連線收推播):訂閱 codes、退訂不在 codes 裡的。
+    回傳 {代號: {"imb": 委買委賣失衡 %(+ 委買多)、"bid","ask": 5 檔量合計, "age": 幾秒前}};還沒收到的不放。"""
+    global _SUB_API
+    api = _login()
+    if api is None:
+        return {}
+    import shioaji as sj
+    if _SUB_API is not api:                  # 第一次或重新登入過:訂閱要重來
+        _SUBS.clear()
+        _BOOK.clear()
+        try:
+            api.quote.set_on_bidask_stk_v1_callback(_on_bidask)
+        except Exception as e:  # noqa: BLE001
+            _log(f"五檔回呼設定失敗: {type(e).__name__}: {str(e)[:100]}")
+            return {}
+        _SUB_API = api
+    want = set(codes)
+    for code in sorted(want - _SUBS):
+        k = _contract(api, code)
+        if k is None:
+            continue
+        try:
+            api.quote.subscribe(k, quote_type=sj.constant.QuoteType.BidAsk, version=sj.constant.QuoteVersion.v1)
+            _SUBS.add(code)
+        except Exception as e:  # noqa: BLE001
+            _log(f"{code} 五檔訂閱失敗: {type(e).__name__}: {str(e)[:100]}")
+    for code in sorted(_SUBS - want):
+        k = _contract(api, code)
+        try:
+            if k is not None:
+                api.quote.unsubscribe(k, quote_type=sj.constant.QuoteType.BidAsk, version=sj.constant.QuoteVersion.v1)
+        except Exception:  # noqa: BLE001
+            pass
+        _SUBS.discard(code)
+        _BOOK.pop(code, None)
+    now, out = time.time(), {}
+    for code in want:
+        b = _BOOK.get(code)
+        if b and now - b[0] <= BOOK_STALE and b[1] + b[2] > 0:
+            out[code] = {"imb": round((b[1] - b[2]) / (b[1] + b[2]) * 100), "bid": b[1], "ask": b[2], "age": round(now - b[0])}
+    return out
+
+
 def _wall_minute(ts_ns):
     """1 分K 時間戳(奈秒)→ (台北日期, 台北時間從 00:00 起第幾分鐘)。
     永豐的時間戳是「台北時間當成 UTC」寫的;台股盤中 09:00-13:30 換成真正的 UTC 是 01:00-05:30,

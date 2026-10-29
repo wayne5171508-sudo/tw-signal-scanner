@@ -1,6 +1,7 @@
 """爆量雷達核心計算的回歸測試。push 到 GitHub 時自動跑(.github/workflows/tests.yml),
 改壞了會在 Actions 頁面亮紅燈,不用等到盤中才發現。全部離線,不連任何報價網站。"""
 import datetime as dt
+import gzip
 import json
 import os
 import random
@@ -929,3 +930,96 @@ def test_journal_costs_and_recommendation_match(tmp_path, monkeypatch):
     assert t[1]["shares"] == 2000 and t[0]["net"] == journal.costs("long", 1000, 1010, 1000)[3]
     journal.main(["remove", "1"])
     assert [x["id"] for x in json.loads((tmp_path / "data" / "journal.json").read_text())["trades"]] == [2]
+
+
+# ---------- 永豐逐筆內外盤、指數、歷史 1 分K 回補(用假的 API,不連線) ----------
+
+import types  # noqa: E402
+
+import sj_backfill  # noqa: E402
+
+
+def _ns(day, hh, mm, ss=0):
+    """永豐時間戳寫法:台北時間當成 UTC。"""
+    y, m, d = map(int, day.split("-"))
+    return int(dt.datetime(y, m, d, hh, mm, ss, tzinfo=dt.timezone.utc).timestamp() * 1e9)
+
+
+def test_tick_flow_incremental_and_metrics(monkeypatch):
+    day = "2026-10-29"
+    ticks = [(_ns(day, 9, 0, 5), 100, 10, 1), (_ns(day, 9, 1, 0), 100, 600, 1), (_ns(day, 9, 2, 0), 99.5, 20, 2), (_ns(day, 9, 3, 0), 99.5, 5, 0)]
+    calls = []
+
+    class Api:
+        def ticks(self, contract, date, query_type, time_start, time_end):
+            calls.append(time_start)
+            got = [t for t in ticks if time_start <= sjquote._wall_hms(t[0]) <= time_end]
+            return types.SimpleNamespace(ts=[t[0] for t in got], close=[t[1] for t in got], volume=[t[2] for t in got], tick_type=[t[3] for t in got])
+
+    monkeypatch.setattr(sjquote, "_login", lambda: Api())
+    monkeypatch.setattr(sjquote, "_contract", lambda api, c: object())
+    monkeypatch.setattr(sjquote.time, "sleep", lambda s: None)
+    fake_sj = types.SimpleNamespace(constant=types.SimpleNamespace(TicksQueryType=types.SimpleNamespace(RangeTime="RangeTime")))
+    monkeypatch.setitem(sys.modules, "shioaji", fake_sj)                 # 測試環境沒有裝永豐套件
+    st = sjquote.tick_flow(["A"], day, {}, "09:02:30")
+    sjquote.tick_flow(["A"], day, st, "09:03:30")                      # 第二次只補新的,不重複算
+    a = st["A"]
+    assert calls == ["09:00:00", "09:02:00"] and a["out"] == 610 and a["in"] == 20   # tick_type 0 不計
+    assert a["bo"] == 600 and a["bi"] == 0                              # 100 元 × 600 張 = 6000 萬 >= 500 萬算大單
+    f = sjquote.flow_metrics(a, 9 * 60 + 4)
+    assert f["out"] == pytest.approx(610 / 630 * 100, abs=0.1) and f["big"] == 100
+
+
+def test_flow_check_warns_only_against_direction():
+    base = {"r": "機會", "s": "ok", "t": "量能 3.0 倍"}
+    q = {"flow": {"out": 70, "out15": 30, "n15": 500, "big": -40, "big_vol": 100}, "book": {"imb": -55}}
+    c = team._flow_check(base, q, 1)                                     # 做多但最近 15 分鐘外盤只有 30%
+    assert c["s"] == "warn" and "外盤 30%" in c["t"] and "大單淨賣 40%" in c["t"] and "五檔委賣多 55%" in c["t"]
+    assert team._flow_check(base, q, -1)["s"] == "ok"                    # 做空時同一筆資料是順向
+    assert team._flow_check(base, {}, 1) == base
+
+
+def test_backfill_writes_sj_days_with_prev_close_and_shares(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    for k in ("BARS_DIR", "BARS_DIR_TOP"):
+        monkeypatch.setattr(sj_backfill, k, str(tmp_path / k))
+    monkeypatch.setattr(sj_backfill, "TOP_FILE", str(tmp_path / "top.json"))
+    monkeypatch.setattr(sj_backfill, "STATUS_FILE", str(tmp_path / "status.json"))
+    monkeypatch.setattr(sj_backfill, "watch_codes", lambda: ["2330"])
+    (tmp_path / "top.json").write_text(json.dumps({"codes": ["2330", "2317"]}))
+    days = ["2026-10-27", "2026-10-28", "2026-10-29"]
+
+    def kb(price):
+        ts, o = [], []
+        for di, d in enumerate(days):
+            for m in range(541, 811):                                   # 09:01 ~ 13:30(結束時間寫法)
+                ts.append(_ns(d, m // 60, m % 60))
+                o.append(price + di)
+        return types.SimpleNamespace(ts=ts, Open=o, High=[x + 0.5 for x in o], Low=[x - 0.5 for x in o], Close=o, Volume=[2] * len(o))
+
+    class Api:
+        Contracts = types.SimpleNamespace(Indexs=types.SimpleNamespace(TSE=[types.SimpleNamespace(code="IX0001")]))
+        def kbars(self, contract, start, end):
+            return kb(20000 if getattr(contract, "code", "") == "IX0001" else 100)
+        def usage(self):
+            return types.SimpleNamespace(remaining_bytes=400e6, limit_bytes=500e6)
+
+    monkeypatch.setattr(sjquote, "_login", lambda: Api())
+    monkeypatch.setattr(sjquote, "_contract", lambda api, c: types.SimpleNamespace(code=c))
+    monkeypatch.setattr(sj_backfill.time, "sleep", lambda s: None)
+    real_dt = sj_backfill.datetime
+    monkeypatch.setattr(sj_backfill, "datetime", types.SimpleNamespace(now=lambda tz: real_dt(2026, 10, 29, 14, 0, tzinfo=tz)))
+    assert sj_backfill.main(["--days", "10"]) == 0
+    w = json.load(gzip.open(tmp_path / "BARS_DIR" / "2026-10-28.json.gz", "rt"))
+    x = w["stocks"]["2330"]
+    assert x["s"] == "sj" and x["pd"] == "2026-10-27" and x["pc"] == 100 and len(x["b"]) == 54
+    assert x["b"][0][0] == "09:00" and x["b"][0][5] == 5 * 2 * 1000                # 5 根 1 分K × 2 張 → 股
+    assert w["idx"][0][0] == "09:00" and len(w["idx"][0]) == 5
+    assert not (tmp_path / "BARS_DIR" / "2026-10-27.json.gz").exists()             # 第一天沒有前一日收盤,不存
+    assert "2317" in json.load(gzip.open(tmp_path / "BARS_DIR_TOP" / "2026-10-29.json.gz", "rt"))["stocks"]
+    st = json.loads((tmp_path / "status.json").read_text())
+    assert st["codes_done_now"] == 2 and st["stock_days_now"] == 4
+    assert sj_backfill.main(["--days", "10"]) == 0                                  # 已經是永豐的不重抓
+    assert json.loads((tmp_path / "status.json").read_text())["codes_already"] == 2
+    archive = daytrade_lab.load_bars_archive(str(tmp_path / "BARS_DIR"))           # 回測讀得到
+    assert set(archive) == {"2026-10-28", "2026-10-29"}

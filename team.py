@@ -147,6 +147,27 @@ def market_mood(indices, watch):
             "up": up, "down": dn}
 
 
+FLOW_AGAINST = 40          # 做多時最近 15 分鐘外盤比 <= 40%(做空時 >= 60%)= 主動買賣方向和推薦相反,機會掃描員給警示
+
+
+def _flow_check(c, q, side):
+    """機會掃描員加看買賣力道(永豐逐筆內外盤、五檔掛單)。資料沒有就照舊。
+    外盤比和方向相反才改成警示;大單、五檔只寫進說明(還沒累積成績驗證,不改結論)。"""
+    f, b = q.get("flow") or {}, q.get("book") or {}
+    o = f.get("out15") if f.get("out15") is not None and (f.get("n15") or 0) >= 50 else f.get("out")
+    notes = []
+    if o is not None:
+        notes.append(f"外盤 {o:.0f}%")
+        if side and ((side > 0 and o <= FLOW_AGAINST) or (side < 0 and o >= 100 - FLOW_AGAINST)):
+            c = {"r": c["r"], "s": "warn", "t": c["t"]}
+            notes[-1] += f"(主動{'賣' if side > 0 else '買'}盤比較強,和方向相反)"
+    if f.get("big") is not None and (f.get("big_vol") or 0) > 0:
+        notes.append(f"大單淨{'買' if f['big'] > 0 else '賣'} {abs(f['big'])}%")
+    if b.get("imb") is not None:
+        notes.append(f"五檔委{'買' if b['imb'] > 0 else '賣'}多 {abs(b['imb'])}%")
+    return dict(c, t=c["t"] + ("・" + "、".join(notes) if notes else "")) if notes else c
+
+
 def team_check(q, mood, bias_items, vwap=None, side=None):
     """一檔的六個觀測員結果:{"side", "S", "ck": [{"r","s","t"}], "v", "vc", "rule"}。s/vc:ok 通過、warn 警示、bad 硬限制、na 中性。
     side 不給就照網頁的方式決定(剛觸發的多空判斷,沒有就看漲跌幅);全市場雷達用多空分數的方向直接指定。"""
@@ -168,6 +189,7 @@ def team_check(q, mood, bias_items, vwap=None, side=None):
          "t": "量能資料累積中" if pace is None else (f"量能 {pace:.1f} 倍,有資金在動" if pace >= 2 else f"量能 {pace:.1f} 倍,不算突出")}
     if conflict and not pick:
         c = {"r": "機會", "s": "warn", "t": c["t"] + ",而且剛觸發的多空訊號互相矛盾"}
+    c = _flow_check(c, q, side)
     ck.append(c)
     # 2 新聞分析員
     nw = q.get("news") or []
@@ -308,7 +330,8 @@ def record(run_time, result, k5=None, vwaps=None):
     for q, t in cands:
         code = q["code"]
         now_pick.add(code)
-        row = {"t": hm, "price": q["last"], "side": t["side"], "vc": t["vc"], "s": [c["s"] for c in t["ck"]]}
+        row = {"t": hm, "price": q["last"], "side": t["side"], "vc": t["vc"], "s": [c["s"] for c in t["ck"]],
+               "out15": (q.get("flow") or {}).get("out15"), "imb": (q.get("book") or {}).get("imb")}
         pk = day["picks"].get(code)
         if pk is None:
             pk = day["picks"][code] = {"name": q.get("name"), "first": dict(row, ck=t["ck"], v=t["v"], rule=t["rule"], rr=t["rr"],

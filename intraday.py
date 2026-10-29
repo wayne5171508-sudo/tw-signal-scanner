@@ -194,6 +194,11 @@ def fetch_quotes(codes):
     stock = [c.split(":")[1] for c in codes if c.startswith("TWS:") and c.endswith(":STOCK")]
     sj = _sj_rows(stock)
     out = {f"TWS:{c}:STOCK": row for c, row in sj.items()}
+    if sjquote is not None and any(c in sjquote.INDEX_CODES.values() for c in codes):
+        try:
+            out.update({c: r for c, r in sjquote.index_rows().items() if c in codes})   # 加權、櫃買也用永豐(10/29 鉅亨指數曾整批抓不到)
+        except Exception as e:  # noqa: BLE001
+            print(f"[警告] 永豐指數失敗,改用鉅亨: {e}")
     rest = [c for c in codes if c not in out]
     if sj:
         print(f"[報價來源] 永豐 {len(sj)} 檔,鉅亨補 {len(rest)} 筆(含指數)")
@@ -2295,6 +2300,39 @@ def load_trade_flags(run_time):
         return cur
 
 
+TICKS_CACHE_FILE = os.path.join(DATA_DIR, "ticks_today.json")   # 逐筆內外盤累積(只放盤中迴圈那台機器上,不進 repo)
+FLOW_BUDGET_SECONDS = 25
+
+
+def load_flow(run_time, codes):
+    """推薦標的的買賣力道:逐筆內外盤(每輪只補抓新的逐筆)+ 五檔委買委賣失衡(即時訂閱)。
+    回傳 {代號: {"flow": sjquote.flow_metrics(), "book": 五檔}};沒有永豐回傳 {}。"""
+    if sjquote is None or not codes:
+        return {}
+    today = run_time.strftime("%Y-%m-%d")
+    m = (run_time - _day_start(run_time)).total_seconds() / 60
+    cache = load_json_safe(TICKS_CACHE_FILE, {}) or {}
+    if cache.get("date") != today:
+        cache = {"date": today, "codes": {}}
+    try:
+        sjquote.tick_flow(codes, today, cache["codes"], run_time.strftime("%H:%M:%S"), budget=FLOW_BUDGET_SECONDS)
+        write_json_atomic(TICKS_CACHE_FILE, cache, separators=(",", ":"))
+    except Exception as e:  # noqa: BLE001
+        print(f"[警告] 逐筆內外盤失敗: {type(e).__name__}: {str(e)[:120]}")
+    try:
+        books = sjquote.watch_books(codes)
+    except Exception as e:  # noqa: BLE001
+        print(f"[警告] 五檔訂閱失敗: {type(e).__name__}: {str(e)[:120]}")
+        books = {}
+    now_min = 9 * 60 + m
+    out = {}
+    for c in codes:
+        f = sjquote.flow_metrics(cache["codes"].get(c), now_min)
+        if f or books.get(c):
+            out[c] = {"flow": f, "book": books.get(c)}
+    return out
+
+
 MARKET_FLAGS_FILE = os.path.join(DATA_DIR, "trade_flags_market.json")
 
 
@@ -2438,6 +2476,10 @@ def main():
     try:
         import team         # 交易小組六個觀測員:每輪的結果記進 data/team/今天.json
         vwaps = {q["code"]: _vwap_of(q.get("amt"), q.get("volume")) for q in watchlist_out}
+        _mood, cands = team.candidates(result, vwaps)
+        for code, x in load_flow(run_time, [q["code"] for q, _t in cands]).items():   # 買賣力道給機會掃描員參考
+            q = next(q for q in watchlist_out if q["code"] == code)
+            q["flow"], q["book"] = x.get("flow"), x.get("book")
         day = team.record(run_time, result, k5, vwaps)
         if day:
             result["team"] = {"as_of": day["as_of"], "picks": len(day["picks"]), "mood": (day.get("mood_now") or {}).get("score")}
@@ -2465,7 +2507,7 @@ def main():
         import market        # 全市場雷達:全部股票打多空分數、市場統計、做多/做空推薦與每日紀錄
         if live:
             market.run(run_time, live, indices_out, set(WATCHLIST_NAMES), lambda codes: load_k5(run_time, codes),
-                       lambda codes: load_market_flags(run_time, codes))
+                       lambda codes: load_market_flags(run_time, codes), lambda codes: load_flow(run_time, codes))
     except Exception as e:  # noqa: BLE001  全市場雷達是加分功能
         print(f"[警告] 全市場雷達失敗: {type(e).__name__}: {e}")
     end_of_day_extras(run_time, indices_out, watchlist_out, (touch_summary or {}).get("regime_today"))

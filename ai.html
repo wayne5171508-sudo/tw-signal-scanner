@@ -145,6 +145,7 @@ td.why{color:var(--muted);font-size:12.5px;min-width:240px;max-width:520px;white
 .pv{grid-column:2 / 4;display:flex;gap:3px}
 .om.sm{width:17px;height:17px;font-size:10px;border-radius:5px}
 .pd{padding:8px 16px 14px;font-size:12.5px}
+.warnc{color:var(--gold)}
 .theme{all:unset;cursor:pointer;color:var(--muted);font-size:12px;margin-top:8px}
 @media (max-width:1100px){ .kpis{grid-template-columns:repeat(3,minmax(0,1fr))} .grid2,.picks{grid-template-columns:1fr} }
 @media (max-width:900px){ .grid2.eq{grid-template-columns:1fr} }
@@ -198,7 +199,7 @@ td.why{color:var(--muted);font-size:12.5px;min-width:240px;max-width:520px;white
 </div>
 <script>
 // ---------- 資料 ----------
-let INTRA = null, LOG = null, DT = null, OVN = null, TIDX = null, TDAY = {}, PDATE = null, RADAR = null, MIDX = null, MDAY = {}, JOURNAL = null, TSRC = 'market', VIEW = 'radar', TAB = 'card', FILTER = 'all', SHOW = 30;
+let BACKFILL = null, INTRA = null, LOG = null, DT = null, OVN = null, TIDX = null, TDAY = {}, PDATE = null, RADAR = null, MIDX = null, MDAY = {}, JOURNAL = null, TSRC = 'market', VIEW = 'radar', TAB = 'card', FILTER = 'all', SHOW = 30;
 const RULE_TYPE = { score: '多空分數', pb: '拉回均價線', fade: '超漲超跌反向' };
 const EXIT = { stop: '停損', target: '停利', close: '收盤出場' };
 const AMT_KEY = 'aitrader.amount', TH_KEY = 'aitrader.theme';
@@ -217,6 +218,7 @@ async function loadAll(){
   try{ RADAR = await getJson('data/market_radar.json'); }catch(e){ /* 還沒有全市場資料 */ }
   try{ MIDX = await getJson('data/market/index.json'); }catch(e){ MIDX = MIDX || {days: {}}; }
   try{ JOURNAL = await getJson('data/journal.json'); }catch(e){ JOURNAL = JOURNAL || {trades: []}; }
+  try{ BACKFILL = await getJson('data/backfill_status.json'); }catch(e){ /* 還沒回補過 */ }
   if(RADAR && RADAR.date){ try{ MDAY[RADAR.date] = await getJson(`data/market/${RADAR.date}.json`); }catch(e){} }
   const ds = Object.keys(TIDX.days || {}).sort();
   if(!PDATE || !ds.includes(PDATE)) PDATE = ds[ds.length - 1] || null;
@@ -336,12 +338,18 @@ function viewRadar(){
   </div>
   <p class="note">${esc(R.note || '')} 停損停利是用回測的多空分數參數(以現價計)給的參考,不是建議價位。全市場沒有逐檔查重大訊息,下單前請自己確認。</p>`;
 }
+function flowTag(p){
+  const f = p.flow || {}, o = isNum(f.out15) && (f.n15 || 0) >= 50 ? f.out15 : f.out;
+  if(!isNum(o)) return '';
+  const good = p.side === 'long' ? o >= 55 : o <= 45, bad = p.side === 'long' ? o <= 40 : o >= 60;
+  return `・<span class="${good ? (p.side === 'long' ? 'up' : 'down') : bad ? 'warnc' : ''}">外盤 ${o.toFixed(0)}%</span>`;
+}
 function pickRow(p){
   const parts = Object.entries(p.parts || {}).filter(([, v]) => v).map(([k, v]) => `${({mkt: '大盤', vwap: '均價線', orb: '開盤區間', vol: '量能', pos: '位置', grp: '產業'})[k] || k} ${v > 0 ? '+' : ''}${v}`).join('・');
   return `<details class="prow"><summary>
       <span class="ps ${p.side === 'long' ? 'up' : 'down'} num">${p.score > 0 ? '+' : ''}${p.score}</span>
       <span class="pn"><b>${esc(p.code)} ${esc(p.name)}</b>${p.in_watch ? ' <span class="chip">自選</span>' : ''}<small class="mut"> ${esc(p.cat)}</small>
-        <div class="mut">${(p.reasons || []).map(esc).join('、') || '—'}・量能 ${fmt(p.pace, 1)} 倍</div></span>
+        <div class="mut">${(p.reasons || []).map(esc).join('、') || '—'}・量能 ${fmt(p.pace, 1)} 倍${flowTag(p)}</div></span>
       <span class="r"><span class="num">${fmt(p.last)}</span><div class="num ${cls(p.pct)}" style="font-size:12px">${pct(p.pct)}</div></span>
       <span class="pv">${(p.ck || []).map(c => `<span class="om sm ${c.s}" title="${esc(ROLE_FULL[c.r] || c.r)}:${esc(c.t)}">${MARK[c.s]}</span>`).join('')}</span>
     </summary>
@@ -523,6 +531,10 @@ function viewTeam(){
   const grp = (label, f) => `<tr><td>${label}</td><td class="r">${cell(agg(rows.filter(f).map(x => x.net)))}</td></tr>`;
   const extra = mk ? [grp('做多推薦', x => x.p.first.side > 0), grp('做空推薦', x => x.p.first.side < 0),
       grp('分數 |≥60|(達門檻)', x => Math.abs(x.p.first.score || 0) >= 60), grp('分數 |40~59|', x => Math.abs(x.p.first.score || 0) < 60),
+      grp('外盤比順向(做多 ≥55%/做空 ≤45%)', x => isNum(x.p.first.out15) && (x.p.first.side > 0 ? x.p.first.out15 >= 55 : x.p.first.out15 <= 45)),
+      grp('外盤比逆向(做多 ≤45%/做空 ≥55%)', x => isNum(x.p.first.out15) && (x.p.first.side > 0 ? x.p.first.out15 <= 45 : x.p.first.out15 >= 55)),
+      grp('五檔順向(失衡 ≥ +20% 同方向)', x => isNum(x.p.first.imb) && x.p.first.imb * x.p.first.side >= 20),
+      grp('五檔逆向(失衡 ≥ 20% 反方向)', x => isNum(x.p.first.imb) && x.p.first.imb * x.p.first.side <= -20),
       grp('09:30 前推薦', x => x.p.first.t < '09:30'), grp('09:30~11:00', x => x.p.first.t >= '09:30' && x.p.first.t < '11:00'), grp('11:00 後', x => x.p.first.t >= '11:00')].join('')
     : ['ok', 'warn', 'na', 'bad'].map(k => grp(vcChip(k), x => x.p.first.vc === k)).join('');
   const days = ds.map(d => ({d, ...(IDX.days[d] || {})}));
@@ -602,7 +614,12 @@ function viewRules(){
   return `
   <div class="head"><div><div class="eyebrow">VALIDATION</div><h1>規則驗證</h1>
     <p class="sub">每條當沖規則的樣本外回測(用沒拿來調參數的日子測)和盤中實際成績。兩邊都賺錢才算站得住。</p></div></div>
-  <div class="card"><h3>當沖規則 <small>${DT ? `回測 ${DT.first || ''} ~ ${DT.last || ''},成本 ${DT.cost_pct}%` : ''}</small></h3>
+  ${BACKFILL ? `<div class="card"><h3>永豐歷史 1 分K 回補 <small>${esc((BACKFILL.as_of || '').slice(0, 16).replace('T', ' '))}</small></h3>
+    <div style="padding:12px 18px;font-size:13px;line-height:1.8">期間 <b class="mono">${esc((BACKFILL.window || [])[0] || '')} ~ ${esc((BACKFILL.window || [])[1] || '')}</b>(${BACKFILL.trade_days} 個交易日),
+      ${BACKFILL.codes_total} 檔裡已完成 <b>${(BACKFILL.codes_already || 0) + (BACKFILL.codes_done_now || 0)}</b> 檔${BACKFILL.stopped ? `,<span class="warnc">${esc(BACKFILL.stopped)},明天晚上繼續</span>` : ''}。
+      <div class="bar" style="margin-top:6px"><i style="width:${Math.min(100, ((BACKFILL.codes_already || 0) + (BACKFILL.codes_done_now || 0)) / Math.max(1, BACKFILL.codes_total) * 100)}%"></i></div>
+      <span class="mut">回測原本只用 Yahoo 約 60 天(量也不完整),補完後樣本約 4 倍,而且和盤中一樣用永豐資料。每天回測重算後,下面的結果會跟著更新。</span></div></div>` : ''}
+  <div class="card"><h3>當沖規則 <small>${DT ? `回測 ${DT.first || ''} ~ ${DT.last || ''}(${DT.days} 天),成本 ${DT.cost_pct}%` : ''}</small></h3>
   ${rows.length ? `<div class="scroll"><table><thead><tr><th>規則</th><th>條件</th><th class="r">樣本外筆數</th><th class="r">勝率</th><th class="r">平均報酬</th><th class="r">盤中實際</th><th>判定</th></tr></thead><tbody>
     ${rows.map(({k, r, t, lv}) => `<tr><td style="font-weight:600;white-space:nowrap">${esc(r.name)} ${sideChip(r.side)}</td><td class="why">${esc(r.desc)}</td>
       <td class="r num">${t.n}</td><td class="r num">${isNum(t.win) ? t.win.toFixed(0) + '%' : '—'}</td><td class="r num ${cls(t.avg)}">${pct(t.avg, 3)}</td>
