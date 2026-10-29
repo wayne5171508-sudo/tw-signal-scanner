@@ -52,6 +52,10 @@ try:
     import bias
 except ImportError:
     bias = None
+try:
+    import sjquote          # 永豐即時報價(主來源);沒有金鑰或失敗時自動退回鉅亨
+except ImportError:
+    sjquote = None
 import corp
 
 TAIPEI = ZoneInfo("Asia/Taipei")
@@ -173,7 +177,36 @@ def taipei_now():
     return datetime.now(TAIPEI)
 
 
+def _sj_rows(stock_codes):
+    """用永豐快照抓股票;任何錯誤都回傳空 dict,交給鉅亨。"""
+    if sjquote is None or not stock_codes:
+        return {}
+    try:
+        return sjquote.stock_rows(stock_codes)
+    except Exception as e:  # noqa: BLE001
+        print(f"[警告] 永豐報價失敗,改用鉅亨: {type(e).__name__}: {str(e)[:120]}")
+        return {}
+
+
 def fetch_quotes(codes):
+    """先用永豐抓股票(TWS:xxxx:STOCK),抓不到的股票和指數/美股/台指期再用鉅亨補。
+    回傳格式不變:{cnyes代碼: 報價列}。"""
+    stock = [c.split(":")[1] for c in codes if c.startswith("TWS:") and c.endswith(":STOCK")]
+    sj = _sj_rows(stock)
+    out = {f"TWS:{c}:STOCK": row for c, row in sj.items()}
+    rest = [c for c in codes if c not in out]
+    if sj:
+        print(f"[報價來源] 永豐 {len(sj)} 檔,鉅亨補 {len(rest)} 筆(含指數)")
+    try:
+        out.update(fetch_quotes_cnyes(rest))
+    except Exception as e:  # noqa: BLE001
+        if not sj:
+            raise           # 兩邊都失敗:跟以前一樣讓這一輪明顯失敗
+        print(f"[警告] 鉅亨補抓失敗(指數等這一輪空白,股票照常用永豐): {e}")
+    return out
+
+
+def fetch_quotes_cnyes(codes):
     """codes: list of cnyes代碼字串。不帶 column 參數——帶了反而只會拿到精簡欄位,
     不帶才會拿到完整欄位(含高低開收、漲跌停價)。一次最多抓50筆,分批呼叫。
     單一批次失敗時重試最多3次(間隔遞增1秒/2秒),應付網路瞬斷;連續3次都失敗才真的
@@ -779,11 +812,15 @@ def close_market(run_time):
     day["close_tries"] = day.get("close_tries", 0) + 1
     codes = sorted({c for sv in day.get("snaps", {}).values() for c in sv.get("rows", {})})
     t0, close = time.time(), {}
-    for i in range(0, len(codes), 50):
+    for code, row in _sj_rows(codes).items():     # 永豐先抓,剩下的鉅亨補
+        if _num_ok(row.get("6"), row.get("200013")):
+            close[code] = [row["6"], row["200013"]]
+    codes_left = [c for c in codes if c not in close]
+    for i in range(0, len(codes_left), 50):
         if time.time() - t0 > MARKET_TIME_BUDGET:
             break
         try:
-            resp = requests.get(CNYES_QUOTE_URL.format(codes=",".join(f"TWS:{c}:STOCK" for c in codes[i:i + 50])), headers=HEADERS, timeout=TIMEOUT)
+            resp = requests.get(CNYES_QUOTE_URL.format(codes=",".join(f"TWS:{c}:STOCK" for c in codes_left[i:i + 50])), headers=HEADERS, timeout=TIMEOUT)
             resp.raise_for_status()
             rows = resp.json().get("data", [])
         except (requests.RequestException, ValueError):
@@ -827,9 +864,33 @@ def scan_market(run_time, watch_codes, regime=None):
         diag.update({"baseline_days": base_days, "calib": calib.get(str(sn))})
         snap_rows = {}
         n_rows = n_batch_fail = streak = 0
+
+        def take(rows):
+            nonlocal n_rows
+            for row in rows:
+                raw = str(row.get("0") or "")
+                code = row.get("200010") or (raw.split(":")[1] if raw.count(":") >= 2 else raw)   # "0"欄位是 TWS:2330:STOCK,股票清單用 2330
+                vol, last, prev = row.get("200013"), row.get("6"), base.get(code)
+                if not (_num_ok(vol, last) and prev) or vol < MARKET_LOG_MIN_VOL:
+                    continue
+                f = frac_for(code, m, {}, pooled) * sc_now.get("L" if prev >= MARKET_LARGE_BASE else "S", 1.0)
+                pace = round(vol / (prev * max(f, 0.003)), 2)
+                hi, lo = row.get("12"), row.get("13")
+                if _num_ok(hi, lo):
+                    snap_rows[code] = [last, int(vol), row.get("56"), hi, lo, pace, int(prev)]
+                if vol < MARKET_MIN_VOL:
+                    continue
+                n_rows += 1
+                items.append({"code": code, "name": row.get("200009") or code, "last": last, "pct": row.get("56"),
+                              "vol": vol, "prev": prev, "pace": pace, "in_watch": code in watch_codes})
+
+        sj = _sj_rows(codes)                      # 永豐一次 500 檔,全市場幾秒內抓完
+        take(sj.values())
+        diag["sj_rows"] = len(sj)
+        codes_all, codes = codes, [c for c in codes if c not in sj]   # 剩下的才用鉅亨
         for i in range(0, len(codes), 50):
             if time.time() - t0 > MARKET_TIME_BUDGET:
-                errors.append(f"超過 {MARKET_TIME_BUDGET} 秒預算,只掃了前 {i} 檔")
+                errors.append(f"超過 {MARKET_TIME_BUDGET} 秒預算,鉅亨只補了前 {i} 檔")
                 break
             batch = [f"TWS:{c}:STOCK" for c in codes[i:i + 50]]
             try:
@@ -848,23 +909,8 @@ def scan_market(run_time, watch_codes, regime=None):
                 continue
             streak = 0
             time.sleep(MARKET_GAP)
-            for row in rows:
-                raw = str(row.get("0") or "")
-                code = row.get("200010") or (raw.split(":")[1] if raw.count(":") >= 2 else raw)   # "0"欄位是 TWS:2330:STOCK,股票清單用 2330
-                vol, last, prev = row.get("200013"), row.get("6"), base.get(code)
-                if not (_num_ok(vol, last) and prev) or vol < MARKET_LOG_MIN_VOL:
-                    continue
-                f = frac_for(code, m, {}, pooled) * sc_now.get("L" if prev >= MARKET_LARGE_BASE else "S", 1.0)
-                pace = round(vol / (prev * max(f, 0.003)), 2)
-                hi, lo = row.get("12"), row.get("13")
-                if _num_ok(hi, lo):
-                    snap_rows[code] = [last, int(vol), row.get("56"), hi, lo, pace, int(prev)]
-                if vol < MARKET_MIN_VOL:
-                    continue
-                n_rows += 1
-                items.append({"code": code, "name": row.get("200009") or code, "last": last, "pct": row.get("56"),
-                              "vol": vol, "prev": prev, "pace": pace, "in_watch": code in watch_codes})
-        diag.update({"codes": len(codes), "rows": n_rows, "batch_fail": n_batch_fail})
+            take(rows)
+        diag.update({"codes": len(codes_all), "rows": n_rows, "batch_fail": n_batch_fail})
     items.sort(key=lambda x: -x["pace"])
     if uni and snap_rows:
         save_market_snapshot(run_time, sn, m, snap_rows, regime)

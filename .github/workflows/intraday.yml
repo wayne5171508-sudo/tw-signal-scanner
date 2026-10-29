@@ -30,12 +30,17 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
+          cache: pip                          # 永豐套件第一次裝要2分鐘,之後用快取
+          cache-dependency-path: requirements.txt
       - name: 安裝套件
-        run: pip install requests
+        run: pip install requests shioaji
       - name: 隔夜風向(開盤前排程沒跑到時補拍;08:45 之後只會記美股)
         continue-on-error: true
         run: timeout 60 python overnight.py
       - name: 迴圈:每5分鐘抓報價並存回repo,直到收盤
+        env:
+          SJ_API_KEY: ${{ secrets.SJ_API_KEY }}       # 永豐金鑰(沒設也能跑,會自動改用鉅亨)
+          SJ_SECRET_KEY: ${{ secrets.SJ_SECRET_KEY }}
         run: |
           git config user.name "tw-signal-scanner-bot"
           git config user.email "actions@users.noreply.github.com"
@@ -53,7 +58,8 @@ jobs:
           while [ "$(date +%s)" -le "$end_epoch" ]; do
             loop_start=$(date +%s)
             git pull --rebase --autostash origin main >/dev/null 2>&1 || { git rebase --abort 2>/dev/null; echo "pull失敗,沿用目前版本"; }
-            timeout 200 python intraday.py || echo "這一輪抓取失敗或逾時,5分鐘後再試"
+            # repo 是公開的,執行記錄大家看得到:輸出先遮掉身分證字號格式的字串
+            timeout 200 python intraday.py 2>&1 | sed -E 's/[A-Z][12][0-9]{8}/[已遮蔽]/g' || echo "這一輪抓取失敗或逾時,5分鐘後再試"
             git add -A data/
             if ! git diff --quiet --cached; then
               git commit -m "盤中報價更新 $(TZ=Asia/Taipei date +'%Y-%m-%d %H:%M')"
