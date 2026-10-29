@@ -90,6 +90,12 @@ def _to_row(s, k):
     vol = getattr(s, "total_volume", None)
     if not code or not _num(last) or last <= 0 or not _num(vol) or vol <= 0:
         return None   # 今天還沒成交(開盤前、整天沒量),讓鉅亨補,避免拿到 0 或舊價
+    amt = getattr(s, "total_amount", None)
+    if _num(amt) and amt > 0:
+        # 興櫃等以「股」為單位的商品:金額 ÷ (量×1000×價) 會接近 0.001,把量換回「張」
+        r = amt / (vol * 1000 * last)
+        if 0.0005 < r < 0.002:
+            vol = max(1, round(vol / 1000))
     ref = getattr(k, "reference", None)
     chg_api = getattr(s, "change_price", None)
     if _num(ref) and ref > 0:
@@ -101,7 +107,6 @@ def _to_row(s, k):
     change = round(last - prev, 4) if prev else None
     pct = round(change / prev * 100, 2) if prev else None
     up, dn = getattr(k, "limit_up", None), getattr(k, "limit_down", None)
-    amt = getattr(s, "total_amount", None)
     return {
         "0": f"TWS:{code}:STOCK",
         "200010": code,
