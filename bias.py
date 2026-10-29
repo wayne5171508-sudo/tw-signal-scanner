@@ -37,6 +37,25 @@ def _sgn(x):
     return (x > 0) - (x < 0)
 
 
+def vwap_series(bars):
+    """5 分K 逐根累積均價線(典型價 × 量);第一根常常沒有量,沒有量的根用前一個值。
+    回測 daytrade_lab.py 和盤中 intraday.py(永豐 1 分K 組的 5 分K)共用,兩邊算法一致。"""
+    out, pv, vv = [], 0.0, 0.0
+    for b in bars:
+        vv += b["v"]
+        pv += (b["h"] + b["l"] + b["c"]) / 3 * b["v"]
+        out.append(pv / vv if vv else (b["h"] + b["l"] + b["c"]) / 3)
+    return out
+
+
+def orb_range(bars):
+    """開盤區間 = 09:15 以前各根 5 分K 的最高/最低;不到 2 根回傳 None。"""
+    orb = [b for b in bars if b["t"] < f"09:{ORB_END:02d}"]
+    if len(orb) < 2:
+        return None
+    return max(b["h"] for b in orb), min(b["l"] for b in orb)
+
+
 def components(f):
     """f: last, prev_close, vwap, vwap_prev, orb_hi, orb_lo, pace, day_hi, day_lo, mkt_pct, mkt_last, mkt_open, grp_pct。
     缺資料的項目給 0(不加分也不扣分)。"""
@@ -98,7 +117,7 @@ def reasons(parts, side):
 def rule_hits(f, armed):
     """這一根(回測)或這一輪(盤中)成立的分數類規則。回測 daytrade_lab.py 和盤中 intraday.py 共用這一份條件,
     避免兩邊寫法不一致。
-    f 另外可以有 bar_hi / bar_lo(這一根的高低;盤中沒有分K,用前後兩次快照價格的高低代替)。
+    f 另外可以有 bar_hi / bar_lo(這一根的高低;盤中有永豐 1 分K 時用真實 5 分K,沒有才用前後兩次快照價格代替)。
     armed={"long":bool,"short":bool}:「之前」某根分數曾 >= THRESHOLD / <= -THRESHOLD,拉回規則要先成立這個。
     回傳 (成立的規則 set, 更新後的 armed)。"""
     hits = set()

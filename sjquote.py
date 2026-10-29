@@ -17,8 +17,12 @@ import atexit
 import os
 import time
 import warnings
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 SNAP_BATCH = 500          # 永豐一次快照最多 500 檔
+KBAR_GAP = 0.12           # 每檔 1 分K 查詢之間停多久(永豐資料查詢有頻率上限,約每 5 秒 50 次)
+TAIPEI = ZoneInfo("Asia/Taipei")
 _api = None
 _tried = False
 STATS = {"login": None, "rows": 0, "asked": 0, "seconds": 0.0}
@@ -168,10 +172,89 @@ def stock_rows(codes):
     return out
 
 
+def _wall_minute(ts_ns):
+    """1 分K 時間戳(奈秒)→ (台北日期, 台北時間從 00:00 起第幾分鐘)。
+    永豐的時間戳是「台北時間當成 UTC」寫的;台股盤中 09:00-13:30 換成真正的 UTC 是 01:00-05:30,
+    兩段不重疊,所以直接看 UTC 時鐘落在哪一段就知道是哪一種寫法,將來官方改了也不會錯。"""
+    try:
+        t = float(ts_ns) / 1e9
+    except (TypeError, ValueError):
+        return None
+    if not _num(t) or t <= 0:
+        return None
+    u = datetime.fromtimestamp(t, timezone.utc)
+    if not 9 * 60 <= u.hour * 60 + u.minute <= 13 * 60 + 35:
+        u = datetime.fromtimestamp(t, TAIPEI)
+    return u.strftime("%Y-%m-%d"), u.hour * 60 + u.minute
+
+
+def kbars_1m(codes, day, budget=40.0):
+    """今天(day="YYYY-MM-DD")的 1 分K:{代號: [[第幾分鐘, 開, 高, 低, 收, 量], ...]}。
+    一檔一次查詢;超過 budget 秒就停,剩下的下一輪再抓。抓不到的不放。"""
+    api = _login()
+    if api is None or not codes:
+        return {}
+    t0, out = time.time(), {}
+    for code in codes:
+        if time.time() - t0 > budget:
+            _log(f"1 分K 超過 {budget:.0f} 秒預算,抓了 {len(out)}/{len(codes)} 檔,其餘下一輪")
+            break
+        k = _contract(api, code)
+        if k is None:
+            continue
+        try:
+            kb = api.kbars(contract=k, start=day, end=day)
+        except Exception as e:  # noqa: BLE001  單檔失敗不影響其他檔
+            _log(f"{code} 1 分K 失敗: {type(e).__name__}: {str(e)[:100]}")
+            time.sleep(KBAR_GAP)
+            continue
+        rows = []
+        for ts, o, h, l, c, v in zip(*(getattr(kb, f, None) or [] for f in ("ts", "Open", "High", "Low", "Close", "Volume"))):
+            wm = _wall_minute(ts)
+            if wm and wm[0] == day and all(_num(x) for x in (o, h, l, c, v)) and c > 0:
+                rows.append([wm[1], float(o), float(h), float(l), float(c), float(v)])
+        if rows:
+            out[code] = sorted(rows)
+        time.sleep(KBAR_GAP)
+    STATS["kbars"] = STATS.get("kbars", 0) + len(out)
+    STATS["seconds"] += round(time.time() - t0, 1)
+    return out
+
+
+def guess_end_label(rows_by_code):
+    """1 分K 的時間是「這一分鐘結束」(09:01 = 09:00~09:01)還是「開始」(09:00 = 09:00~09:01)?
+    任何一檔有 09:00 那一根就是「開始」寫法;都沒有就是「結束」寫法(大型股開盤第一分鐘一定有成交)。"""
+    return not any(r[0] == 9 * 60 for rows in rows_by_code.values() for r in rows)
+
+
+def to_5m(rows, end_label=True):
+    """1 分K 組成 5 分K,格式和回測(daytrade_lab.py 的 Yahoo 5 分K)一樣:
+    [{"t": "09:00"(這一根開始時間), "o", "h", "l", "c", "v"}, ...]。13:30 收盤集合競價併進 13:25 那根。"""
+    out = {}
+    for m, o, h, l, c, v in rows:
+        start = min(m - (1 if end_label else 0), 13 * 60 + 29)
+        if start < 9 * 60:
+            continue
+        b5 = start // 5 * 5
+        b = out.get(b5)
+        if b is None:
+            out[b5] = {"t": f"{b5 // 60:02d}:{b5 % 60:02d}", "o": o, "h": h, "l": l, "c": c, "v": v}
+        else:
+            b["h"], b["l"], b["c"], b["v"] = max(b["h"], h), min(b["l"], l), c, b["v"] + v
+    return [out[k] for k in sorted(out)]
+
+
 if __name__ == "__main__":
     # 手動測試:python sjquote.py 2330 2317
     import sys
     rows = stock_rows(sys.argv[1:] or ["2330", "2317", "0050"])
     for c, r in rows.items():
         print(c, r["200009"], r["6"], r["56"], r["200013"], r["200067"], r["200007"])
+    today = datetime.now(TAIPEI).strftime("%Y-%m-%d")
+    k1 = kbars_1m(list(rows)[:2], today)
+    end_label = guess_end_label(k1)
+    for c, r1 in k1.items():
+        b5 = to_5m(r1, end_label)
+        print(c, "1分K", len(r1), "根,第一根", r1[0], "最後", r1[-1], "| 時間寫法:", "結束" if end_label else "開始",
+              "| 5分K", len(b5), "根,第一根", b5[0] if b5 else None, "| 1分K量合計", sum(x[5] for x in r1), "快照總量", rows[c]["200013"])
     print(STATS)

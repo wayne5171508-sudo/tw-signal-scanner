@@ -678,3 +678,98 @@ def test_overnight_stats_groups_by_wind():
     assert st["by"]["順風"]["f_in"] == {"n": 1, "win": 1, "avg": 1.2}
     assert st["by"]["順風"]["f_out"]["win"] == 0
     assert st["by"]["中性"]["days"] == 0
+
+
+# ---------- 永豐 1 分K → 5 分K(盤中和回測同一套資料) ----------
+
+import sjquote  # noqa: E402
+
+
+def test_sj_wall_minute_handles_both_timestamp_styles():
+    real = dt.datetime(2026, 10, 29, 9, 1, tzinfo=TPE).timestamp()
+    fake_utc = dt.datetime(2026, 10, 29, 9, 1, tzinfo=dt.timezone.utc).timestamp()   # 永豐:台北時間當成 UTC
+    assert sjquote._wall_minute(real * 1e9) == ("2026-10-29", 541)
+    assert sjquote._wall_minute(fake_utc * 1e9) == ("2026-10-29", 541)
+    assert sjquote._wall_minute(None) is None
+
+
+def test_sj_to_5m_end_and_start_labels():
+    rows = [[541, 10, 11, 9.5, 10.5, 3], [545, 10.5, 12, 10, 11, 2], [546, 11, 11.2, 10.8, 11.1, 4], [810, 11, 11, 11, 11, 9]]
+    assert sjquote.guess_end_label({"A": rows})
+    b = sjquote.to_5m(rows, True)
+    assert [x["t"] for x in b] == ["09:00", "09:05", "13:25"]     # 09:05 那分鐘(09:04~09:05)還屬於 09:00 那根;13:30 收盤併進 13:25
+    assert b[0] == {"t": "09:00", "o": 10, "h": 12, "l": 9.5, "c": 11, "v": 5}
+    assert not sjquote.guess_end_label({"A": [[540, 1, 1, 1, 1, 1]]})
+    assert [x["t"] for x in sjquote.to_5m([[540, 1, 1, 1, 1, 1], [545, 1, 1, 1, 1, 1]], False)] == ["09:00", "09:05"]
+
+
+def test_load_k5_only_completed_bars_and_refetch_on_new_bar(tmp_path, monkeypatch):
+    monkeypatch.setattr(intraday, "K1M_CACHE_FILE", str(tmp_path / "k1m.json"))
+    calls = []
+
+    def fake(codes, day, budget=40):
+        calls.append(list(codes))
+        return {c: [[m, 100, 101, 99, 100, 10] for m in range(541, 541 + 22)] for c in codes}   # 09:01~09:22 的 1 分K
+
+    monkeypatch.setattr(intraday.sjquote, "kbars_1m", fake)
+    t = dt.datetime(2026, 10, 29, 9, 20, 40, tzinfo=TPE)
+    out = intraday.load_k5(t, ["A"])
+    bars, nxt, ksum = out["A"]
+    assert [b["t"] for b in bars] == ["09:00", "09:05", "09:10", "09:15"] and nxt == 100 and ksum == 220
+    intraday.load_k5(t + dt.timedelta(minutes=2), ["A"])            # 09:22:40 還沒有新的收完的根 → 用暫存
+    assert len(calls) == 1
+    intraday.load_k5(t + dt.timedelta(minutes=5), ["A"])            # 09:25:40 → 09:20 那根收完,重抓
+    assert len(calls) == 2
+    assert intraday.load_k5(dt.datetime(2026, 10, 29, 9, 4, tzinfo=TPE), ["A"]) == {}   # 第一根還沒收完
+
+
+def _k5_case(tmp_path, monkeypatch):
+    for k in ("HISTORY_FILE", "DAYTRADE_FILE", "CURVE_FILE"):
+        monkeypatch.setattr(intraday, k, str(tmp_path / f"{k}.json"))
+    (tmp_path / "DAYTRADE_FILE.json").write_text(json.dumps({"rules": {}}))
+    (tmp_path / "HISTORY_FILE.json").write_text(json.dumps({"date": "2026-01-05", "points": []}))
+    px = [100, 100.2, 100.1] + [100.3] * 3 + [102.0] + [102.5] * 8 + [101.4, 101.0, 101.3] + [101.9] * 6 + [99.0] * 6 + [98.0] * 20
+    return [dict(b, v=300) for b in _5m_day(px)]
+
+
+def _q(last, vol):
+    return {"code": "2455", "name": "全新", "last": last, "prev_close": 100, "pct": last - 100, "open": 100, "high": 103,
+            "low": 97, "volume": vol, "pace": None, "upper_limit": 110, "lower_limit": 90}
+
+
+def test_compute_bias_k5_matches_backtest_triggers(tmp_path, monkeypatch):
+    bars = _k5_case(tmp_path, monkeypatch)
+    prev = [f"2025-12-{d}" for d in range(22, 28)]                # 前 6 天每根 100 張,今天 300 張 → 兩邊量能倍數都是 3
+    ctx = daytrade_lab.score_context({"2455": {**{d: _5m_day([100] * 54) for d in prev}, "2026-01-05": bars}},
+                                     {"2455": {"2025-12-21": 100, **{d: 100 for d in prev}}}, {})
+    curves = {d: {"2455": [min(1.0, g / 270) for g in intraday.CURVE_GRID]} for d in prev}
+    (tmp_path / "CURVE_FILE.json").write_text(json.dumps({"days": curves}))
+    official = {"bars": {"2455": [{"d": d, "v": 5400} for d in prev]}}
+    ser = daytrade_lab.score_series("2455", "2026-01-05", bars, 100, ctx)
+    want = {}
+    for rk in bias.RULE_SIDE:
+        i = daytrade_lab.entry_index(rk, bars, 100, False, ser)
+        if i is not None:
+            want[rk] = (bars[i - 1]["t"], bars[i]["o"])
+    assert want, "測試資料至少要觸發一條規則"
+    # 盤中分兩次跑(中間斷一次),結果要和回測一次跑完一樣
+    t1 = dt.datetime(2026, 1, 5, 10, 30, 40, tzinfo=TPE)
+    n1 = next(i for i, b in enumerate(bars) if b["t"] == "10:25") + 1
+    intraday.compute_bias(t1, [], [_q(bars[n1 - 1]["c"], 300 * n1)], official, {"2455": (bars[:n1], bars[n1]["o"], 300 * n1)})
+    t2 = dt.datetime(2026, 1, 5, 13, 0, 40, tzinfo=TPE)
+    b = intraday.compute_bias(t2, [], [_q(bars[-1]["c"], 300 * len(bars))], official, {"2455": (bars, None, 300 * len(bars))})
+    st = json.loads((tmp_path / "HISTORY_FILE.json").read_text())["bias_state"]["2455"]
+    got = {rk: (tg["t"], tg["price"]) for rk, tg in st["trig"].items()}
+    assert got == want
+    it = b["items"][0]
+    assert it["trig_src"] == "k5" and b["bar_src"]["k5"] == 1
+    hh, mm = map(int, st["trig"][it["rule"]]["t"].split(":"))
+    assert it["trig_t"] == f"{hh + (mm + 5) // 60:02d}:{(mm + 5) % 60:02d}"    # 畫面顯示那根收盤的時間
+
+
+def test_compute_bias_k5_orb_replaces_snapshot_orb(tmp_path, monkeypatch):
+    bars = _k5_case(tmp_path, monkeypatch)
+    t = dt.datetime(2026, 1, 5, 9, 40, 40, tzinfo=TPE)
+    intraday.compute_bias(t, [], [_q(102.5, 2400)], None, {"2455": (bars[:8], None, 2400)})
+    h = json.loads((tmp_path / "HISTORY_FILE.json").read_text())
+    assert h["orb"]["2455"] == [pytest.approx(100.2 * 1.001), pytest.approx(100 * 0.999)] and h["orb_src"] == "k5"

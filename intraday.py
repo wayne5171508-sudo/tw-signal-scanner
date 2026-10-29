@@ -1115,6 +1115,53 @@ BIAS_PACE_DAYS, BIAS_PACE_MIN_DAYS = 20, 5   # 和 daytrade_lab.PACE_DAYS / PACE
 BIAS_VWAP_LAG = 14         # 均價線方向:跟大約 15 分鐘前比
 DAYTRADE_FILE = os.path.join(DATA_DIR, "daytrade.json")
 BIAS_LOG_FILE = os.path.join(DATA_DIR, "bias_log.json")   # 每天盤中觸發紀錄,永久保存,收盤後由 daytrade_lab.py 算實際成績
+K1M_CACHE_FILE = os.path.join(DATA_DIR, "k1m_today.json")  # 永豐今天的 1 分K 暫存(只放在盤中迴圈那台機器上,不進 repo)
+K5_BUDGET_SECONDS = 40     # 每一輪抓 1 分K 最多花幾秒,沒抓完的下一輪繼續
+K5_SETTLE_SEC = 30         # 一根 5 分K 結束後等幾秒才算收完(最後一分鐘的 1 分K 要一點時間才查得到)
+SCORE_FROM_T, SCORE_TO_T = "09:15", "12:30"   # 和 daytrade_lab.SCORE_FROM / SCORE_TO 一致:只在這段的 5 分K 找進場點
+
+
+def _hm(m):
+    return f"{int(m) // 60:02d}:{int(m) % 60:02d}"
+
+
+def load_k5(run_time, codes):
+    """永豐今天的 1 分K 組成 5 分K:{代號: (已收完的 5 分K list, 下一根(還在走)的開盤價或 None, 全部 1 分K 量合計)}。
+    只有出現新的「收完的 5 分K」時才重抓(其他輪沿用暫存),沒有永豐、還沒有收完的根就回傳 {}。"""
+    if sjquote is None or not codes:
+        return {}
+    today = run_time.strftime("%Y-%m-%d")
+    sec = (run_time - _day_start(run_time)).total_seconds()
+    done_end = int((sec - K5_SETTLE_SEC) // 300) * 5     # 已收完的最後一根結束在開盤後第幾分鐘
+    if done_end <= 0:
+        return {}
+    done_end = min(done_end, 270)
+    cache = load_json_safe(K1M_CACHE_FILE, {}) or {}
+    if cache.get("date") != today:
+        cache = {"date": today, "rows": {}, "upto": {}}
+    need = [c for c in codes if cache["upto"].get(c, -1) < done_end]
+    if need:
+        try:
+            got = sjquote.kbars_1m(need, today, budget=K5_BUDGET_SECONDS)
+        except Exception as e:  # noqa: BLE001  1 分K 是加分資料,失敗就退回快照算法
+            print(f"[警告] 永豐 1 分K 失敗,多空判斷改用快照: {type(e).__name__}: {str(e)[:120]}")
+            got = {}
+        for c, rows in got.items():
+            cache["rows"][c], cache["upto"][c] = rows, done_end
+        if got:
+            write_json_atomic(K1M_CACHE_FILE, cache, separators=(",", ":"))
+    end_label = sjquote.guess_end_label(cache["rows"])
+    out = {}
+    for c in codes:
+        rows, upto = cache["rows"].get(c), cache["upto"].get(c)
+        if not rows or upto is None:
+            continue
+        bars = sjquote.to_5m(rows, end_label)
+        cut = _hm(9 * 60 + upto - 5)                       # 最後一根收完的開始時間
+        done = [b for b in bars if b["t"] <= cut]
+        nxt = next((b["o"] for b in bars if b["t"] > cut), None)
+        out[c] = (done, nxt, sum(r[5] for r in rows))
+    return out
 
 
 def _vwap_of(amt, vol):
@@ -1191,12 +1238,75 @@ def log_bias_day(hist):
     return True
 
 
-def compute_bias(run_time, indices_out, watchlist_out, official=None):
+def _idx_near(pts, ts):
+    """歷史點裡離 ts(epoch 秒)最近的那一輪加權指數;前後 3 分鐘內都沒有就回傳 None。"""
+    best = None
+    for p in pts:
+        v = (p.get("idx") or {}).get("TWS:TSE01:INDEX")
+        try:
+            gap = abs(datetime.fromisoformat(p["t"]).timestamp() - ts)
+        except (ValueError, KeyError, TypeError):
+            continue
+        if _num_ok(v) and gap <= 180 and (best is None or gap < best[0]):
+            best = (gap, v)
+    return best[1] if best else None
+
+
+def _bias_bars(run_time, q, k, st, ctx):
+    """用已收完的 5 分K 逐根判斷規則,條件、時間窗、進場價都和回測 daytrade_lab.score_series / evaluate_live 一樣:
+    只看 09:15~12:30 開始的根、這根收盤判斷、下一根開盤進場。已經判斷過的根不重算(st["k5_t"] 記到哪一根)。"""
+    bars, nxt, ksum = k
+    code, pc = q["code"], q["prev_close"]
+    vws = bias.vwap_series(bars)
+    orb_hi, orb_lo = bias.orb_range(bars)
+    vol = q.get("volume")
+    unit = 10 ** round(math.log10(vol / ksum)) if _num_ok(vol) and vol > 0 and ksum > 0 else 1   # 1 分K 量的單位(張/股)換成和快照一樣
+    if "k5_t" not in st:
+        st["armed"] = {}          # 這一檔今天第一次用 5 分K(或從快照算法切過來):從第一根重算 armed
+    day0 = _day_start(run_time)
+    cum, hi, lo = 0.0, None, None
+    for i, b in enumerate(bars):
+        cum += b["v"] * unit
+        hi = b["h"] if hi is None else max(hi, b["h"])
+        lo = b["l"] if lo is None else min(lo, b["l"])
+        if b["t"] <= st.get("k5_t", ""):
+            continue
+        st["k5_t"] = b["t"]
+        if not SCORE_FROM_T <= b["t"] <= SCORE_TO_T:
+            continue
+        end_m = int(b["t"][:2]) * 60 + int(b["t"][3:]) + 5 - 9 * 60   # 這根收盤是開盤後第幾分鐘
+        mkt = _idx_near(ctx["pts"], (day0 + timedelta(minutes=end_m)).timestamp())
+        tpc = ctx["tse"].get("prev_close")
+        others = [cl[b["t"]] / ctx["pc"][c] * 100 - 100 for c, cl in ctx["kclose"].items()
+                  if c != code and GROUP_OF.get(c) and GROUP_OF.get(c) == GROUP_OF.get(code) and b["t"] in cl and ctx["pc"].get(c)]
+        f = {"last": b["c"], "prev_close": pc, "vwap": vws[i], "vwap_prev": vws[i - 3] if i >= 3 else None,
+             "orb_hi": orb_hi, "orb_lo": orb_lo,
+             "pace": same_time_pace(code, end_m, ctx["today"], cum, ctx["curves"], ctx["off_bars"]),
+             "day_hi": hi, "day_lo": lo,
+             "mkt_pct": (mkt / tpc - 1) * 100 if _num_ok(mkt, tpc) and tpc else None, "mkt_last": mkt, "mkt_open": ctx["tse_open"],
+             "grp_pct": sum(others) / len(others) if others else None,
+             "up_lim": q.get("upper_limit"), "lo_lim": q.get("lower_limit"), "bar_hi": b["h"], "bar_lo": b["l"]}
+        hits, st["armed"] = bias.rule_hits(f, st.get("armed") or {})
+        if not hits:
+            continue
+        sc = bias.score(f)["score"]
+        entry = bars[i + 1]["o"] if i + 1 < len(bars) else (nxt or b["c"])   # 回測:下一根開盤價進場
+        for rk in hits:
+            if rk not in st["trig"]:
+                # t 存這根的開始時間:收盤後 evaluate_live 用「t 之後的下一根」進場,跟回測同一根
+                st["trig"][rk] = {"t": b["t"], "m": end_m, "price": entry, "score": sc, "src": "k5", "close_t": _hm(9 * 60 + end_m)}
+    return orb_hi, orb_lo
+
+
+def compute_bias(run_time, indices_out, watchlist_out, official=None, k5=None):
     """每檔自選股(不含ETF)的多空分數與規則觸發,給網頁「多空判斷」區塊。要在 update_history 之後呼叫。
     規則條件和回測共用 bias.rule_hits();每條規則每天只記「第一次觸發」的時間和價格(存在 intraday_history.json
-    的 bias_state),停損停利用觸發價算,觸發超過 BIAS_FRESH_MIN 分鐘就標成「不追」,和回測的進場時機一致。"""
+    的 bias_state),停損停利用觸發價算,觸發超過 BIAS_FRESH_MIN 分鐘就標成「不追」,和回測的進場時機一致。
+    k5 = load_k5() 的結果:有永豐 5 分K 的股票,規則觸發改用真實 5 分K 逐根判斷(和回測同一套資料);
+    沒有的才用每輪快照近似。畫面上的「目前分數」一律用最新快照。"""
     if bias is None:
         return None
+    k5 = {c: v for c, v in (k5 or {}).items() if v and v[0] and bias.orb_range(v[0])}
     today = run_time.strftime("%Y-%m-%d")
     m = (run_time - _day_start(run_time)).total_seconds() / 60
     active = BIAS_FROM <= m <= BIAS_TO
@@ -1226,7 +1336,10 @@ def compute_bias(run_time, indices_out, watchlist_out, official=None):
     off_bars = (official or {}).get("bars") or {}
     rules = bias_rules()
     hist.setdefault("bias_rules", {k: {x: v[x] for x in ("holds", "stop", "target")} for k, v in rules.items()})   # 當天用的參數,算實際成績時用
-    items, pace_src = [], {"same_time": 0, "fallback": 0}
+    items, pace_src, bar_src = [], {"same_time": 0, "fallback": 0}, {"k5": 0, "snap": 0}
+    ctx = {"pts": pts, "tse": tse, "tse_open": tse_open, "today": today, "curves": curves, "off_bars": off_bars,
+           "pc": {q["code"]: q.get("prev_close") for q in watchlist_out if _num_ok(q.get("prev_close"))},
+           "kclose": {c: {b["t"]: b["c"] for b in v[0]} for c, v in k5.items()}}
     for q in watchlist_out:
         code = q["code"]
         if code.startswith("00") or not _num_ok(q.get("last"), q.get("prev_close")):
@@ -1242,6 +1355,10 @@ def compute_bias(run_time, indices_out, watchlist_out, official=None):
         pace_src["same_time" if pace is not None else "fallback"] += 1
         if pace is None:
             pace = q.get("pace")
+        st = state.setdefault(code, {"armed": {}, "trig": {}})
+        if code in k5:
+            orb[code] = list(_bias_bars(run_time, q, k5[code], st, ctx))   # 開盤區間也換成 09:00-09:15 真實 5 分K 的高低
+            bar_src["k5"] += 1
         o = orb.get(code) or [None, None]
         prev_last = ((last_pt or {}).get("wl") or {}).get(code)
         band = [x for x in (prev_last, q["last"]) if _num_ok(x)]
@@ -1250,11 +1367,11 @@ def compute_bias(run_time, indices_out, watchlist_out, official=None):
              "mkt_pct": tse.get("pct"), "mkt_last": tse.get("last"), "mkt_open": tse_open,
              "grp_pct": sum(others) / len(others) if others else None,
              "up_lim": q.get("upper_limit"), "lo_lim": q.get("lower_limit"),
-             # 盤中沒有 5 分K,用上一輪到這一輪的價格高低代替「這一根」的高低(拉回均價線規則用)
+             # 沒有 5 分K 時,用上一輪到這一輪的價格高低代替「這一根」的高低(拉回均價線規則用)
              "bar_hi": max(band), "bar_lo": min(band)}
         r = bias.score(f)
-        st = state.setdefault(code, {"armed": {}, "trig": {}})
-        if active:
+        if active and code not in k5:
+            bar_src["snap"] += 1
             hits, st["armed"] = bias.rule_hits(f, st.get("armed") or {})
             for rk in hits:
                 if rk not in st["trig"]:
@@ -1266,7 +1383,8 @@ def compute_bias(run_time, indices_out, watchlist_out, official=None):
             age = round(m - tg["m"], 1)
             stop_pct, tgt_pct = rule.get("stop"), rule.get("target")
             items.append({"code": code, "name": q["name"], "rule": rk, "rule_name": rule.get("name") or rk, "side": side,
-                          "holds": rule.get("holds", False), "trig_t": tg["t"], "trig_price": tg["price"], "trig_score": tg["score"],
+                          "holds": rule.get("holds", False), "trig_t": tg.get("close_t") or tg["t"], "trig_price": tg["price"],
+                          "trig_score": tg["score"], "trig_src": tg.get("src", "snap"),
                           "age_min": age, "fresh": active and age <= BIAS_FRESH_MIN,
                           "score": r["score"], "parts": r["parts"], "reasons": bias.reasons(r["parts"], side),
                           "last": q["last"], "pct": q.get("pct"), "vwap": round(vw, 2) if vw else None,
@@ -1275,12 +1393,17 @@ def compute_bias(run_time, indices_out, watchlist_out, official=None):
                           "target": round(tg["price"] * (1 + sg * tgt_pct / 100), 2) if tgt_pct else None,
                           "stop_pct": stop_pct, "target_pct": tgt_pct})
     hist["bias_state"] = state
+    if k5:
+        hist["orb"], hist["orb_src"] = orb, "k5"
+        hist.setdefault("orb_t", "09:15")
     if hist.get("date") == today:
         write_json_atomic(HISTORY_FILE, hist)
     items.sort(key=lambda x: (not x["fresh"], x["age_min"], -abs(x["score"])))   # 剛觸發在前,越新越前面
+    last_bar = max((v[0][-1]["t"] for v in k5.values()), default=None)
     return {"as_of": run_time.strftime("%H:%M"), "active": active, "orb_t": hist.get("orb_t"), "fresh_min": BIAS_FRESH_MIN,
             "threshold": bias.THRESHOLD, "strong": bias.STRONG, "weights": bias.WEIGHTS, "rules": rules, "items": items,
-            "n_holds": sum(1 for r in rules.values() if r["holds"]), "pace_src": pace_src}
+            "n_holds": sum(1 for r in rules.values() if r["holds"]), "pace_src": pace_src,
+            "bar_src": bar_src, "k5_last": last_bar}
 
 
 def update_history(run_time, indices_out, watchlist_out, opening_state=None):
@@ -2243,7 +2366,7 @@ def main():
         "market_signal_stats": None,
         "groups": GROUP_OF,
         "data_as_of": data_as_of,
-        "check_frequency_note": "開盤期間每約5分鐘由GitHub Actions排程抓一次,非逐秒即時報價",
+        "check_frequency_note": "開盤期間每約2分鐘由GitHub Actions抓一次(永豐為主、鉅亨備援),非逐秒即時報價",
         "official_bars_status": (official or {}).get("status"),
         "touch_summary": touch_summary if touch_summary and touch_summary.get("stocks") else None,
         "market_regime": (touch_summary or {}).get("regime_today"),
@@ -2271,7 +2394,8 @@ def main():
     except Exception as e:  # noqa: BLE001  隔夜風向驗證是加分功能
         print(f"[警告] 隔夜風向驗證記錄失敗: {e}")
     try:
-        result["bias"] = compute_bias(run_time, indices_out, watchlist_out, official)
+        k5 = load_k5(run_time, [c for c in WATCHLIST_NAMES if not c.startswith("00")])   # 永豐 1 分K → 真實 5 分K(和回測同一套)
+        result["bias"] = compute_bias(run_time, indices_out, watchlist_out, official, k5)
     except Exception as e:  # noqa: BLE001  多空判斷是加分功能,不能影響報價
         print(f"[警告] 多空判斷失敗: {e}")
     result["amount_unit"] = amount_unit

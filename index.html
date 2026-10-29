@@ -492,7 +492,7 @@
 </div>
 
 <div class="note" style="margin-top:20px">
-  資料來源:大盤與自選股報價每約5分鐘由 GitHub Actions 直接向交易所/報價商 API 抓取一次,非逐秒即時;
+  資料來源:大盤與自選股報價每約2分鐘由 GitHub Actions 向永豐 API 抓取一次(抓不到時改用鉅亨),非逐秒即時;
   支撐壓力與觀察重點都是用前一交易日及今日高低價機械式算出的參考位置,不是買賣建議;
   籌碼訊號為每日收盤後計算一次。程式碼見
   <a href="https://github.com/wayne5171508-sudo/tw-signal-scanner" target="_blank">tw-signal-scanner</a>。
@@ -2064,7 +2064,7 @@ function renderBias(intraday){
     `<div class="onote" style="margin:0 0 4px"><span class="bst active">回測站得住 ${nHolds} 條</span> 只列這些規則的觸發。觸發 ${b.fresh_min} 分鐘內算「剛觸發」;回測是觸發後下一根(5 分鐘)進場,停損停利都以觸發價計。</div>` +
     (fresh.length ? `<div class="rvsub" style="font-size:12px;color:var(--muted);margin:6px 0 0">剛觸發</div>${fresh.map(row).join('')}` : `<div class="fempty">目前沒有 ${b.fresh_min} 分鐘內的新觸發</div>`) +
     (stale.length ? `<details style="margin-top:6px"><summary style="cursor:pointer;color:var(--muted);font-size:12px">已觸發,不追(${stale.length})・右邊是從觸發價算的部位損益(做空時價格下跌為正)</summary><div class="rvbox">${stale.map(staleRow).join('')}</div></details>` : '') +
-    `<details class="howto"><summary>分數怎麼算</summary><div class="onote">每檔每一輪算 -100 ~ +100 分:大盤 ${(b.weights || {}).mkt}、均價線 ${(b.weights || {}).vwap}、開盤區間 ${(b.weights || {}).orb}、量能 ${(b.weights || {}).vol}、當日位置 ${(b.weights || {}).pos}、族群 ${(b.weights || {}).grp}。規則條件和回測共用同一份程式(bias.py),每條規則每天只記第一次觸發。量能倍數和回測一樣用「前 20 天同一時間的累積量」(資料累積到 5 天前先用全天均量估計${b.pace_src ? ',這一輪 ' + b.pace_src.same_time + ' 檔用同時間算法' : ''})。均價線在報價沒有成交金額時用 5 分鐘快照估算。這是機械式規則,不是預測,不構成買賣建議。</div></details>`;
+    `<details class="howto"><summary>分數怎麼算</summary><div class="onote">每檔每一輪算 -100 ~ +100 分:大盤 ${(b.weights || {}).mkt}、均價線 ${(b.weights || {}).vwap}、開盤區間 ${(b.weights || {}).orb}、量能 ${(b.weights || {}).vol}、當日位置 ${(b.weights || {}).pos}、族群 ${(b.weights || {}).grp}。規則條件和回測共用同一份程式(bias.py),每條規則每天只記第一次觸發。量能倍數和回測一樣用「前 20 天同一時間的累積量」(資料累積到 5 天前先用全天均量估計${b.pace_src ? ',這一輪 ' + b.pace_src.same_time + ' 檔用同時間算法' : ''})。${b.bar_src && b.bar_src.k5 ? '規則觸發用永豐 1 分K 組成的真實 5 分K 逐根判斷(這一輪 ' + b.bar_src.k5 + ' 檔' + (b.k5_last ? ',最新收完的是 ' + b.k5_last + ' 那根' : '') + '),跟回測同一套資料:這根收盤成立、下一根開盤價進場,觸發時間是那根收盤的時間;' : ''}${b.bar_src && b.bar_src.snap ? b.bar_src.snap + ' 檔沒有 5 分K,改用每輪快照近似。' : ''}均價線在報價沒有成交金額時用快照估算。這是機械式規則,不是預測,不構成買賣建議。</div></details>`;
   el.style.display = '';
 }
 

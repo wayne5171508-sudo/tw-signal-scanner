@@ -183,10 +183,10 @@ def score_series(code, d, bars, prev_close, ctx):
     if not (ctx and prev_close):
         return []
     vw = _vwap(bars)
-    orb = [b for b in bars if b["t"] < "09:15"]
-    if len(orb) < 2:
+    orb = bias.orb_range(bars)   # 盤中 intraday.py 用同一個函式
+    if not orb:
         return []
-    orb_hi, orb_lo = max(b["h"] for b in orb), min(b["l"] for b in orb)
+    orb_hi, orb_lo = orb
     ix = ctx["idx"].get(d) or {}
     cv = (ctx["cum"].get(code) or {}).get(d) or {}
     out, hi, lo = [], None, None
@@ -483,13 +483,8 @@ def write_replay(data, closes, bear_prev, ctx, res, days):
 
 
 def _vwap(bars):
-    """逐根累積均價線;第一根常常沒有量,沒有量的根用前一個值。"""
-    out, pv, vv = [], 0.0, 0.0
-    for b in bars:
-        vv += b["v"]
-        pv += (b["h"] + b["l"] + b["c"]) / 3 * b["v"]
-        out.append(pv / vv if vv else (b["h"] + b["l"] + b["c"]) / 3)
-    return out
+    """逐根累積均價線(公式在 bias.vwap_series,盤中共用)。"""
+    return bias.vwap_series(bars)
 
 
 def entry_index(rule, bars, prev_close, bear_prev, series=None):
