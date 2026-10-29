@@ -34,6 +34,8 @@ BARS_DIR = os.path.join(DATA_DIR, "bars5m")
 BARS_DIR_TOP = os.path.join(DATA_DIR, "bars5m_top")
 TOP_FILE = os.path.join(DATA_DIR, "top_universe.json")
 STATUS_FILE = os.path.join(DATA_DIR, "backfill_status.json")
+TRIED_FILE = os.path.join(DATA_DIR, "backfill_tried.json")   # {代號: [試過但永豐沒有完整資料的日子]}:停牌、還沒上市、冷門股根數不足,不再每晚重抓
+RUN_FROM, RUN_TO = 14 * 60, 23 * 60 + 30   # 只在 14:00~23:30 跑:額度午夜重算,不能吃到隔天盤中要用的
 LAST_BAR = "13:20"          # 和 daytrade_lab.LAST_BAR 一樣:要有 13:20 那根才算完整的一天
 MIN_BARS_DAY = 45           # 和 daytrade_lab.MIN_BARS_DAY 一樣
 SOURCE = "Shioaji 1m→5m"
@@ -71,6 +73,7 @@ class Archive:
 
     def __init__(self, folder, idx):
         self.folder, self.days, self.dirty, self.idx = folder, {}, set(), idx   # idx = {日期: 永豐加權指數 5 分K}
+        self.saved, self.broken = 0, set()      # broken:讀不到的存檔(截斷的 gz),不覆蓋,留給人看
 
     def path(self, d):
         return os.path.join(self.folder, f"{d}.json.gz")
@@ -82,7 +85,9 @@ class Archive:
                 try:
                     with gzip.open(self.path(d), "rt", encoding="utf-8") as f:
                         day = json.load(f)
-                except (OSError, ValueError):
+                except (OSError, ValueError, EOFError) as e:
+                    print(f"[警告] {self.path(d)} 讀不到({type(e).__name__}),這天不寫,避免蓋掉原本的資料")
+                    self.broken.add(d)
                     day = None
             self.days[d] = day or {"date": d, "source": SOURCE, "stocks": {}, "idx": []}
         return self.days[d]
@@ -93,6 +98,8 @@ class Archive:
 
     def put(self, d, code, entry):
         day = self.get(d)
+        if d in self.broken:
+            return
         day["stocks"][code] = entry
         if self.idx.get(d):
             day["idx"] = self.idx[d]
@@ -110,6 +117,7 @@ class Archive:
                 json.dump(self.days[d], f, separators=(",", ":"))
             os.replace(tmp, self.path(d))
         n = len(self.dirty)
+        self.saved += n
         self.dirty.clear()
         return n
 
@@ -127,8 +135,13 @@ def main(argv=None):
     ap.add_argument("--days", type=int, default=380, help="往回補幾個日曆天")
     ap.add_argument("--max-seconds", type=float, default=3000)
     ap.add_argument("--min-remaining-mb", type=float, default=120)
+    ap.add_argument("--any-time", action="store_true", help="不管時間限制(手動測試用)")
     a = ap.parse_args(argv)
     t0 = time.time()
+    hm = datetime.now(TAIPEI).hour * 60 + datetime.now(TAIPEI).minute
+    if not a.any_time and not RUN_FROM <= hm <= RUN_TO:
+        print("只在 14:00~23:30 回補(資料額度午夜重算,不能用掉隔天盤中的額度),這次不跑")
+        return 0
     api = sjquote._login()
     if api is None:
         print("沒有永豐金鑰或登入失敗,不補")
@@ -150,17 +163,18 @@ def main(argv=None):
     arch = {"watch": Archive(BARS_DIR, idx5), "top": Archive(BARS_DIR_TOP, idx5)}
     print(f"期間 {trade_days[0]} ~ {trade_days[-1]},{len(trade_days)} 個交易日;自選股 {len(watch)} 檔、前 200 大 {len(top)} 檔")
 
+    tried = {c: set(v) for c, v in _load(TRIED_FILE, {}).items()}
     done, skipped, stop, n_days = 0, 0, None, 0
     for i, code in enumerate(watch + top):
         ar = arch["watch" if code in watch else "top"]
-        need = [d for d in trade_days[1:] if not ar.is_sj(d, code)]
+        need = [d for d in trade_days[1:] if not ar.is_sj(d, code) and d not in tried.get(code, ())]
         if not need:
             skipped += 1
             continue
         if time.time() - t0 > a.max_seconds:
             stop = f"超過 {a.max_seconds:.0f} 秒"
             break
-        if i % 10 == 0:
+        if True:                                       # 每檔都看額度(一檔一年約 2~3MB,每 10 檔才看會超用)
             rem, _lim = remaining_mb(api)
             if rem is not None and rem < a.min_remaining_mb:
                 stop = f"今天的永豐資料額度只剩 {rem} MB"
@@ -186,13 +200,23 @@ def main(argv=None):
                 ar.put(d, code, {"pd": prev_d, "pc": prev_c, "b": [_round_bar(b) for b in bars], "s": "sj"})
                 n_days += 1
             prev_d, prev_c = d, close
+        # 這次查過、永豐沒有完整資料的日子(停牌、還沒上市、根數不足)記下來,之後不再整段重抓
+        got = {d for d in need if ar.is_sj(d, code)}
+        miss = [d for d in need if d not in got and d < end and d not in ar.broken]
+        if miss:
+            tried.setdefault(code, set()).update(miss)
         done += 1
         time.sleep(sjquote.KBAR_GAP)
         if done % 40 == 0:
             for x in arch.values():
                 x.save()
             print(f"…{done} 檔({time.time() - t0:.0f} 秒)")
-    saved = sum(x.save() for x in arch.values())
+    for x in arch.values():
+        x.save()
+    saved = sum(x.saved for x in arch.values())
+    os.makedirs(os.path.dirname(TRIED_FILE) or ".", exist_ok=True)
+    with open(TRIED_FILE, "w", encoding="utf-8") as f:
+        json.dump({c: sorted(v) for c, v in sorted(tried.items())}, f, separators=(",", ":"))
     rem, lim = remaining_mb(api)
     status = {"as_of": now.isoformat(timespec="seconds"), "window": [trade_days[0], trade_days[-1]], "trade_days": len(trade_days),
               "codes_total": len(watch) + len(top), "codes_done_now": done, "codes_already": skipped, "stock_days_now": n_days,

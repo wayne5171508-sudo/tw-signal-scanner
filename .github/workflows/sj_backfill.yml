@@ -9,8 +9,9 @@ on:
         description: "往回補幾個日曆天"
         default: "380"
 
+# 和 bear.yml(daytrade_lab 也會寫 data/bars5m*)排同一條隊,不會同時改同一個 .json.gz(二進位檔無法合併)
 concurrency:
-  group: sj-backfill
+  group: bars5m-writers
   cancel-in-progress: false
 
 permissions:
@@ -34,12 +35,16 @@ jobs:
           SJ_SECRET_KEY: ${{ secrets.SJ_SECRET_KEY }}
         run: |
           set -o pipefail
-          python -u sj_backfill.py --days "${{ github.event.inputs.days || '380' }}" --max-seconds 4200 2>&1 | sed -E 's/[A-Z][12][0-9]{8}/[已遮蔽]/g'
+          python -u sj_backfill.py --days "${{ github.event.inputs.days || '380' }}" --max-seconds 4200 2>&1 | sed -E -e 's/[A-Z][12][0-9]{8}/[已遮蔽]/g' -e "s/(account_id|person_id|broker_id)([\\\"' :=]+)[0-9A-Za-z]+/\1\2[已遮蔽]/g"
       - name: 存回 repo
         run: |
           git config user.name "tw-signal-scanner-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add data/bars5m data/bars5m_top data/backfill_status.json
+          git add data/bars5m data/bars5m_top data/backfill_status.json data/backfill_tried.json
           git diff --quiet --cached && exit 0
           git commit -m "永豐 1 分K 回補 $(TZ=Asia/Taipei date +'%Y-%m-%d %H:%M')"
-          for i in 1 2 3; do git pull --rebase origin main && git push && break; sleep 5; done
+          for i in 1 2 3; do
+            git pull --rebase origin main && git push && exit 0
+            git rebase --abort 2>/dev/null; sleep 10
+          done
+          echo "push 失敗,這次回補的資料沒推上去(明晚會重抓)"; exit 1

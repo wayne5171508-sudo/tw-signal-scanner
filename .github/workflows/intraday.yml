@@ -10,6 +10,9 @@ on:
     - cron: "5 2 * * 1-5"    # 10:05
     - cron: "5 3 * * 1-5"    # 11:05
     - cron: "5 4 * * 1-5"    # 12:05
+    # 晚上再兩個:接力那一棒被取消或 runner 掛掉時(那條路沒有 always() 叫醒),當晚就能接回來
+    - cron: "0 13 * * 0-4"   # 21:00 台北(週日~週四)
+    - cron: "0 17 * * 0-4"   # 01:00 台北(週一~週五凌晨)
   workflow_dispatch: {}
 
 # 同一時間只留一個在跑、一個在排隊(新的排隊會取代舊的排隊),所以接力和 cron 疊在一起也只會有一條。
@@ -24,7 +27,7 @@ permissions:
 jobs:
   intraday:
     runs-on: ubuntu-latest
-    timeout-minutes: 330
+    timeout-minutes: 355     # hosted runner 上限 360;08:30 叫醒 → 13:40 收盤 → 存檔約 13:50,還有餘裕
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -45,7 +48,7 @@ jobs:
           if [ "$wait_s" -le 2400 ]; then
             echo "run=yes" >> "$GITHUB_OUTPUT"; exit 0
           fi
-          nap=$(( wait_s - 1800 )); [ "$nap" -gt 18000 ] && nap=18000   # 一棒最多睡 5 小時(job 上限 6 小時)
+          nap=$(( wait_s - 1200 )); [ "$nap" -gt 18000 ] && nap=18000   # 一棒最多睡 5 小時(job 上限 6 小時);最後一棒約 08:30 醒
           echo "先睡 ${nap} 秒,再叫醒下一棒"
           sleep "$nap"
           for k in 1 2 3 4 5; do
@@ -74,10 +77,11 @@ jobs:
           SJ_API_KEY: ${{ secrets.SJ_API_KEY }}       # 永豐金鑰(沒設也能跑,會自動改用鉅亨)
           SJ_SECRET_KEY: ${{ secrets.SJ_SECRET_KEY }}
         run: |
+          set -o pipefail      # loop.py 當掉時這一步要顯示失敗,不能被 sed 的結束碼蓋掉
           git config user.name "tw-signal-scanner-bot"
           git config user.email "actions@users.noreply.github.com"
-          # repo 是公開的,執行記錄大家看得到:輸出先遮掉身分證字號格式的字串
-          python -u loop.py 2>&1 | sed -u -E 's/[A-Z][12][0-9]{8}/[已遮蔽]/g'
+          # repo 是公開的,執行記錄大家看得到:輸出先遮掉身分證字號、帳號格式的字串
+          python -u loop.py 2>&1 | sed -u -E -e 's/[A-Z][12][0-9]{8}/[已遮蔽]/g' -e "s/(account_id|person_id|broker_id)([\\\"' :=]+)[0-9A-Za-z]+/\\1\\2[已遮蔽]/g"
       - name: 收盤後存今天的永豐 5 分K(當沖回測樣本,同一個連線額度)
         if: steps.relay.outputs.run == 'yes'
         continue-on-error: true
@@ -86,10 +90,15 @@ jobs:
           SJ_SECRET_KEY: ${{ secrets.SJ_SECRET_KEY }}
         run: |
           set -o pipefail
-          timeout 600 python -u sj_backfill.py --days 10 --max-seconds 480 2>&1 | sed -E 's/[A-Z][12][0-9]{8}/[已遮蔽]/g'
-          git add data/bars5m data/bars5m_top data/backfill_status.json
+          if [ "$(TZ=Asia/Taipei date +%H%M)" -lt 1335 ]; then echo "還沒收盤(迴圈提早結束),不補,免得浪費額度"; exit 0; fi
+          timeout -s INT 600 python -u sj_backfill.py --days 10 --max-seconds 480 2>&1 | sed -E -e 's/[A-Z][12][0-9]{8}/[已遮蔽]/g' -e "s/(account_id|person_id|broker_id)([\\\"' :=]+)[0-9A-Za-z]+/\1\2[已遮蔽]/g"
+          git add data/bars5m data/bars5m_top data/backfill_status.json data/backfill_tried.json
           git diff --quiet --cached || git commit -m "永豐 5 分K 存檔 $(TZ=Asia/Taipei date +'%Y-%m-%d')"
-          for i in 1 2 3; do git pull --rebase origin main && git push && break; sleep 5; done
+          for i in 1 2 3; do
+            git pull --rebase origin main && git push && exit 0
+            git rebase --abort 2>/dev/null; sleep 5
+          done
+          echo "push 失敗(今天的 5 分K 存檔沒推上去,今晚的回補會補)"; exit 1
       - name: 收盤後叫醒下一棒(睡到下一個開盤日)
         if: always() && steps.relay.outputs.run == 'yes'
         run: gh workflow run intraday.yml -R "$GITHUB_REPOSITORY" --ref main || echo "叫醒失敗,明天靠 cron 備援"

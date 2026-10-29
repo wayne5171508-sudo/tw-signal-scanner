@@ -13,6 +13,7 @@
 手動測試:python loop.py --once   (只跑一輪,不 commit)
 """
 
+import hashlib
 import importlib
 import json
 import os
@@ -27,7 +28,7 @@ from zoneinfo import ZoneInfo
 TAIPEI = ZoneInfo("Asia/Taipei")
 ROOT = os.path.dirname(os.path.abspath(__file__))
 START_HM, END_HM = (8, 55), (13, 40)
-WAIT_MAX_SEC = 2400        # 離開盤超過 40 分鐘就不等(intraday.yml 的接力步驟會先睡到差不多時間)
+WAIT_MAX_SEC = 3600        # 離 08:55 超過 1 小時就不等(intraday.yml 接力最早 08:10 叫醒,要等得到)
 OFFSET_SEC = 35            # 5 分K 收盤後幾秒跑(intraday.K5_SETTLE_SEC 是 30 秒,要比它晚一點)
 FAST_UNTIL = 9 * 60 + 15   # 這個時間(分鐘)之前每分鐘一輪
 ROUND_TIMEOUT = 200        # 一輪最多幾秒,超過就放棄這一輪
@@ -35,8 +36,8 @@ STAMP_FILE = os.path.join("data", "stamp.json")
 KEEP_MODULES = {"sjquote", "loop", "__main__"}
 
 
-class RoundTimeout(Exception):
-    pass
+class RoundTimeout(BaseException):
+    """繼承 BaseException:intraday.py 裡很多「加分功能」用 except Exception 包著,不能讓逾時被它們吞掉。"""
 
 
 def now():
@@ -54,8 +55,12 @@ def next_slot(t):
 
 
 def git(*args):
-    r = subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True, timeout=90)
-    return r.returncode
+    """git 子程序;逾時或執行不了都回傳 1(不能讓網路卡住讓整天的迴圈當掉)。"""
+    try:
+        return subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True, timeout=90).returncode
+    except (subprocess.TimeoutExpired, OSError) as e:
+        print(f"git {args[0]} 失敗: {type(e).__name__}")
+        return 1
 
 
 def pull():
@@ -69,10 +74,16 @@ def commit_push(t):
     if git("diff", "--quiet", "--cached") == 0:
         return
     git("commit", "-m", f"盤中報價更新 {t:%Y-%m-%d %H:%M}")
-    if git("push") != 0:
-        if git("pull", "--rebase", "origin", "main") != 0 or git("push") != 0:
-            git("rebase", "--abort")
-            print("push失敗,下一輪再推")
+    if git("push") == 0:
+        return
+    # 被拒:別的 workflow 剛推過 data/。先試 rebase(衝突時 data 以這一輪為準),再不行就丟掉這一輪的 commit
+    # 對齊遠端,下一輪重新算一次(不然同一個衝突的 commit 每輪都會卡住,整天推不上去)
+    if git("pull", "--rebase", "-X", "theirs", "origin", "main") == 0 and git("push") == 0:
+        return
+    git("rebase", "--abort")
+    git("fetch", "origin", "main")
+    git("reset", "--hard", "origin/main")
+    print("push失敗:已對齊遠端,下一輪重新產生資料")
 
 
 def fresh_intraday():
@@ -107,6 +118,20 @@ def _alarm(signum, frame):
     raise RoundTimeout()
 
 
+def _term(signum, frame):
+    """job 逾時或被取消時送 SIGTERM:轉成正常結束,atexit 才會登出永豐(不會在伺服器留下沒登出的連線)。"""
+    print("收到結束訊號,登出後結束")
+    sys.exit(0)
+
+
+def _sha(path):
+    try:
+        with open(os.path.join(ROOT, path), "rb") as f:
+            return hashlib.sha1(f.read()).hexdigest()
+    except OSError:
+        return None
+
+
 def run_round():
     t0 = time.time()
     try:
@@ -133,6 +158,8 @@ def run_round():
 def main():
     os.chdir(ROOT)
     sys.path.insert(0, ROOT)
+    signal.signal(signal.SIGTERM, _term)
+    sj_sha = _sha("sjquote.py")
     if "--once" in sys.argv:
         run_round()
         return
@@ -152,6 +179,9 @@ def main():
     while True:
         rt = now()
         pull()
+        if sj_sha and _sha("sjquote.py") != sj_sha:
+            print("[提醒] sjquote.py 有更新,但為了保住永豐連線不重新載入,明天才會生效")
+            sj_sha = _sha("sjquote.py")
         run_round()
         commit_push(rt)
         slot = next_slot(now())

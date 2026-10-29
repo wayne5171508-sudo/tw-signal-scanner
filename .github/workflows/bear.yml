@@ -14,8 +14,9 @@ on:
         default: false
 
 # 和盤中迴圈分開排隊,但都會改 data/,所以 push 前一定先 pull
+# 和 sj_backfill.yml 排同一條隊:兩邊都會寫 data/bars5m*/*.json.gz,不能同時改
 concurrency:
-  group: bear-backtest
+  group: bars5m-writers
   cancel-in-progress: false
 
 permissions:

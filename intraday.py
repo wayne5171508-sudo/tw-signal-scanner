@@ -86,7 +86,7 @@ REFRESH_BUDGET_SECONDS = 90        # 每一輪抓日K最多花幾秒,超過就�
 HISTORY_TIMEOUT = 8
 HISTORY_RETRY_GAP_FAIL = 600       # 今天還有沒抓到的股票時,隔幾秒再重試
 LIMIT_MOVE_PCT = 9.3               # 前一日漲跌幅超過這個百分比,視為漲停/跌停
-MAX_POINTS_PER_DAY = 80
+MAX_POINTS_PER_DAY = 240          # 09:15 前每分鐘、之後約 2~3 分鐘一輪,一天約 130 筆;太少會把早盤切掉(10/29 只剩 10:53 以後)
 MAX_HISTORY_DAYS = 10
 VOLUME_LOOKBACK_DAYS = 5
 CDP_TREND_POINTS = 6  # 趨勢最多顯示幾個點(含今天)
@@ -426,6 +426,34 @@ def record_focus(run_time, watchlist_out, regime=None):
         write_json_atomic(FOCUS_FILE, log, separators=(",", ":"))
 
 
+def curve_from_cum(cum_pts):
+    """[(開盤後第幾分鐘, 累積量), ...](按時間排好)→ 每個 CURVE_GRID 時點的「累積量 / 全天量」。全天量太少回傳 None。"""
+    if not cum_pts or cum_pts[-1][1] < OPEN_MIN_VOL:
+        return None
+    final = cum_pts[-1][1]
+    xs = [(0.0, 0.0)] + list(cum_pts)
+    return [round(min(1.0, _interp(xs, g) / final), 4) for g in CURVE_GRID]
+
+
+def curves_from_k1m(today):
+    """永豐今天的 1 分K 暫存(load_k5 寫的 k1m_today.json)→ {代號: 量能曲線}。1 分K 的時間是「這一分鐘結束」。"""
+    cache = load_json_safe(K1M_CACHE_FILE, {}) or {}
+    if cache.get("date") != today or sjquote is None:
+        return {}
+    end_label = sjquote.guess_end_label(cache.get("rows") or {})
+    out = {}
+    for code, rows in (cache.get("rows") or {}).items():
+        cum, pts = 0.0, []
+        for m, _o, _h, _l, _c, v in rows:
+            cum += v
+            pts.append((m - 9 * 60 + (0 if end_label else 1), cum))
+        if pts and pts[-1][0] >= 265:                 # 要有收盤前的資料才算完整的一天
+            c = curve_from_cum(pts)
+            if c:
+                out[code] = c
+    return out
+
+
 def process_end_of_day(run_time):
     """13:31 之後第一輪(歷史檔已含收盤前最後一筆):
     1) 把今天每檔的累積量曲線存進 volume_curve.json;2) 評估今天焦點名單收盤時的結果。"""
@@ -444,15 +472,15 @@ def process_end_of_day(run_time):
             pts.append((mm, p))
     if len(pts) < 20 or pts[-1][0] < 268:
         return
-    # 1) 量能曲線
+    # 1) 量能曲線:優先用永豐 1 分K(整天每分鐘都有,最準);沒有的(ETF、沒抓到的)才用每輪快照的累積量
     cur = load_json_safe(CURVE_FILE, {}) or {}
     days = cur.setdefault("days", {})
     if today not in days:
-        day = {}
+        day = curves_from_k1m(today)
         codes = set()
         for _m, p in pts:
             codes.update(p["wlv"].keys())
-        for code in codes:
+        for code in codes - set(day):
             series = [(mm, p["wlv"][code]) for mm, p in pts if _num_ok(p["wlv"].get(code))]
             if len(series) < 20:
                 continue
@@ -1241,7 +1269,7 @@ def log_bias_day(hist):
     回傳是否新寫入。"""
     d, state = (hist or {}).get("date"), (hist or {}).get("bias_state") or {}
     trig = [{"code": code, "rule": rk, "side": bias.RULE_SIDE.get(rk) if bias else None, "t": tg.get("t"), "m": tg.get("m"),
-             "price": tg.get("price"), "score": tg.get("score")}
+             "price": tg.get("price"), "score": tg.get("score"), "src": tg.get("src", "snap"), "late": bool(tg.get("late"))}
             for code, st in state.items() for rk, tg in (st.get("trig") or {}).items()]
     if not d or not trig:
         return False
@@ -1261,10 +1289,11 @@ def _idx_near(pts, ts):
     for p in pts:
         v = (p.get("idx") or {}).get("TWS:TSE01:INDEX")
         try:
-            gap = abs(datetime.fromisoformat(p["t"]).timestamp() - ts)
+            p_ts = datetime.fromisoformat(p["t"]).timestamp()
+            gap = abs(p_ts - ts)
         except (ValueError, KeyError, TypeError):
             continue
-        if _num_ok(v) and gap <= 180 and (best is None or gap < best[0]):
+        if _num_ok(v) and gap <= 180 and p_ts <= ts + 30 and (best is None or gap < best[0]):   # 不用 K 棒收盤之後的指數
             best = (gap, v)
     return best[1] if best else None
 
@@ -1311,7 +1340,9 @@ def _bias_bars(run_time, q, k, st, ctx):
         for rk in hits:
             if rk not in st["trig"]:
                 # t 存這根的開始時間:收盤後 evaluate_live 用「t 之後的下一根」進場,跟回測同一根
-                st["trig"][rk] = {"t": b["t"], "m": end_m, "price": entry, "score": sc, "src": "k5", "close_t": _hm(9 * 60 + end_m)}
+                late = (run_time - (day0 + timedelta(minutes=end_m))).total_seconds() > BIAS_FRESH_MIN * 60
+                st["trig"][rk] = {"t": b["t"], "m": end_m, "price": entry, "score": sc, "src": "k5", "close_t": _hm(9 * 60 + end_m),
+                                  "late": late}     # 系統晚接上後才補算到的觸發,當時沒人能照著做,不算進盤中實際成績
     return orb_hi, orb_lo
 
 

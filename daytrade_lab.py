@@ -377,13 +377,17 @@ def cross_check(res, trades_top, split):
 
 # ---------- 盤中觸發的實際成績 ----------
 
-def evaluate_live(log, data, rules_now):
+def evaluate_live(log, data, rules_now, srcs=None, skip_day=None):
     """bias_log.json 裡還沒算過的日子:每筆觸發用當天 5 分K 模擬,和回測同樣規則
     (觸發時間之後的下一根開盤進場、同根碰停損停利算停損、13:20 出場、扣成本)。
-    停損停利用當天記下的參數,沒有就用現在的最佳參數。原地修改 log,回傳這次算了幾天。"""
+    停損停利用當天記下的參數,沒有就用現在的最佳參數。原地修改 log,回傳這次算了幾天。
+    srcs = {日期: 5 分K 存檔來源}:存檔換過來源(Yahoo → 永豐)的日子重算一次;skip_day = 盤中手動執行時的今天(還沒收完,不算)。"""
     n = 0
     for d, day in (log.get("days") or {}).items():
-        if day.get("evaluated"):
+        if d == skip_day:
+            continue
+        src = (srcs or {}).get(d)
+        if day.get("evaluated") and (src is None or day.get("src") == src):
             continue
         if not any(d in (data.get(t["code"]) or {}) for t in day.get("trig") or []):
             continue
@@ -406,6 +410,7 @@ def evaluate_live(log, data, rules_now):
                            "exit": why, "gross": round(r, 3), "net": round(r - COST_PCT, 3),
                            "slip": round(sg * (t["price"] / bars[i]["o"] - 1) * 100, 3) if t.get("price") else None}
         day["evaluated"] = True
+        day["src"] = src
         n += 1
     return n
 
@@ -413,7 +418,7 @@ def evaluate_live(log, data, rules_now):
 def live_stats(log, rules_now):
     """依規則彙總盤中觸發的實際成績,並列出回測驗證段的預期,方便對照。"""
     rows = [(d, t) for d, day in (log.get("days") or {}).items() if day.get("evaluated")
-            for t in day.get("trig") or [] if t.get("result")]
+            for t in day.get("trig") or [] if t.get("result") and not t.get("late")]   # late:系統晚接上後補算的,當時沒人能照著做
     out = {"days": len({d for d, _ in rows}), "n": len(rows),
            "first": min((d for d, _ in rows), default=None), "last": max((d for d, _ in rows), default=None), "rules": {}}
     for rk in sorted({t["rule"] for _, t in rows}):
@@ -459,6 +464,14 @@ def replay_day(d, data, closes, bear_prev, ctx, params):
     return out
 
 
+def _archive_source(path, key="source"):
+    try:
+        with gzip.open(path, "rt", encoding="utf-8") as f:
+            return json.load(f).get(key)
+    except (OSError, ValueError, EOFError):
+        return None
+
+
 def write_replay(data, closes, bear_prev, ctx, res, days):
     """每個交易日存一份 data/replay/日期.json.gz(存好就不改,參數記在檔案裡),並更新 data/replay/index.json
     (可回放的日期與規則清單)。網頁「回放」分頁讀這兩個檔和 data/bars5m/。回傳這次新寫了幾天。"""
@@ -466,10 +479,14 @@ def write_replay(data, closes, bear_prev, ctx, res, days):
     os.makedirs(REPLAY_DIR, exist_ok=True)
     n = 0
     for d in days:
-        path = os.path.join(REPLAY_DIR, f"{d}.json.gz")
-        if os.path.exists(path) or not os.path.exists(os.path.join(BARS_DIR, f"{d}.json.gz")):
+        path, bars_path = os.path.join(REPLAY_DIR, f"{d}.json.gz"), os.path.join(BARS_DIR, f"{d}.json.gz")
+        if not os.path.exists(bars_path):
             continue
-        body = {"date": d, "cost_pct": COST_PCT, "params": params, "trades": replay_day(d, data, closes, bear_prev, ctx, params)}
+        src = _archive_source(bars_path)
+        if os.path.exists(path) and _archive_source(path, "bars_src") == src:
+            continue                                   # 存好就不改;5 分K 存檔換了來源(Yahoo → 永豐)才重算
+        body = {"date": d, "cost_pct": COST_PCT, "params": params, "bars_src": src,
+                "trades": replay_day(d, data, closes, bear_prev, ctx, params)}
         with gzip.open(path + ".tmp", "wt", encoding="utf-8") as f:
             json.dump(body, f, separators=(",", ":"))
         os.replace(path + ".tmp", path)
@@ -592,7 +609,7 @@ def simulate_detail(bars, i, side, stop, target):
                 return target, "target", k, tp
         else:
             if b["o"] >= sp and k != i:
-                return (e / b["o"] - 1) * 100, "stop", k, b["o"]
+                return (1 - b["o"] / e) * 100, "stop", k, b["o"]       # 做空:e 賣、跳空開在 o 買回
             if b["h"] >= sp:
                 return -stop, "stop", k, sp
             if tp and b["l"] <= tp:
@@ -666,6 +683,11 @@ def drawdown(rows):
     return {"mdd": round(mdd, 2), "worst_day": round(min(daily), 2), "lose_streak": worst_streak, "cum": round(eq, 2)}
 
 
+# 回測時用到未來資訊的規則,不能當「站得住」:bear_bounce_s 用的是「今天」利空成績單評出的有效訊號(包含驗證段的成績)
+# 去決定過去每一天能不能進場。結果照樣列出來參考,但一律不採用。
+LOOKAHEAD_RULES = {"bear_bounce_s"}
+
+
 def evaluate(trades):
     all_days = sorted({d for rows in trades.values() for d, _, _, _ in rows})
     if len(all_days) < 10:
@@ -684,7 +706,10 @@ def evaluate(trades):
         best = max(ok, key=lambda c: c["train"]["avg"]) if ok else None
         holds = bool(best and best["train"]["avg"] > 0 and (best["train"]["t"] or 0) >= T_MIN
                      and best["test"].get("n", 0) >= MIN_TEST_N and best["test"]["avg"] > 0 and (best["test"]["t"] or 0) >= T_MIN)
-        res[rule] = {"name": name, "side": side, "desc": desc, "best": best, "holds": holds,
+        lookahead = rule in LOOKAHEAD_RULES
+        if lookahead:
+            holds = False
+        res[rule] = {"name": name, "side": side, "desc": desc, "best": best, "holds": holds, "lookahead": lookahead,
                      "tested": len(combos), "n_positive_train": sum(1 for c in ok if c["train"]["avg"] > 0)}
     return res, all_days, split
 
@@ -762,7 +787,8 @@ def main():
     rules_prev = (load_json_safe(OUT_FILE, {}) or {}).get("rules") or {}
     log_bias_day(load_json_safe(HISTORY_FILE, {}) or {})
     log = load_json_safe(BIAS_LOG_FILE, {}) or {}
-    n_eval = evaluate_live(log, data, rules_prev or res or {})
+    srcs = {d: (x or {}).get("source") for d, x in archive.items()}
+    n_eval = evaluate_live(log, data, rules_prev or res or {}, srcs, None if after_close else today)
     if n_eval:
         write_json_atomic(BIAS_LOG_FILE, log, separators=(",", ":"))
     out["live"] = live_stats(log, res or {})

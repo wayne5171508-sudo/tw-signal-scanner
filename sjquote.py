@@ -17,7 +17,7 @@ import atexit
 import os
 import time
 import warnings
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 SNAP_BATCH = 500          # 永豐一次快照最多 500 檔
@@ -28,6 +28,9 @@ _next_try = 0.0           # 登入失敗後,這個時間(epoch 秒)之前不再�
 _fails = 0                # 連續幾次查詢失敗;到 RELOGIN_FAILS 就當作連線斷了,下次重新登入
 RELOGIN_GAP = 120         # 登入失敗後隔幾秒再試(盤中常駐迴圈一整天只用同一個連線)
 RELOGIN_FAILS = 2
+QUOTA_STOP_MB = 25        # 今天的資料額度剩不到這麼多就停用永豐到明天(改用鉅亨),不然查詢一直失敗、一直重新登入
+QUOTA_CHECK_GAP = 60      # 幾秒查一次額度
+_usage_at = 0.0
 STATS = {"login": None, "rows": 0, "asked": 0, "seconds": 0.0}
 
 
@@ -38,7 +41,20 @@ def _log(msg):
 def _login():
     """登入一次後一直沿用(盤中常駐迴圈 loop.py 一整天同一個連線)。
     失敗就交給鉅亨,RELOGIN_GAP 秒後才再試;查詢連續失敗(_broken)也會在下一次重新登入。"""
-    global _api, _next_try
+    global _api, _next_try, _usage_at
+    if _api is not None and time.time() - _usage_at > QUOTA_CHECK_GAP:
+        _usage_at = time.time()
+        try:
+            rem = _api.usage().remaining_bytes / 1e6
+            STATS["quota_mb"] = round(rem, 1)
+            if rem < QUOTA_STOP_MB:
+                _log(f"今天的資料額度只剩 {rem:.0f} MB,停用永豐到明天,改用鉅亨")
+                _drop()
+                tomorrow = (datetime.now(TAIPEI) + timedelta(days=1)).replace(hour=0, minute=5, second=0, microsecond=0)
+                _next_try = tomorrow.timestamp()
+                return None
+        except Exception:  # noqa: BLE001  查不到額度不影響使用
+            pass
     if _api is not None or time.time() < _next_try:
         return _api
     key, sec = os.environ.get("SJ_API_KEY"), os.environ.get("SJ_SECRET_KEY")
@@ -68,17 +84,24 @@ def _ok_call():
     _fails = 0
 
 
-def _broken():
-    """查詢失敗一次記一次;連續 RELOGIN_FAILS 次就丟掉這個連線,下一次 _login() 重新登入。"""
+def _drop():
     global _api, _fails
+    old, _api, _fails = _api, None, 0
+    try:
+        if old is not None:
+            old.logout()
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _broken():
+    """查詢失敗一次記一次;連續 RELOGIN_FAILS 次就丟掉這個連線,下一次 _login() 重新登入(至少隔 RELOGIN_GAP 秒,不會每輪狂登入)。"""
+    global _fails, _next_try
     _fails += 1
     if _fails >= RELOGIN_FAILS and _api is not None:
-        _log(f"連續 {_fails} 次查詢失敗,下一次重新登入")
-        old, _api, _fails = _api, None, 0
-        try:
-            old.logout()
-        except Exception:  # noqa: BLE001
-            pass
+        _log(f"連續 {_fails} 次查詢失敗,{RELOGIN_GAP} 秒後重新登入")
+        _drop()
+        _next_try = time.time() + RELOGIN_GAP
 
 
 def _logout():
@@ -235,6 +258,8 @@ BOOK_STALE = 120            # 五檔超過幾秒沒更新就不用
 _BOOK = {}                  # 五檔訂閱收到的最新一筆:{代號: (收到時間, 委買 5 檔量合計, 委賣 5 檔量合計, 買一價, 賣一價)}
 _SUBS = set()
 _SUB_API = None
+_SEEN = {}                  # 五檔:每檔最後一次被要求的時間;超過 BOOK_KEEP 秒沒人要才退訂
+BOOK_KEEP = 600
 
 
 def _wall_hms(ts_ns):
@@ -312,7 +337,8 @@ def _on_bidask(exchange, ba):
 
 
 def watch_books(codes):
-    """五檔即時訂閱(盤中常駐迴圈才有用,因為要一直開著連線收推播):訂閱 codes、退訂不在 codes 裡的。
+    """五檔即時訂閱(盤中常駐迴圈才有用,因為要一直開著連線收推播):訂閱 codes 裡還沒訂的;
+    退訂超過 BOOK_KEEP 秒沒被要求的(同一輪自選股、全市場各呼叫一次,不能互相退訂)。
     回傳 {代號: {"imb": 委買委賣失衡 %(+ 委買多)、"bid","ask": 5 檔量合計, "age": 幾秒前}};還沒收到的不放。"""
     global _SUB_API
     api = _login()
@@ -328,7 +354,9 @@ def watch_books(codes):
             _log(f"五檔回呼設定失敗: {type(e).__name__}: {str(e)[:100]}")
             return {}
         _SUB_API = api
-    want = set(codes)
+    want, now0 = set(codes), time.time()
+    for code in want:
+        _SEEN[code] = now0
     for code in sorted(want - _SUBS):
         k = _contract(api, code)
         if k is None:
@@ -338,7 +366,7 @@ def watch_books(codes):
             _SUBS.add(code)
         except Exception as e:  # noqa: BLE001
             _log(f"{code} 五檔訂閱失敗: {type(e).__name__}: {str(e)[:100]}")
-    for code in sorted(_SUBS - want):
+    for code in sorted(c for c in _SUBS if now0 - _SEEN.get(c, 0) > BOOK_KEEP):
         k = _contract(api, code)
         try:
             if k is not None:
@@ -419,9 +447,10 @@ def to_5m(rows, end_label=True):
     [{"t": "09:00"(這一根開始時間), "o", "h", "l", "c", "v"}, ...]。13:30 收盤集合競價併進 13:25 那根。"""
     out = {}
     for m, o, h, l, c, v in rows:
-        start = min(m - (1 if end_label else 0), 13 * 60 + 29)
-        if start < 9 * 60:
+        start = m - (1 if end_label else 0)
+        if start < 9 * 60 or start > 13 * 60 + 30:      # 盤前、盤後的資料不併進任何一根
             continue
+        start = min(start, 13 * 60 + 29)               # 13:30 收盤集合競價併進 13:25 那根
         b5 = start // 5 * 5
         b = out.get(b5)
         if b is None:

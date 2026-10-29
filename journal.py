@@ -61,12 +61,13 @@ def _load_json(path):
         return {}
 
 
-def match_rec(date, code, side):
-    """當天有沒有推薦這檔(全市場雷達優先,再看自選股觀測員)。"""
+def match_rec(date, code, side, time_in=None):
+    """當天有沒有推薦這檔(全市場雷達優先,再看自選股觀測員)。有給進場時間就只算「進場前已經出現」的推薦,
+    不然收盤前才出現的推薦也會被算成「照推薦做」(事後歸因)。"""
     sg = 1 if side == "long" else -1
     for src, path in (("market", os.path.join("data", "market", f"{date}.json")), ("watch", os.path.join("data", "team", f"{date}.json"))):
         picks = (_load_json(path).get("picks") or {})
-        cands = [(k, p) for k, p in picks.items() if k.split("#")[0] == code]
+        cands = [(k, p) for k, p in picks.items() if k.split("#")[0] == code and (not time_in or p["first"]["t"] <= time_in)]
         if not cands:
             continue
         same = [(k, p) for k, p in cands if p["first"]["side"] == sg]
@@ -100,7 +101,7 @@ def add(a):
          "entry": a.entry, "exit": a.exit, "shares": shares, "time_in": a.time_in, "time_out": a.time_out,
          "gross": gross, "fee": fee, "tax": tax, "net": net,
          "pct": round(((a.exit / a.entry - 1) if a.side == "long" else (1 - a.exit / a.entry)) * 100, 3),
-         "note": a.note or "", "rec": match_rec(a.date, a.code, a.side), "added_at": datetime.now().isoformat(timespec="seconds"),
+         "note": a.note or "", "rec": match_rec(a.date, a.code, a.side, a.time_in), "added_at": datetime.now().isoformat(timespec="seconds"),
          "net_src": "對帳單" if a.net is not None else "估算", "side_known": not a.side_unknown}
     j["trades"].append(t)
     save(j)

@@ -17,4 +17,4 @@ jobs:
           SJ_SECRET_KEY: ${{ secrets.SJ_SECRET_KEY }}
         run: |
           set -o pipefail
-          python -u sj_probe.py 2>&1 | sed -E 's/[A-Z][12][0-9]{8}/[已遮蔽]/g'
+          python -u sj_probe.py 2>&1 | sed -E -e 's/[A-Z][12][0-9]{8}/[已遮蔽]/g' -e "s/(account_id|person_id|broker_id)([\\\"' :=]+)[0-9A-Za-z]+/\1\2[已遮蔽]/g"

@@ -31,6 +31,7 @@ EARLY_MIN_VOL, MIN_VOL = 300, 1000   # 09:30 前累積量 >= 300 張、之後 >=
 VWAP_LAG = 14              # 均價線方向:和約 15 分鐘前比(和 intraday.BIAS_VWAP_LAG 一樣)
 ORB_FROM, ORB_TO = 15, 25  # 09:15~09:25 第一輪記下當時的今日高低當開盤區間(挑出來的會再用真實 5 分K 校正)
 MOOD_KEEP = 140
+NO_NEW_AFTER = 265         # 13:25 起是收盤集合競價,這之後不新增推薦、不翻方向(價格成交不到),只更新既有的
 COUNTER_N = 6              # 逆勢觀察名單最多幾檔
 CAT_NAMES = {
     "01": "水泥", "02": "食品", "03": "塑膠", "04": "紡織", "05": "電機機械", "06": "電器電纜", "08": "玻璃陶瓷", "09": "造紙",
@@ -222,8 +223,14 @@ def record(run_time, m, picks, qs, st, k5):
         row = {"t": hm, "price": p["last"], "side": sg, "score": p["score"], "vc": p["vc"], "s": [c["s"] for c in p["ck"]],
                "out15": team.flow_pct(p), "imb": (p.get("book") or {}).get("imb")}
         pk = day["picks"].get(p["code"])
+        if (pk is None or pk["first"]["side"] != sg) and m >= NO_NEW_AFTER:
+            continue
         if pk is None or pk["first"]["side"] != sg:
-            if pk is not None:                       # 同一天方向翻轉:舊的那筆另存,重新開始算
+            if pk is not None:                       # 同一天方向翻轉:舊的那筆用翻轉時的價格結算(不然做錯的那筆會從成績裡消失),另存
+                mv = team._move(pk["first"]["side"], pk["first"]["price"], p["last"])
+                pk["close"] = {"price": p["last"], "move": mv, "net": round(mv - team.COST_PCT, 3) if mv is not None else None,
+                               "exit": "flip", "t": hm}
+                pk["active"] = False
                 day["picks"][f"{p['code']}#{pk['first']['t']}"] = pk
             pk = day["picks"][p["code"]] = {"name": p["name"], "cat": p["cat"], "in_watch": p["in_watch"],
                                             "first": dict(row, reasons=p["reasons"], ck=p["ck"], v=p["v"], pace=p["pace"], pct=p["pct"],
@@ -270,6 +277,12 @@ def record(run_time, m, picks, qs, st, k5):
     return day
 
 
+def _day_codes(today):
+    """今天已經推薦過的代號(掉出名單後,最大順向/逆向幅度也要繼續更新)。"""
+    day = _load(os.path.join(DAY_DIR, f"{today}.json"), {})
+    return [k for k in (day.get("picks") or {}) if "#" not in k] if day.get("date") == today else []
+
+
 def run(run_time, live, indices, watch, k5_loader, flags_loader, flow_loader=None):
     m = (run_time - run_time.replace(hour=9, minute=0, second=0, microsecond=0)).total_seconds() / 60
     if m < 1 or m > 276:
@@ -289,7 +302,7 @@ def run(run_time, live, indices, watch, k5_loader, flags_loader, flow_loader=Non
     longs, shorts = shortlist(qs, m)
     c_up, c_dn = counter_trend(qs, m, longs, shorts)
     codes = [q["code"] for q in longs + shorts + c_up + c_dn]
-    k5 = k5_loader(codes) or {}
+    k5 = k5_loader(sorted(set(codes) | set(_day_codes(today)))) or {}
     flags = flags_loader(list((live.get("uni") or {}).keys())) or {}
     flow = (flow_loader(codes) if flow_loader else None) or {}
     for q in longs + shorts + c_up + c_dn:

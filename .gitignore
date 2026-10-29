@@ -5,3 +5,4 @@ data/bars1m/
 data/k1m_today.json
 data/mkt_state_today.json
 data/ticks_today.json
+*.tmp

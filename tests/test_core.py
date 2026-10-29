@@ -926,6 +926,8 @@ def test_journal_costs_and_recommendation_match(tmp_path, monkeypatch):
     monkeypatch.setattr(journal, "FILE", str(tmp_path / "data" / "journal.json"))
     journal.main(["add", "--date", "2026-10-29", "--code", "2330", "--side", "long", "--entry", "1000", "--exit", "1010", "--qty", "1"])
     journal.main(["add", "--date", "2026-10-29", "--code", "2317", "--side", "short", "--entry", "200", "--exit", "199", "--qty", "2"])
+    assert journal.match_rec("2026-10-29", "2330", "long", "09:30") is None                 # 09:30 進場時推薦還沒出現(09:40)
+    assert journal.match_rec("2026-10-29", "2330", "long", "09:45")["same_side"]
     t = json.loads((tmp_path / "data" / "journal.json").read_text())["trades"]
     assert t[0]["name"] == "台積電" and t[0]["rec"]["src"] == "market" and t[0]["rec"]["same_side"] and t[1]["rec"] is None
     assert t[1]["shares"] == 2000 and t[0]["net"] == journal.costs("long", 1000, 1010, 1000)[3]
@@ -986,6 +988,7 @@ def test_backfill_writes_sj_days_with_prev_close_and_shares(tmp_path, monkeypatc
         monkeypatch.setattr(sj_backfill, k, str(tmp_path / k))
     monkeypatch.setattr(sj_backfill, "TOP_FILE", str(tmp_path / "top.json"))
     monkeypatch.setattr(sj_backfill, "STATUS_FILE", str(tmp_path / "status.json"))
+    monkeypatch.setattr(sj_backfill, "TRIED_FILE", str(tmp_path / "tried.json"))
     monkeypatch.setattr(sj_backfill, "watch_codes", lambda: ["2330"])
     (tmp_path / "top.json").write_text(json.dumps({"codes": ["2330", "2317"]}))
     days = ["2026-10-27", "2026-10-28", "2026-10-29"]
@@ -1022,5 +1025,88 @@ def test_backfill_writes_sj_days_with_prev_close_and_shares(tmp_path, monkeypatc
     assert st["codes_done_now"] == 2 and st["stock_days_now"] == 4
     assert sj_backfill.main(["--days", "10"]) == 0                                  # 已經是永豐的不重抓
     assert json.loads((tmp_path / "status.json").read_text())["codes_already"] == 2
+    assert json.loads((tmp_path / "tried.json").read_text()) == {}                 # 每天都有資料,沒有要記的缺天
     archive = daytrade_lab.load_bars_archive(str(tmp_path / "BARS_DIR"))           # 回測讀得到
     assert set(archive) == {"2026-10-28", "2026-10-29"}
+
+
+# ---------- 三個角色審查後修的 Bug(回歸測試) ----------
+
+def test_market_flip_settles_old_pick_and_no_new_after_1325(tmp_path, monkeypatch):
+    for k, v in (("OUT_FILE", "r.json"), ("DAY_DIR", "m"), ("INDEX_FILE", "m/index.json"), ("STATE_FILE", "s.json")):
+        monkeypatch.setattr(market, k, str(tmp_path / v))
+    at = lambda h, m: dt.datetime(2026, 10, 29, h, m, 35, tzinfo=TPE)
+    st = {"up": 1, "down": 1, "avg_pct": 0, "hot": 0, "n_long": 0, "n_short": 0, "mood": None, "cats": []}
+    pick = lambda side, px: {"code": "A", "name": "A", "cat": "x", "in_watch": False, "side": side, "last": px, "score": 50 if side == "long" else -50,
+                             "vc": "na", "ck": [], "reasons": [], "v": "", "pace": 2, "pct": 0, "stop": 1, "target": 2}
+    qs = lambda px: [{"code": "A", "last": px}]
+    market.record(at(9, 30), 30, [pick("long", 100)], qs(100), st, {})
+    day = market.record(at(12, 0), 180, [pick("short", 95)], qs(95), st, {})
+    old = day["picks"]["A#09:30"]
+    assert old["close"]["exit"] == "flip" and old["close"]["move"] == pytest.approx(-5.0)     # 做錯的那筆照翻轉價結算
+    day = market.record(at(13, 26), 266, [pick("long", 96)], qs(96), st, {})                  # 13:25 後不翻方向
+    assert day["picks"]["A"]["first"]["side"] == -1
+    day = market.record(at(13, 26), 266, [dict(pick("long", 50), code="B")], qs(96), st, {})
+    assert "B" not in day["picks"]                                                           # 13:25 後不新增
+
+
+def test_team_first_side_zero_restarts_when_direction_appears(tmp_path, monkeypatch):
+    monkeypatch.setattr(team, "TEAM_DIR", str(tmp_path))
+    monkeypatch.setattr(team, "INDEX_FILE", str(tmp_path / "index.json"))
+    at = lambda h, m: dt.datetime(2026, 10, 29, h, m, tzinfo=TPE)
+    team.record(at(10, 0), _team_result(100.2))                   # 漲 0.2% → 觀望(方向 0)
+    day = team.record(at(10, 5), _team_result(101))
+    assert day["picks"]["2455"]["first"]["side"] == 1 and day["picks"]["2455"]["first"]["t"] == "10:05"
+
+
+def test_short_gap_stop_return_formula():
+    bars = [{"t": "09:00", "o": 100, "h": 100, "l": 100, "c": 100}, {"t": "09:05", "o": 103, "h": 103, "l": 103, "c": 103}] + \
+           [{"t": f"13:{m:02d}", "o": 103, "h": 103, "l": 103, "c": 103} for m in (15, 20)]
+    r, why, _k, _px = daytrade_lab.simulate_detail(bars, 0, "short", 1.0, None)
+    assert why == "stop" and r == pytest.approx(-3.0)              # 100 賣、跳空 103 買回 = -3%
+
+
+def test_to_5m_drops_rows_outside_session():
+    rows = [[539, 1, 1, 1, 1, 9], [541, 1, 1, 1, 1, 1], [810, 2, 2, 2, 2, 1], [816, 9, 9, 9, 9, 9], [870, 9, 9, 9, 9, 9]]
+    b = sjquote.to_5m(rows, True)
+    assert [x["t"] for x in b] == ["09:00", "13:25"] and sum(x["v"] for x in b) == 2
+
+
+def test_loop_git_timeout_returns_failure_and_timeout_not_swallowed(monkeypatch):
+    def boom(*a, **k):
+        raise loop.subprocess.TimeoutExpired("git", 90)
+    monkeypatch.setattr(loop.subprocess, "run", boom)
+    assert loop.git("pull") == 1
+    assert issubclass(loop.RoundTimeout, BaseException) and not issubclass(loop.RoundTimeout, Exception)
+
+
+def test_watch_books_does_not_unsubscribe_other_callers(monkeypatch):
+    subs, unsubs = [], []
+
+    class Quote:
+        def set_on_bidask_stk_v1_callback(self, cb): pass
+        def subscribe(self, k, **kw): subs.append(k.code)
+        def unsubscribe(self, k, **kw): unsubs.append(k.code)
+
+    api = types.SimpleNamespace(quote=Quote())
+    monkeypatch.setattr(sjquote, "_login", lambda: api)
+    monkeypatch.setattr(sjquote, "_contract", lambda a, c: types.SimpleNamespace(code=c))
+    fake_sj = types.SimpleNamespace(constant=types.SimpleNamespace(QuoteType=types.SimpleNamespace(BidAsk=1), QuoteVersion=types.SimpleNamespace(v1=1)))
+    monkeypatch.setitem(sys.modules, "shioaji", fake_sj)
+    monkeypatch.setattr(sjquote, "_SUB_API", None)
+    sjquote.watch_books(["A", "B"])                               # 自選股候選
+    sjquote.watch_books(["C"])                                    # 同一輪全市場推薦
+    assert sorted(subs) == ["A", "B", "C"] and unsubs == []        # 不能把自選股的退訂掉
+    sjquote._SEEN["A"] -= sjquote.BOOK_KEEP + 1
+    sjquote.watch_books(["C"])
+    assert unsubs == ["A"]                                         # 太久沒人要才退訂
+    sjquote._SUBS.clear(); sjquote._SEEN.clear(); sjquote._BOOK.clear()
+
+
+def test_curve_from_k1m_cache(tmp_path, monkeypatch):
+    monkeypatch.setattr(intraday, "K1M_CACHE_FILE", str(tmp_path / "k1m.json"))
+    rows = [[m, 1, 1, 1, 1, 10] for m in range(541, 811)]          # 09:01~13:30 每分鐘 10 張
+    (tmp_path / "k1m.json").write_text(json.dumps({"date": "2026-10-29", "rows": {"A": rows}, "upto": {"A": 270}}))
+    c = intraday.curves_from_k1m("2026-10-29")["A"]
+    g = intraday.CURVE_GRID
+    assert c[g.index(30)] == pytest.approx(30 / 270, abs=1e-3) and c[-1] == 1.0

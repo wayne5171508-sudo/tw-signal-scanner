@@ -26,7 +26,7 @@ jobs:
               print("RESULT", s.code, "成交價", s.close, "總量", s.total_volume, "總金額", s.total_amount)
           api.logout()
           EOF
-          python -u q.py 2>&1 | sed -E 's/[A-Z][12][0-9]{8}/[已遮蔽]/g'
+          python -u q.py 2>&1 | sed -E -e 's/[A-Z][12][0-9]{8}/[已遮蔽]/g' -e "s/(account_id|person_id|broker_id)([\\\"' :=]+)[0-9A-Za-z]+/\1\2[已遮蔽]/g"
       - uses: actions/checkout@v4
         with:
           path: repo
@@ -36,4 +36,4 @@ jobs:
           SJ_SECRET_KEY: ${{ secrets.SJ_SECRET_KEY }}
         run: |
           set -o pipefail
-          cd repo && python -u sjquote.py 2330 2317 2>&1 | sed -E 's/[A-Z][12][0-9]{8}/[已遮蔽]/g'
+          cd repo && python -u sjquote.py 2330 2317 2>&1 | sed -E -e 's/[A-Z][12][0-9]{8}/[已遮蔽]/g' -e "s/(account_id|person_id|broker_id)([\\\"' :=]+)[0-9A-Za-z]+/\1\2[已遮蔽]/g"
