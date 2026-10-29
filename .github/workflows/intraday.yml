@@ -37,7 +37,8 @@ jobs:
             d=$(TZ=Asia/Taipei date -d "today +${i} day 08:50" +%s)
             end=$(TZ=Asia/Taipei date -d "today +${i} day 13:40" +%s)
             dw=$(TZ=Asia/Taipei date -d "today +${i} day" +%u)
-            if [ "$dw" -le 5 ] && [ "$end" -gt "$now" ]; then next=$d; break; fi
+            # 離收盤不到 10 分鐘就當作今天結束(不然收盤叫醒的下一棒會再跑一輪、又叫醒下一棒,一直到 13:40)
+            if [ "$dw" -le 5 ] && [ "$end" -gt "$(( now + 600 ))" ]; then next=$d; break; fi
           done
           wait_s=$(( next - now ))
           echo "下一個開盤日 08:50 還有 ${wait_s} 秒"
