@@ -2,9 +2,8 @@ name: 盤中即時報價
 
 on:
   schedule:
-    # GitHub的cron在低活躍repo常常延遲或整批跳過,所以不再依賴「每5分鐘觸發一次」。
-    # 改成:交易日開盤前後多設幾個觸發點,任何一個觸發成功就會開始一個長時間迴圈,
-    # 在迴圈裡自己每5分鐘抓一次,一直跑到13:40(台北)。
+    # GitHub的cron在低活躍repo常常延遲或整批跳過(例:10/29 08:40 沒觸發),所以主要靠下面的「接力」:
+    # 每天收盤後這個 workflow 會自己叫醒自己,睡到隔天開盤前。cron 只是接力斷掉時的備援。
     - cron: "40 0 * * 1-5"   # 08:40 台北(會等到08:55再開始)
     - cron: "5 1 * * 1-5"    # 09:05
     - cron: "35 1 * * 1-5"   # 09:35
@@ -13,62 +12,71 @@ on:
     - cron: "5 4 * * 1-5"    # 12:05
   workflow_dispatch: {}
 
-# 同一時間只留一個迴圈在跑;後面觸發的排隊,前一個結束(13:40)後會發現已過收盤而立刻結束。
+# 同一時間只留一個在跑、一個在排隊(新的排隊會取代舊的排隊),所以接力和 cron 疊在一起也只會有一條。
 concurrency:
   group: intraday-scan
   cancel-in-progress: false
 
 permissions:
   contents: write
+  actions: write          # 接力:用 GITHUB_TOKEN 觸發自己(workflow_dispatch 允許這樣做)
 
 jobs:
   intraday:
     runs-on: ubuntu-latest
     timeout-minutes: 330
+    env:
+      GH_TOKEN: ${{ github.token }}
     steps:
+      - name: 接力待命(離開盤太久就先睡一段,再叫醒下一棒)
+        id: relay
+        run: |
+          now=$(date +%s)
+          next=""
+          for i in 0 1 2 3 4 5 6 7; do
+            d=$(TZ=Asia/Taipei date -d "today +${i} day 08:50" +%s)
+            end=$(TZ=Asia/Taipei date -d "today +${i} day 13:40" +%s)
+            dw=$(TZ=Asia/Taipei date -d "today +${i} day" +%u)
+            if [ "$dw" -le 5 ] && [ "$end" -gt "$now" ]; then next=$d; break; fi
+          done
+          wait_s=$(( next - now ))
+          echo "下一個開盤日 08:50 還有 ${wait_s} 秒"
+          if [ "$wait_s" -le 2400 ]; then
+            echo "run=yes" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          nap=$(( wait_s - 1800 )); [ "$nap" -gt 18000 ] && nap=18000   # 一棒最多睡 5 小時(job 上限 6 小時)
+          echo "先睡 ${nap} 秒,再叫醒下一棒"
+          sleep "$nap"
+          for k in 1 2 3 4 5; do
+            gh workflow run intraday.yml -R "$GITHUB_REPOSITORY" --ref main && break
+            echo "叫醒失敗,30 秒後重試($k)"; sleep 30
+          done
+          echo "run=no" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v7
+        if: steps.relay.outputs.run == 'yes'
       - uses: actions/setup-python@v6
+        if: steps.relay.outputs.run == 'yes'
         with:
           python-version: "3.11"
           cache: pip                          # 永豐套件第一次裝要2分鐘,之後用快取
           cache-dependency-path: requirements.txt
       - name: 安裝套件
+        if: steps.relay.outputs.run == 'yes'
         run: pip install requests shioaji
       - name: 隔夜風向(開盤前排程沒跑到時補拍;08:45 之後只會記美股)
+        if: steps.relay.outputs.run == 'yes'
         continue-on-error: true
         run: timeout 60 python overnight.py
-      - name: 迴圈:每2分鐘抓報價並存回repo,直到收盤
+      - name: 常駐迴圈:對齊 5 分K 收盤抓報價並存回repo,直到收盤(loop.py)
+        if: steps.relay.outputs.run == 'yes'
         env:
           SJ_API_KEY: ${{ secrets.SJ_API_KEY }}       # 永豐金鑰(沒設也能跑,會自動改用鉅亨)
           SJ_SECRET_KEY: ${{ secrets.SJ_SECRET_KEY }}
         run: |
           git config user.name "tw-signal-scanner-bot"
           git config user.email "actions@users.noreply.github.com"
-          end_epoch=$(TZ=Asia/Taipei date -d "today 13:40" +%s)
-          start_epoch=$(TZ=Asia/Taipei date -d "today 08:55" +%s)
-          now=$(date +%s)
-          if [ "$now" -gt "$end_epoch" ]; then
-            echo "已過收盤時間,結束"; exit 0
-          fi
-          if [ "$now" -lt "$start_epoch" ]; then
-            wait_s=$(( start_epoch - now ))
-            if [ "$wait_s" -gt 2400 ]; then echo "離開盤太久,結束"; exit 0; fi
-            echo "還沒到開盤時間,等待 ${wait_s} 秒"; sleep "$wait_s"
-          fi
-          while [ "$(date +%s)" -le "$end_epoch" ]; do
-            loop_start=$(date +%s)
-            git pull --rebase --autostash origin main >/dev/null 2>&1 || { git rebase --abort 2>/dev/null; echo "pull失敗,沿用目前版本"; }
-            # repo 是公開的,執行記錄大家看得到:輸出先遮掉身分證字號格式的字串
-            timeout 200 python intraday.py 2>&1 | sed -E 's/[A-Z][12][0-9]{8}/[已遮蔽]/g' || echo "這一輪抓取失敗或逾時,下一輪再試"
-            git add -A data/
-            if ! git diff --quiet --cached; then
-              git commit -m "盤中報價更新 $(TZ=Asia/Taipei date +'%Y-%m-%d %H:%M')"
-              git push || (git pull --rebase origin main && git push) || { git rebase --abort 2>/dev/null; echo "push失敗,下一輪再推"; }
-            fi
-            elapsed=$(( $(date +%s) - loop_start ))
-            gap=120   # 永豐報價很快,每 2 分鐘一輪
-            sleep_for=$(( gap - elapsed ))
-            [ "$sleep_for" -gt 0 ] && sleep "$sleep_for"
-          done
-
-
+          # repo 是公開的,執行記錄大家看得到:輸出先遮掉身分證字號格式的字串
+          python -u loop.py 2>&1 | sed -u -E 's/[A-Z][12][0-9]{8}/[已遮蔽]/g'
+      - name: 收盤後叫醒下一棒(睡到下一個開盤日)
+        if: always() && steps.relay.outputs.run == 'yes'
+        run: gh workflow run intraday.yml -R "$GITHUB_REPOSITORY" --ref main || echo "叫醒失敗,明天靠 cron 備援"

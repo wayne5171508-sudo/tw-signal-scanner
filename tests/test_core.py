@@ -773,3 +773,55 @@ def test_compute_bias_k5_orb_replaces_snapshot_orb(tmp_path, monkeypatch):
     intraday.compute_bias(t, [], [_q(102.5, 2400)], None, {"2455": (bars[:8], None, 2400)})
     h = json.loads((tmp_path / "HISTORY_FILE.json").read_text())
     assert h["orb"]["2455"] == [pytest.approx(100.2 * 1.001), pytest.approx(100 * 0.999)] and h["orb_src"] == "k5"
+
+
+# ---------- loop.py(盤中常駐迴圈) ----------
+
+import loop  # noqa: E402
+
+
+def test_loop_slots_align_to_5m_close():
+    at = lambda h, m, s=0: dt.datetime(2026, 10, 29, h, m, s, tzinfo=TPE)
+    assert loop.next_slot(at(9, 3, 10)) == at(9, 3, 35)               # 09:15 前每分鐘
+    assert loop.next_slot(at(9, 3, 40)) == at(9, 4, 35)
+    assert loop.next_slot(at(10, 10, 40)) == at(10, 12, 35)           # 之後:每根 5 分K 收盤後 35 秒 + 中間一輪
+    assert loop.next_slot(at(10, 12, 40)) == at(10, 15, 35)
+    assert loop.next_slot(at(10, 15, 35)) == at(10, 17, 35)
+    assert loop.next_slot(at(13, 39, 0)) == at(13, 40, 35)            # 超過 13:40,呼叫端會結束迴圈
+    assert loop.OFFSET_SEC > intraday.K5_SETTLE_SEC                    # 要等 5 分K 收完才跑
+
+
+def test_loop_fresh_intraday_keeps_sjquote_connection():
+    sjquote._api = marker = object()
+    try:
+        old = sys.modules["intraday"]
+        new = loop.fresh_intraday()
+        assert new is not old and sys.modules["sjquote"] is sjquote and new.sjquote._api is marker
+    finally:
+        sjquote._api = None
+
+
+def test_loop_stamp_only_changes_with_new_data(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "data").mkdir()
+    (tmp_path / "data" / "intraday_latest.json").write_text(json.dumps({"checked_at": "a", "data_as_of": "b", "x": 1}))
+    loop.write_stamp()
+    p = tmp_path / "data" / "stamp.json"
+    assert json.loads(p.read_text()) == {"checked_at": "a", "data_as_of": "b"}
+    m = p.stat().st_mtime_ns
+    loop.write_stamp()
+    assert p.stat().st_mtime_ns == m
+
+
+def test_sjquote_relogin_after_repeated_failures():
+    class Api:
+        out = False
+        def logout(self): Api.out = True
+    sjquote._api, sjquote._fails = Api(), 0
+    try:
+        sjquote._broken()
+        assert sjquote._api is not None
+        sjquote._broken()
+        assert sjquote._api is None and Api.out
+    finally:
+        sjquote._api, sjquote._fails = None, 0

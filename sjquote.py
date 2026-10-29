@@ -24,7 +24,10 @@ SNAP_BATCH = 500          # 永豐一次快照最多 500 檔
 KBAR_GAP = 0.12           # 每檔 1 分K 查詢之間停多久(永豐資料查詢有頻率上限,約每 5 秒 50 次)
 TAIPEI = ZoneInfo("Asia/Taipei")
 _api = None
-_tried = False
+_next_try = 0.0           # 登入失敗後,這個時間(epoch 秒)之前不再重試
+_fails = 0                # 連續幾次查詢失敗;到 RELOGIN_FAILS 就當作連線斷了,下次重新登入
+RELOGIN_GAP = 120         # 登入失敗後隔幾秒再試(盤中常駐迴圈一整天只用同一個連線)
+RELOGIN_FAILS = 2
 STATS = {"login": None, "rows": 0, "asked": 0, "seconds": 0.0}
 
 
@@ -33,14 +36,15 @@ def _log(msg):
 
 
 def _login():
-    """一支程式只登入一次;失敗就記住,這一輪不再重試(交給鉅亨)。"""
-    global _api, _tried
-    if _tried:
+    """登入一次後一直沿用(盤中常駐迴圈 loop.py 一整天同一個連線)。
+    失敗就交給鉅亨,RELOGIN_GAP 秒後才再試;查詢連續失敗(_broken)也會在下一次重新登入。"""
+    global _api, _next_try
+    if _api is not None or time.time() < _next_try:
         return _api
-    _tried = True
     key, sec = os.environ.get("SJ_API_KEY"), os.environ.get("SJ_SECRET_KEY")
     if not (key and sec):
         STATS["login"] = "no_key"
+        _next_try = float("inf")
         return None
     t0 = time.time()
     try:
@@ -54,8 +58,27 @@ def _login():
         _log(f"登入成功({time.time() - t0:.1f} 秒)")
     except Exception as e:  # noqa: BLE001  登入失敗就整輪用鉅亨
         STATS["login"] = "fail"
-        _log(f"登入失敗,這一輪改用鉅亨: {type(e).__name__}: {str(e)[:150]}")
+        _next_try = time.time() + RELOGIN_GAP
+        _log(f"登入失敗,先改用鉅亨,{RELOGIN_GAP} 秒後再試: {type(e).__name__}: {str(e)[:150]}")
     return _api
+
+
+def _ok_call():
+    global _fails
+    _fails = 0
+
+
+def _broken():
+    """查詢失敗一次記一次;連續 RELOGIN_FAILS 次就丟掉這個連線,下一次 _login() 重新登入。"""
+    global _api, _fails
+    _fails += 1
+    if _fails >= RELOGIN_FAILS and _api is not None:
+        _log(f"連續 {_fails} 次查詢失敗,下一次重新登入")
+        old, _api, _fails = _api, None, 0
+        try:
+            old.logout()
+        except Exception:  # noqa: BLE001
+            pass
 
 
 def _logout():
@@ -150,12 +173,16 @@ def stock_rows(codes):
         for attempt in range(2):
             try:
                 snaps = api.snapshots(batch)
+                _ok_call()
                 break
             except Exception as e:  # noqa: BLE001
                 if attempt == 1:
                     _log(f"快照失敗({len(batch)} 檔),改用鉅亨: {type(e).__name__}: {str(e)[:120]}")
+                    _broken()
                 else:
                     time.sleep(1)
+        if _api is None:
+            break
         if not snaps:
             continue
         by_code = {k.code: k for k in batch}
@@ -204,8 +231,12 @@ def kbars_1m(codes, day, budget=40.0):
             continue
         try:
             kb = api.kbars(contract=k, start=day, end=day)
+            _ok_call()
         except Exception as e:  # noqa: BLE001  單檔失敗不影響其他檔
             _log(f"{code} 1 分K 失敗: {type(e).__name__}: {str(e)[:100]}")
+            _broken()
+            if _api is None:
+                break
             time.sleep(KBAR_GAP)
             continue
         rows = []

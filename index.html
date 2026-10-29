@@ -2952,6 +2952,14 @@ setupSearch();
 initTab();
 loadAll();
 setInterval(() => loadAll({silent: true}), 60000);
+// 盤中迴圈每輪會寫 data/stamp.json(幾十個字的更新時間),每 15 秒看一次,有新的一輪就馬上整包重抓,不用等滿 60 秒
+setInterval(async () => {
+  if(document.hidden || !INTRADAY) return;
+  try{
+    const s = await (await fetch('data/stamp.json', {cache:'no-store'})).json();
+    if(s.checked_at && s.checked_at !== INTRADAY.checked_at) loadAll({silent: true});
+  }catch(e){ /* 沒有 stamp 就等 60 秒那個 */ }
+}, 15000);
 </script>
 </body>
 </html>
