@@ -615,7 +615,7 @@ def test_web_pages_javascript_syntax(tmp_path):
     node = shutil.which("node")
     if not node:
         pytest.skip("沒有安裝 node(GitHub Actions 的 ubuntu 環境有)")
-    for page in ("index.html", "game.html"):
+    for page in ("index.html", "classic.html"):
         html = open(os.path.join(ROOT, page), encoding="utf-8").read()
         scripts = re.findall(r"<script>(.*?)</script>", html, re.S)
         assert scripts, page

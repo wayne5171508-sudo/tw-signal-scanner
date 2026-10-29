@@ -3,7 +3,7 @@
 爆量雷達 - 盤中資料擷取(GitHub Actions 開盤期間每 3~5 分鐘跑一次)
 
 資料來源:鉅亨網(cnyes)公開 JSON API。直接用 Python 打 API,不透過會讀網頁摘要的工具。
-產出(都放在 data/,由 index.html 在 GitHub Pages 顯示):
+產出(都放在 data/,由首頁 index.html(AI 版)與 classic.html(經典版)在 GitHub Pages 顯示):
 - intraday_latest.json   最新報價、CDP/波段高低、觸及回測、量能倍數、開盤爆量、焦點成績單
 - intraday_history.json  今天每個時間點的價格與累積成交量(畫走勢小圖、算量能曲線用,隔天重置)
 - daily_official.json    每檔近 260 根正式日K(逐檔追蹤,收盤後 13:32 起再整批重抓一次)

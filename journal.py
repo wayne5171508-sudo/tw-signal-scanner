@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-爆量雷達 - 我的交易紀錄(data/journal.json,永久保存,網頁 ai.html「我的交易」顯示)
+爆量雷達 - 我的交易紀錄(data/journal.json,永久保存,網頁首頁 index.html(AI 版)「我的交易」顯示)
 
 阿文跟 Claude 說「今天做多 2330,1050 買 1062 賣,1 張」,Claude 用這支程式記下來:
   python journal.py add --date 2026-10-30 --code 2330 --side long --entry 1050 --exit 1062 --qty 1 \

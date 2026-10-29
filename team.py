@@ -2,7 +2,7 @@
 """
 爆量雷達 - 交易小組(六個觀測員)每日紀錄
 
-六個角色跟網頁 index.html 的 marketMood / teamCheck 同一套判斷,搬到這裡讓盤中迴圈每一輪都算、都記下來:
+六個角色跟網頁 classic.html 的 marketMood / teamCheck 同一套判斷,搬到這裡讓盤中迴圈每一輪都算、都記下來:
   1 機會掃描員  量能倍數(>= 2 倍算有資金在動),剛觸發的多空訊號互相矛盾時給警示
   2 新聞分析員  近兩天有重大訊息就警示(事件可能放大波動)
   3 市場情緒員  加權、開盤後走勢、自選股漲跌家數、櫃買、台指期價差組成 -100~+100,方向和個股一致才通過
@@ -26,8 +26,8 @@ import os
 
 TEAM_DIR = os.path.join("data", "team")
 INDEX_FILE = os.path.join(TEAM_DIR, "index.json")
-ZONE_BAND_PCT = 0.15      # 和 index.html 一樣:均價線上下 0.15% 算平衡區
-MIN_RR = 1.5              # 和 index.html RISK_DEF.minRR 一樣
+ZONE_BAND_PCT = 0.15      # 和 classic.html 一樣:均價線上下 0.15% 算平衡區
+MIN_RR = 1.5              # 和 classic.html RISK_DEF.minRR 一樣
 COST_PCT = 0.23           # 當沖來回成本(和 daytrade_lab 一致,手續費 2.8 折),只用在「收盤淨報酬」
 MAX_PICKS = 12
 NO_NEW_AFTER = 265        # 13:25 起是收盤集合競價(價格成交不到),之後不新增推薦,只更新既有的            # 每一輪最多記幾檔(網頁看板顯示 8 檔,多記一點)
@@ -48,7 +48,7 @@ def _clamp1(x):
 
 
 def tick_of(code, p):
-    """台股跳動檔位(和 index.html tickOf 一樣)。"""
+    """台股跳動檔位(和 classic.html tickOf 一樣)。"""
     if not code or ":" in str(code):
         return 0
     if str(code).startswith("00"):
@@ -143,7 +143,7 @@ def _sw_ok(sw, n):
 
 
 def key_levels(q):
-    """壓力/支撐(index.html keyLevels 的「自動」模式):CDP 可靠就用 CDP 近高近低,不然用近 5 日高低,再不然今日高低。"""
+    """壓力/支撐(classic.html keyLevels 的「自動」模式):CDP 可靠就用 CDP 近高近低,不然用近 5 日高低,再不然今日高低。"""
     cdp, sw = q.get("cdp") or {}, q.get("swing") or {}
     has_cdp = all(cdp.get(k) is not None for k in ("nh", "nl", "cdp"))
     mode = "cdp" if has_cdp and cdp.get("reliability") != "low" else ("5" if _sw_ok(sw, 5) else ("cdp" if has_cdp else "today"))
@@ -163,7 +163,7 @@ def key_levels(q):
 
 
 def effective_levels(q):
-    """已突破壓力或跌破支撐時,換成現價上下最近的一條線(index.html effectiveLevels)。"""
+    """已突破壓力或跌破支撐時,換成現價上下最近的一條線(classic.html effectiveLevels)。"""
     res, sup, mid = key_levels(q)
     last, cf = _n(q.get("last")), q.get("conf") or {}
     if last and cf and ((res is not None and res < last) or (sup is not None and sup > last)):
@@ -176,7 +176,7 @@ def effective_levels(q):
 
 
 def zone_info(q, vwap):
-    """現價在做多區/平衡區/做空區/已突破/已跌破(index.html zoneInfo)。"""
+    """現價在做多區/平衡區/做空區/已突破/已跌破(classic.html zoneInfo)。"""
     res, sup, mid = effective_levels(q)
     vw = vwap if _n(vwap) is not None else mid
     if res is None or sup is None or vw is None or not res > sup:
@@ -348,7 +348,7 @@ def team_check(q, mood, bias_items, vwap=None, side=None):
 
 
 def candidates(result, vwaps=None):
-    """機會掃描員挑標的(和 index.html renderTeam 一樣):量能 >= 2 倍、開盤爆量、剛觸發多空判斷、今天有重大訊息。
+    """機會掃描員挑標的(和 classic.html renderTeam 一樣):量能 >= 2 倍、開盤爆量、剛觸發多空判斷、今天有重大訊息。
     回傳 [(q, check)],依結論(可執行 > 警示 > 觀察 > 拒絕)、量能排序。"""
     mood = market_mood(result.get("indices"), result.get("watchlist_quotes"))
     if not mood:

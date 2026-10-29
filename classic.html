@@ -1,0 +1,2971 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>爆量雷達</title>
+<style>
+  :root{
+    --bg:#f9f9f7; --card:#ffffff; --border:#e1e0d9; --text:#0b0b0b; --muted:#78766f; --sec:#52514e;
+    --up:#d1403f; --down:#188f63; --up-fill:rgba(209,64,63,0.10); --down-fill:rgba(24,143,99,0.10);
+    --accent:#2a78d6; --accent-fill:rgba(42,120,214,0.10);
+    --grid:#e1e0d9; --shadow:0 1px 3px rgba(11,11,11,0.06);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Microsoft JhengHei",sans-serif;padding:16px;line-height:1.5}
+  h1{font-size:19px;margin:0 0 4px;font-weight:700}
+  h2{font-size:14px;margin:22px 0 8px;color:var(--sec);font-weight:600}
+  .meta{font-size:12px;color:var(--muted);margin-bottom:2px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:12px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{padding:8px 6px;text-align:right;white-space:nowrap}
+  th:first-child,td:first-child{text-align:left}
+  th{color:var(--muted);font-weight:500;font-size:11px;border-bottom:1px solid var(--border)}
+  tr+tr td{border-top:1px solid var(--border)}
+  tbody tr{cursor:pointer}
+  tbody tr:active{background:#f1f0ea}
+  .up{color:var(--up)}
+  .down{color:var(--down)}
+  .flat{color:var(--muted)}
+  .tablewrap{overflow-x:auto}
+  .tag{display:inline-block;font-size:11px;padding:1px 7px;border-radius:10px;background:#f1f0ea;color:var(--sec);margin-left:4px}
+  .tag.warn{background:#fbe8e5;color:#a8352f}
+  .note{font-size:12px;color:var(--muted);margin-top:8px}
+  .err{color:#c0392b;font-size:13px}
+  .stockcard{border-top:1px solid var(--border);padding:8px 0;font-size:13px}
+  .stockcard:first-child{border-top:none}
+  .stockcard .row1{display:flex;justify-content:space-between;font-weight:600}
+  .stockcard .row2{font-size:12px;color:var(--muted);margin-top:2px}
+  .badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600}
+  .badge.bull{background:#fbe8e5;color:#a8352f}
+  .badge.bear{background:#e3f3ec;color:#0f6e49}
+  .badge.flat{background:#f1f0ea;color:var(--muted)}
+  a{color:var(--accent)}
+  .refresh{float:right;font-size:12px;color:var(--accent);cursor:pointer;text-decoration:underline}
+  .ico{font-size:11px}
+
+  /* 漲跌幅發散長條(diverging bar):0在中間,往左是跌,往右是漲 */
+  .divrow{display:flex;align-items:center;gap:8px;justify-content:flex-end}
+  .divtrack{position:relative;width:88px;height:6px;flex-shrink:0}
+  .divtrack .mid{position:absolute;left:50%;top:-3px;bottom:-3px;width:1px;background:var(--grid)}
+  .divtrack .fill{position:absolute;top:0;bottom:0;border-radius:3px}
+  .divtrack .fill.up{background:var(--up);left:50%}
+  .divtrack .fill.down{background:var(--down);right:50%}
+  .divlabel{min-width:56px;text-align:right;font-variant-numeric:tabular-nums}
+
+  /* 搜尋框 */
+  .searchwrap{position:relative;margin-bottom:10px}
+  .searchwrap input{width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:14px}
+  .searchwrap input::placeholder{color:var(--muted)}
+  .suggest{position:absolute;left:0;right:0;top:100%;margin-top:4px;background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden;z-index:5;box-shadow:var(--shadow)}
+  .suggest div{padding:9px 12px;font-size:13px;cursor:pointer}
+  .suggest div:hover,.suggest div.active{background:#f1f0ea}
+
+  /* 個股分析卡 */
+  .detail{border:1px solid var(--accent);background:#eef4fc}
+  .detail .dhead{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px}
+  .detail .dname{font-size:16px;font-weight:700}
+  .detail .dprice{font-size:30px;font-weight:700;font-variant-numeric:normal}
+  .detail .dchg{font-size:13px;display:block;text-align:right}
+  .close{color:var(--muted);cursor:pointer;font-size:13px}
+
+  /* 關鍵價位 meter(跌停-漲停整個區間) */
+  .ladder{margin-top:16px}
+  .laddertrack{position:relative;height:14px;background:#e4e2d8;border-radius:7px;overflow:visible;margin:0 4px}
+  .laddertrack .fill{position:absolute;top:0;bottom:0;left:0;border-radius:7px}
+  .laddertrack .tick{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--sec)}
+  .laddertrack .tick.ref{background:var(--accent);width:2px}
+  .laddertrack .now{position:absolute;top:-5px;width:14px;height:14px;margin-left:-7px;border-radius:50%;border:3px solid var(--bg)}
+  .laddertoplabels,.ladderbottomlabels{position:relative;height:16px;font-size:10px;color:var(--muted);margin:2px 4px}
+  .laddertoplabels span,.ladderbottomlabels span{position:absolute;transform:translateX(-50%);white-space:nowrap}
+  .ladderends{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:6px;padding:0 4px}
+
+  /* 關鍵價位 chips */
+  .levelchips{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+  .levelchip{flex:1;min-width:130px;background:#ffffff;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:12px}
+  .levelchip .lbl{display:flex;align-items:center;gap:4px;color:var(--muted);font-size:11px}
+  .levelchip .val{font-size:15px;font-weight:700;margin-top:2px}
+  .levelchip .sub{font-size:11px;color:var(--muted)}
+  .levelchip.res{border-color:rgba(209,64,63,0.35)}
+  .levelchip.sup{border-color:rgba(24,143,99,0.35)}
+  .levelchip.res .lbl{color:var(--up)}
+  .levelchip.sup .lbl{color:var(--down)}
+  .levelchip.ref .lbl{color:var(--accent)}
+
+  .biasnote{margin-top:12px;padding:9px 10px;background:#ffffff;border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:4px;font-size:13px}
+
+  .sparkwrap{margin-top:14px}
+  .candletime{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:2px}
+  .chipbox{margin-top:12px;padding-top:10px;border-top:1px dashed var(--border);font-size:13px}
+  .chipbox .none{color:var(--muted)}
+
+  /* 今日焦點卡片:取代一排數字,一眼看出排名/價格/漲跌/原因 */
+  .focusgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:10px;margin-bottom:4px}
+  .focuscard{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 12px;cursor:pointer}
+  .focuscard:active{border-color:var(--accent)}
+  .focuscard .fclabel{font-size:11px;color:var(--muted);margin-bottom:3px}
+  .focuscard .fcname{font-size:13px;font-weight:700;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .focuscard .fcprice{font-size:21px;font-weight:700;font-variant-numeric:normal;display:block}
+  .focuscard .fcchg{font-size:12px;margin-top:2px;display:block}
+
+  /* 接近關鍵價位觀察:掃全部自選股,把快碰到壓力/支撐的挑出來,不用自己盯整份自選 */
+
+  /* 自選股漲跌幅熱力圖:色塊一次看完,不用逐行掃表格 */
+  .heatgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(62px,1fr));gap:5px}
+  .heattile{border-radius:7px;padding:6px 4px;text-align:center;cursor:pointer;min-height:50px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .heattile .htcode{font-size:10.5px;font-weight:700;line-height:1.2}
+  .heattile .htpct{font-size:11.5px;font-weight:700;margin-top:3px;line-height:1.2}
+  .heatlegend{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);margin-top:8px;flex-wrap:wrap}
+  .heatlegend .lg{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:middle;margin-right:3px}
+
+  /* 量能異常排行:跟今日焦點卡片共用樣式,只是排序依據換成量能倍率 */
+  .volcard .fcprice{font-size:18px}
+  .volcard .fcratio{font-size:21px;font-weight:700;color:var(--accent);display:block}
+
+  /* 壓力/支撐多日趨勢 */
+  .cdptrend{margin-top:12px;padding-top:10px;border-top:1px dashed var(--border)}
+  .cdptrendrow{display:flex;align-items:center;gap:8px;margin-top:4px}
+  .cdptrendlbl{font-size:11px;min-width:56px;font-weight:600}
+  .cdptrendlbl.res{color:var(--up)}
+  .cdptrendlbl.sup{color:var(--down)}
+  .cdptrendval{font-size:11px;color:var(--muted);white-space:nowrap}
+
+  /* ===== 手機優先:支撐壓力一覽 ===== */
+  body{padding:14px 14px 40px;max-width:720px;margin:0 auto}
+  .freshbar{font-size:12px;color:var(--muted);margin:2px 0 10px}
+  .freshbar.warn{color:#b26a00}
+  .freshbar b{color:var(--text)}
+  .idxgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px}
+  .idxtile{background:var(--card);border:1px solid var(--border);border-radius:9px;padding:7px 8px;cursor:pointer;min-width:0}
+  .idxtile .in{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .idxtile .iv{font-size:14px;font-weight:700;margin-top:1px;font-variant-numeric:tabular-nums}
+  .idxtile .ic{font-size:11px;font-variant-numeric:tabular-nums}
+  .fchips{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 10px}
+  .fchip{font-size:12.5px;padding:6px 12px;border-radius:16px;border:1px solid var(--border);background:var(--card);color:var(--sec);cursor:pointer;user-select:none}
+  .fchip.on{background:var(--text);color:#fff;border-color:var(--text)}
+  .lvcard{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:10px;cursor:pointer}
+  .lvcard.near-res{border-color:rgba(209,64,63,0.6);background:#fff8f7}
+  .lvcard.near-sup{border-color:rgba(24,143,99,0.6);background:#f5fbf8}
+  .lvcard.out{border-width:2px}
+  .lvtop{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+  .lvname{font-size:15px;font-weight:700}
+  .lvname small{font-size:11px;color:var(--muted);font-weight:500;margin-left:4px}
+  .lvprice{text-align:right;font-variant-numeric:tabular-nums}
+  .lvprice .p{font-size:20px;font-weight:700;line-height:1.1}
+  .lvprice .c{font-size:12px}
+  .lvstatus{display:inline-block;font-size:12px;font-weight:700;padding:2px 9px;border-radius:10px;margin-top:5px}
+  .lvstatus.res{background:#fbe8e5;color:var(--up)}
+  .lvstatus.sup{background:#e3f3ec;color:var(--down)}
+  .lvstatus.mid{background:#f1f0ea;color:var(--muted);font-weight:600}
+  .lvbar{position:relative;height:8px;border-radius:4px;margin:20px 2px 6px;background:linear-gradient(90deg,rgba(24,143,99,0.28),#e9e7df 50%,rgba(209,64,63,0.28))}
+  .lvdot{position:absolute;top:-4px;width:16px;height:16px;margin-left:-8px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,0.25)}
+  .lvdot.hollow{background:#fff !important;border:3px solid currentColor}
+  .lvnums{display:flex;justify-content:space-between;align-items:flex-end;margin-top:2px}
+  .lvnum{font-variant-numeric:tabular-nums}
+  .lvnum .t{font-size:11px;font-weight:700}
+  .lvnum .v{font-size:17px;font-weight:700;line-height:1.15}
+  .lvnum .d{font-size:11px;color:var(--muted)}
+  .lvnum.s .t,.lvnum.s .v{color:var(--down)}
+  .lvnum.r{text-align:right}
+  .lvnum.r .t,.lvnum.r .v{color:var(--up)}
+  .lvnodata{font-size:12.5px;color:var(--muted);margin-top:8px}
+  .lvhint{font-size:10.5px;color:var(--muted);margin-top:4px}
+  .lvextra{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:8px;padding-top:7px;border-top:1px dashed var(--border);font-size:11px;color:var(--sec);font-variant-numeric:tabular-nums}
+  .focusbox{margin:8px 0 12px}
+  .focusbox .ohd{display:flex;justify-content:space-between;align-items:baseline;margin:10px 0 6px}
+  .focusbox .ohd b{font-size:15px}
+  .focusbox .ohd small{color:var(--muted);font-size:11px}
+  .up{color:var(--up)} .down{color:var(--down)}
+  .mood{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 12px}
+  .moodhd{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;color:var(--muted)}
+  .moodhd b{font-size:15px;color:var(--text)} .moodhd b.up{color:var(--up)} .moodhd b.down{color:var(--down)}
+  .moodbar{position:relative;height:10px;border-radius:6px;margin:8px 0 4px;background:linear-gradient(90deg,#188f63 0%,#cfd3cc 50%,#d1403f 100%)}
+  .moodmark{position:absolute;top:-4px;width:6px;height:18px;margin-left:-3px;border-radius:3px;background:var(--text);box-shadow:0 0 0 2px var(--card)}
+  .moodft{display:flex;justify-content:space-between;font-size:10px;color:var(--muted)}
+  .fcard{display:flex;gap:10px;background:var(--card);border:1px solid var(--border);border-left:5px solid #8a8780;border-radius:12px;padding:10px 12px;margin-bottom:8px;cursor:pointer}
+  .fcard.in{border-left-color:var(--up)} .fcard.out{border-left-color:var(--down)}
+  .fic{flex:none;width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;color:#fff;background:#8a8780}
+  .fic.in{background:var(--up)} .fic.out{background:var(--down)}
+  .fbody{flex:1;min-width:0}
+  .ftop{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+  .fname{font-size:15px;font-weight:700} .fname small{font-weight:400;color:var(--muted);margin-left:5px;font-size:11px}
+  .fprice{text-align:right;line-height:1.25} .fprice b{font-size:17px;display:block} .fprice span{font-size:12px;font-weight:600} .fprice span.flat{color:var(--muted)}
+  .fmid{display:flex;align-items:center;gap:8px;margin:6px 0 4px;flex-wrap:wrap}
+  .fverdict{font-size:12px;font-weight:700;color:#fff;border-radius:999px;padding:2px 10px;background:#8a8780}
+  .fverdict.in{background:var(--up)} .fverdict.out{background:var(--down)}
+  .flames{font-size:12px;letter-spacing:1px} .fl0{color:#cfcdc6;font-size:8px;letter-spacing:2px;vertical-align:middle}
+  .fx{font-size:11px;color:var(--muted)}
+  .pbar{display:flex;align-items:center;gap:6px;margin-top:6px}
+  .pbl{font-size:11px;color:var(--muted);min-width:34px;text-align:center}
+  .pbt{position:relative;flex:1;height:8px;border-radius:4px;background:linear-gradient(90deg,rgba(24,143,99,.35),#ecebe6 50%,rgba(209,64,63,.35))}
+  .pdot{position:absolute;top:-3px;width:14px;height:14px;margin-left:-7px;border-radius:50%;background:#555;border:2px solid #fff;box-shadow:0 0 0 1px #999}
+  .pdot.in{background:var(--up)} .pdot.out{background:var(--down)}
+  .pdot.hollow{background:#fff !important;border-color:currentColor}
+  .pdot.hollow.in{border-color:var(--up)} .pdot.hollow.out{border-color:var(--down)}
+  .pcap{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin:2px 40px 0}
+  .fempty{background:var(--card);border:1px dashed var(--border);border-radius:12px;padding:16px;text-align:center;color:var(--muted);font-size:13px}
+  .minimap{margin-top:10px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 12px}
+  .mmhd{font-size:11px;color:var(--muted);margin-bottom:6px}
+  .mmgrid{display:flex;flex-wrap:wrap;gap:3px}
+  .mm{display:block;width:14px;height:14px;border-radius:3px;cursor:pointer}
+  .mm.hot{box-shadow:0 0 0 2px #f2a900}
+  .howto{margin-top:6px} .howto summary{cursor:pointer;color:var(--muted);font-size:12px}
+  .lvrr{margin-top:8px}
+  .lvrr .rrbar{display:flex;height:10px;border-radius:5px;overflow:hidden;background:#ecebe6}
+  .lvrr .rrdn{background:var(--down)} .lvrr .rrup{background:var(--up)}
+  .lvrr .rrft{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:3px}
+  .openbox{margin:8px 0;padding:10px 12px;border-radius:10px;border:1px solid var(--border,#e3e1da);background:var(--card,#fff);font-size:13px}
+  .openbox .ohd{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:6px}
+  .openbox .ohd b{font-size:14px}
+  .openbox .ohd small{color:var(--muted);font-size:11px}
+  .openbox.live{border-color:#d1403f;box-shadow:0 0 0 2px rgba(209,64,63,0.10)}
+  .orow{display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid rgba(128,128,128,0.15);cursor:pointer}
+  .orow .tag{flex:none;min-width:44px;text-align:center;font-size:11px;font-weight:700;padding:2px 6px;border-radius:6px;color:#fff}
+  .orow .tag.in{background:var(--up,#d1403f)}
+  .orow .tag.out{background:var(--down,#188f63)}
+  .orow .tag.flat{background:#8a8780}
+  .orow .nm{flex:1;min-width:0;line-height:1.3}
+  .orow .nm small{color:var(--muted);margin-left:4px}
+  .orow .rt{flex:none;text-align:right;font-size:12px;line-height:1.35}
+  .orow.cool{opacity:.55}
+  .orow .orank{flex:none;width:18px;text-align:center;font-size:12px;font-weight:700;color:var(--muted)}
+  .onote{margin-top:6px;color:var(--muted);font-size:11px;line-height:1.5}
+  .regimebox{margin:8px 0;padding:8px 10px;border-radius:8px;font-size:12px;line-height:1.5}
+  .regimebox.weak{background:rgba(24,143,99,0.12);color:var(--down)}
+  .regimebox.strong{background:rgba(209,64,63,0.12);color:var(--up)}
+  .confrow{border-top:none;margin-top:3px;padding-top:0}
+  .confstrong{color:var(--text);font-weight:600}
+  .lvextra .dim2{color:var(--muted)}
+  .tchrow{border-top:none;margin-top:3px;padding-top:0}
+  .tchnote{font-size:10px;color:var(--muted);margin-top:3px}
+  .rvbox{margin:8px 0 12px;padding:12px;border-radius:12px;background:var(--card);border:1px solid var(--border);font-size:13px}
+  .rvbox .rvhd{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+  .rvbox .rvhd b{font-size:15px} .rvbox .rvhd small{font-size:11px;color:var(--muted)}
+  .rvbox ul{margin:8px 0 4px;padding-left:18px;line-height:1.6}
+  .rvbox details{border-top:1px solid var(--border);padding:6px 0}
+  .rvbox details summary{cursor:pointer;font-weight:600;font-size:13px;color:var(--sec)}
+  .rvbox .rvrow{display:flex;justify-content:space-between;gap:8px;padding:3px 0;font-variant-numeric:tabular-nums}
+  .rvbox .rvrow span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .rvbox .rvsub{font-size:12px;color:var(--muted);margin:6px 0 2px}
+  .rvchips{display:flex;flex-wrap:wrap;gap:5px;margin:3px 0}
+  .rvchip{font-size:12px;padding:2px 8px;border-radius:999px;background:#f1f0ea;cursor:pointer;white-space:nowrap}
+  .rvchip.up{background:var(--up-fill)} .rvchip.down{background:var(--down-fill)}
+  .rvdates{display:flex;flex-wrap:wrap;gap:5px;margin:6px 0}
+  .rvdates button{font-size:12px;padding:3px 9px;border-radius:999px;border:1px solid var(--border);background:var(--card);color:var(--text)}
+  .rvdates button.on{background:var(--text);color:var(--card)}
+  .labtbl{width:100%;font-size:12px;margin-top:4px}
+  .labtbl td,.labtbl th{padding:4px 3px;white-space:normal;vertical-align:top} .labtbl td:not(:first-child),.labtbl th:not(:first-child){width:15%;text-align:center}
+  .labtag{font-size:11px;padding:1px 6px;border-radius:6px;background:#f1f0ea;color:var(--muted)}
+  .labtag.good{background:var(--up-fill);color:var(--up)} .labtag.bad{background:#f1f0ea;color:var(--muted)}
+  .lvextra .dim{color:var(--muted);text-decoration:line-through;text-decoration-color:rgba(0,0,0,0.25)}
+  .lvsrc{color:var(--muted)}
+  .fchips .blabel{font-size:12px;color:var(--muted);align-self:center;margin-right:2px}
+  details.more{background:var(--card);border:1px solid var(--border);border-radius:10px;margin:14px 0;padding:0 12px}
+  details.more summary{padding:12px 0;font-size:14px;font-weight:600;color:var(--sec);cursor:pointer;list-style:none}
+  details.more summary::-webkit-details-marker{display:none}
+  details.more summary::after{content:"展開";float:right;font-size:12px;color:var(--accent);font-weight:500}
+  details.more[open] summary::after{content:"收合"}
+  details.more h2{margin-top:6px}
+  details.more .card{border:none;padding:0;margin-bottom:10px}
+
+  .tabbar{position:sticky;top:0;z-index:20;display:flex;gap:6px;margin:8px -16px 10px;padding:8px 16px;background:var(--bg);border-bottom:1px solid var(--border)}
+  .tabbar button{flex:1;padding:9px 0;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--sec);font-size:14px;font-weight:600;font-family:inherit;cursor:pointer}
+  .tabbar button.on{background:var(--text);color:#fff;border-color:var(--text)}
+  body[data-tab="today"] [data-pane]:not([data-pane="today"]),body[data-tab="flow"] [data-pane]:not([data-pane="flow"]),body[data-tab="stocks"] [data-pane]:not([data-pane="stocks"]),body[data-tab="replay"] [data-pane]:not([data-pane="replay"]),body[data-tab="more"] [data-pane]:not([data-pane="more"]){display:none}
+  /* 回放 */
+  .rpbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:4px 0 8px}
+  .rpbar select{font:inherit;font-size:13px;padding:6px 8px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);max-width:100%}
+  .rpctl{display:flex;gap:6px;align-items:center;margin:6px 0}
+  .rpctl button{font:inherit;font-size:14px;min-width:40px;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);cursor:pointer}
+  .rpctl button.on{background:var(--text);color:#fff;border-color:var(--text)}
+  .rpctl input[type=range]{flex:1;min-width:0}
+  .rpinfo{display:flex;flex-wrap:wrap;gap:2px 12px;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .rptr{display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:5px 0;border-top:1px solid var(--border);font-variant-numeric:tabular-nums}
+  .sigbox{margin:8px 0 12px;padding:12px;border-radius:12px;background:var(--card);border:1px solid var(--border)}
+  .sigbox .sh{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:6px}
+  .sigbox .sh b{font-size:14px} .sigbox .sh small{font-size:11px;color:var(--muted)}
+  .onwind{font-size:12px;font-weight:700;padding:2px 9px;border-radius:999px;background:#f1f0ea;color:var(--muted)}
+  .onwind.up{background:var(--up-fill);color:var(--up)} .onwind.down{background:var(--down-fill);color:var(--down)}
+  .onrow{display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-top:1px solid var(--border);font-size:13px;font-variant-numeric:tabular-nums}
+  .onrow:first-of-type{border-top:none}
+  .onrow span:first-child{min-width:0} .onrow small{color:var(--muted);font-size:11px}
+  .onrow.main{font-size:15px;font-weight:600}
+  .sigrow{padding:8px 0;border-top:1px solid var(--border);font-size:13px}
+  .sigrow .l1{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .sigrow .l2{font-size:12px;color:var(--muted);margin-top:2px;line-height:1.5}
+  .sigv{font-size:11px;font-weight:700;border-radius:6px;padding:1px 7px;background:#f1f0ea;color:var(--sec)}
+  .sigv.good{background:rgba(209,64,63,.14);color:var(--up)} .sigv.bad{background:rgba(24,143,99,.14);color:var(--down)}
+  /* 收盤後利空雷達(data/bear_scorecard.json) */
+  .bwin{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin:6px 0 2px}
+  .bwin div{border-radius:8px;padding:6px 2px;text-align:center;background:#f1f0ea;font-variant-numeric:tabular-nums}
+  .bwin div b{display:block;font-size:12px;color:var(--sec)} .bwin div span{font-size:11px;color:var(--muted)}
+  .bwin div.best{background:var(--down-fill);outline:2px solid var(--down)} .bwin div.best b{color:var(--down)}
+  .bwin div.avoid{background:var(--up-fill)} .bwin div.avoid b{color:var(--up)}
+  .bwin div i{display:block;font-style:normal;font-size:10px;font-weight:700;margin-top:1px}
+  .bwin div.best i{color:var(--down)} .bwin div.avoid i{color:var(--up)}
+  .blvl{font-weight:800;letter-spacing:-1px;color:var(--down);margin-right:4px}
+  .bchip{display:inline-block;font-size:11px;padding:1px 7px;border-radius:10px;margin:2px 4px 0 0;background:#f1f0ea;color:var(--muted)}
+  .bchip.active{background:var(--down-fill);color:var(--down);font-weight:700} .bchip.watch{background:#fff3dc;color:#9a6200}
+  .bst{font-size:11px;font-weight:700;padding:1px 7px;border-radius:6px;white-space:nowrap}
+  .bst.active{background:var(--down-fill);color:var(--down)} .bst.watch{background:#fff3dc;color:#9a6200} .bst.inactive{background:#f1f0ea;color:var(--muted)}
+  .bbar{position:relative;height:8px;border-radius:4px;background:#ecebe6;margin-top:4px}
+  .bbar i{position:absolute;top:0;bottom:0;border-radius:4px;background:var(--down)} .bbar i.pos{background:var(--muted)}
+  .bbar em{position:absolute;top:-2px;bottom:-2px;left:50%;width:1px;background:var(--sec)}
+  .bsig{padding:8px 0;border-top:1px solid var(--border);font-size:13px}
+  .bsig .l1{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .bsig .l2{display:flex;flex-wrap:wrap;gap:2px 14px;font-size:11.5px;color:var(--muted);margin-top:3px;font-variant-numeric:tabular-nums}
+  .bsig .l2 span{white-space:nowrap}
+  .zstrip{margin-top:6px}
+  .zbar{position:relative;height:10px;border-radius:5px;overflow:visible}
+  .zbar i{position:absolute;top:0;bottom:0;border-top:1px solid;border-bottom:1px solid}
+  .zbar i:first-child{border-left:1px solid;border-radius:5px 0 0 5px} .zbar i:nth-child(3){border-right:1px solid;border-radius:0 5px 5px 0}
+  .zbar em{position:absolute;top:-3px;width:12px;height:12px;margin-left:-6px;border-radius:50%;background:var(--text);border:2px solid;box-sizing:border-box}
+  .zft{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:3px;font-variant-numeric:tabular-nums}
+  .zlegend{display:flex;flex-wrap:wrap;gap:3px 12px;font-size:11px;color:var(--muted);margin-top:6px}
+  .zlegend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+  .tflag{display:inline-block;font-size:11px;font-weight:700;padding:1px 7px;border-radius:10px;margin:2px 4px 0 0;white-space:nowrap}
+  .tflag.red{background:rgba(209,64,63,.14);color:#b3302f} .tflag.orange{background:#fff3dc;color:#9a6200}
+  .dttools{margin:10px 0;padding:10px;border:1px solid var(--border);border-radius:10px;background:var(--card)}
+  .dthead{font-size:13px;font-weight:700;margin-bottom:6px}
+  .dtrow{padding:6px 0;border-top:1px solid var(--border)} .dtrow:first-of-type{border-top:none}
+  .dtlab{font-size:12.5px;margin-bottom:4px}
+  .dttools .dtlab input[type=number]{width:52px;min-width:0;height:auto;font:inherit;font-size:12.5px;padding:2px 4px;margin:0;border:1px solid var(--border);border-radius:6px;background:var(--card);color:var(--text);box-sizing:border-box}
+  .dtbar{position:relative;height:8px;border-radius:4px;background:#ecebe6;overflow:visible}
+  .dtbar i{position:absolute;left:0;top:0;bottom:0;border-radius:4px}
+  .dtbar em{position:absolute;top:-3px;bottom:-3px;width:2px;margin-left:-1px;background:var(--sec)}
+  .tci{display:inline-block;font-size:11px;font-weight:700;padding:1px 6px;border-radius:8px;margin:2px 4px 0 0;white-space:nowrap;background:#f1f0ea;color:var(--muted)}
+  .tci.ok{background:rgba(24,143,99,.14);color:var(--down)} .tci.warn{background:#fff3dc;color:#9a6200} .tci.bad{background:rgba(209,64,63,.14);color:#b3302f}
+  .tcrow{display:flex;gap:8px;align-items:flex-start;font-size:12.5px;padding:4px 0;border-top:1px solid var(--border)} .tcrow .tci{flex:none;margin-top:0}
+  .tcv{font-size:12.5px;padding:6px 8px;border-radius:8px;margin-top:6px;background:#f1f0ea;color:var(--sec)}
+  .tcv.ok{background:rgba(24,143,99,.12);color:var(--down)} .tcv.warn{background:#fff3dc;color:#9a6200} .tcv.bad{background:rgba(209,64,63,.12);color:#b3302f}
+  .mood{margin:4px 0 2px} .moodbar{position:relative;height:10px;border-radius:5px;background:linear-gradient(90deg,var(--down),#d8d6cf 50%,var(--up))}
+  .moodbar em{position:absolute;top:-3px;width:14px;height:14px;margin-left:-7px;border-radius:50%;background:var(--card);border:3px solid var(--text);box-sizing:border-box}
+  .tmbar{display:flex;height:12px;border-radius:6px;overflow:hidden;background:#ecebe6}
+  .tmbar i{display:block;height:100%}
+  .dttools .dtlab select{font:inherit;font-size:12.5px;padding:2px 4px;border:1px solid var(--border);border-radius:6px;background:var(--card);color:var(--text)}
+  .dttools .dtlab #tmStop,.dttools .dtlab #tmTarget{width:72px;font:inherit;font-size:12.5px;padding:2px 4px;border:1px solid var(--border);border-radius:6px;background:var(--card);color:var(--text);box-sizing:border-box}
+  .tmgo{font:inherit;font-size:12.5px;font-weight:700;padding:4px 10px;border-radius:8px;border:1px solid var(--text);background:var(--text);color:#fff;cursor:pointer}
+  #riskBox input[type=time]{width:120px !important}
+  .dttools .dtlab input[type=time],#riskBox input[type=number],#riskBox input[type=time]{width:88px;min-width:0;font:inherit;font-size:12.5px;padding:2px 4px;border:1px solid var(--border);border-radius:6px;background:var(--card);color:var(--text);box-sizing:border-box}
+  .bmore{margin-top:8px;font-size:12.5px;color:var(--accent);cursor:pointer;background:none;border:0;padding:4px 0;font-family:inherit}
+  .stt{display:inline-block;font-size:11px;font-weight:700;border-radius:6px;padding:1px 7px;background:#f1f0ea;color:var(--sec)}
+  .stt.hold{background:#fff1d6;color:#8a5a00} .stt.str{background:rgba(209,64,63,.14);color:var(--up)} .stt.wk{background:rgba(24,143,99,.14);color:var(--down)}
+  .newslk{font-size:11px;font-weight:600;color:var(--accent);border:1px solid var(--accent);border-radius:6px;padding:0 6px;text-decoration:none;white-space:nowrap}
+  .found{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.5} .found b{font-weight:700}
+  .flowbox{margin:10px 0;padding:12px;border-radius:14px;background:#111216;color:#e9e9ec;border:1px solid #23252b}
+  .flowbox .fhd{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+  .flowbox .fttl{font-size:15px;font-weight:700} .flowbox .fsub{font-size:11px;color:#8b8d96;margin-top:2px}
+  .flowbox .fclock{font-size:24px;font-weight:700;color:#d9f24a;font-variant-numeric:tabular-nums;letter-spacing:.5px}
+  .flowbox .ftiles{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin:10px 0 8px}
+  .flowbox .ft{background:#181a20;border:1px solid #23252b;border-radius:10px;padding:7px 8px;min-width:0}
+  .flowbox .ft small{display:block;font-size:10px;color:#8b8d96} .flowbox .ft b{display:block;font-size:14px;margin-top:2px;white-space:nowrap}
+  .flowbox .ft i{font-style:normal;font-size:12px;display:block;margin-top:1px}
+  .flowbox .ft .fup i{color:#ff6b6b} .flowbox .ft .fdn i{color:#34d399}
+  .flowbox .fup{color:#ff6b6b} .flowbox .fdn{color:#34d399}
+  .flowbox .fcap{display:flex;justify-content:space-between;font-size:10px;color:#8b8d96;padding:0 2px}
+  .flowbox .fplot{position:relative;margin-top:2px}
+  .flowbox .frow{position:absolute;left:0;right:0;height:26px;display:flex;align-items:center;gap:6px;cursor:pointer;transition:transform .55s cubic-bezier(.3,.7,.2,1)}
+  .flowbox .frow.sel{background:rgba(255,255,255,.06);border-radius:6px}
+  .flowbox .fnm{flex:none;width:74px;font-size:12px;color:#c9cad1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-left:2px}
+  .flowbox .ftrack{position:relative;flex:1;height:10px}
+  .flowbox .ftrack:before{content:"";position:absolute;left:50%;top:-4px;bottom:-4px;width:1px;background:#33363e}
+  .flowbox .ffill{position:absolute;top:0;bottom:0;border-radius:5px;width:0;transition:width .45s ease;overflow:hidden}
+  .flowbox .ffill.up{left:50%;background:linear-gradient(90deg,#b8323a,#ff5f64);box-shadow:0 0 8px rgba(255,95,100,.55)}
+  .flowbox .ffill.dn{right:50%;background:linear-gradient(270deg,#13805a,#34d399);box-shadow:0 0 8px rgba(52,211,153,.5)}
+  .flowbox .ffill:after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(90deg,rgba(255,255,255,0) 0 7px,rgba(255,255,255,.38) 7px 9px);background-size:18px 100%;animation:flowR .9s linear infinite}
+  .flowbox .ffill.dn:after{animation-name:flowL}
+  @keyframes flowR{to{background-position:18px 0}} @keyframes flowL{to{background-position:-18px 0}}
+  .flowbox .fval{flex:none;width:58px;text-align:right;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums}
+  .flowbox .fctl{display:flex;align-items:center;gap:10px;margin-top:10px}
+  .flowbox .fbtn{flex:none;width:34px;height:34px;border-radius:50%;border:none;background:#d9f24a;color:#111;font-size:14px;font-weight:700;cursor:pointer}
+  .flowbox input[type=range]{flex:1;accent-color:#d9f24a;height:28px}
+  .flowbox .fstk{margin-top:8px;padding:8px 10px;background:#181a20;border-radius:10px;font-size:12px;line-height:1.7}
+  .flowbox .fstk .r{display:flex;justify-content:space-between}
+  .flowbox .fnote{margin-top:8px;font-size:10px;color:#8b8d96;line-height:1.5}
+  @media (prefers-reduced-motion:reduce){.flowbox .ffill:after{animation:none}.flowbox .frow,.flowbox .ffill{transition:none}}
+  .health{font-size:12px;margin:4px 0 6px}
+  .health summary{cursor:pointer;list-style:none;display:inline-flex;align-items:center;gap:6px;color:var(--muted)}
+  .health summary::-webkit-details-marker{display:none}
+  .health .dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+  .health .dot.ok{background:#22a06b} .health .dot.bad{background:#e5a00d}
+  .health ul{margin:6px 0 0;padding:8px 10px;list-style:none;background:var(--card);border:1px solid var(--border);border-radius:8px;line-height:1.7}
+  .health li.bad{color:#b26a00;font-weight:600}
+</style>
+</head>
+<body>
+
+<h1>爆量雷達 <span class="refresh" onclick="loadAll()">重新整理</span><a class="refresh" href="index.html" style="margin-right:14px">回首頁(AI 版)</a></h1>
+<div class="meta" id="pageMeta">載入中...</div>
+<div class="freshbar" id="freshBar"></div>
+<div class="health" id="healthBox" style="display:none"></div>
+
+<div class="tabbar" id="tabBar">
+  <button data-t="today" onclick="setTab('today')">今日重點</button>
+  <button data-t="flow" onclick="setTab('flow')">資金流向</button>
+  <button data-t="stocks" onclick="setTab('stocks')">個股</button>
+  <button data-t="replay" onclick="setTab('replay')">回放</button>
+  <button data-t="more" onclick="setTab('more')">更多</button>
+</div>
+
+<div data-pane="today">
+<div id="overnightBox" style="display:none"></div>
+<div id="teamBox" style="display:none"></div>
+<div id="riskBox" style="display:none"></div>
+<div id="biasBox" style="display:none"></div>
+<div id="tradeFlagBox" style="display:none"></div>
+<div id="reviewTop" style="display:none"></div>
+<div id="focusBox" style="display:none"></div>
+<div id="bearBox" style="display:none"></div>
+<div id="dtTopBox" style="display:none"></div>
+<div id="openingBox" style="display:none"></div>
+<div id="marketBox" style="display:none"></div>
+<div class="idxgrid" id="indicesGrid"></div>
+<div id="reviewBottom" style="display:none"></div>
+</div>
+
+<div data-pane="flow">
+<div id="flowBox" style="display:none"></div>
+</div>
+
+<div data-pane="stocks">
+<div class="searchwrap">
+  <input id="searchInput" type="text" placeholder="搜尋股票代碼或名稱,例如 2455 或 全新" autocomplete="off">
+  <div class="suggest" id="suggestBox" style="display:none"></div>
+</div>
+
+<div class="card detail" id="detailCard" style="display:none"></div>
+
+<h2 style="margin-top:6px">支撐壓力一覽(自選股)</h2>
+<div class="fchips" id="basisChips"></div>
+<div class="fchips" id="levelFilters"></div>
+<div id="regimeNote" class="regimebox" style="display:none"></div>
+<div id="levelList">載入中...</div>
+<div class="note" id="touchNote" style="margin-top:0;display:none"></div>
+<div class="note" style="margin-top:0">橫條:左端=支撐(綠),右端=壓力(紅),圓點=現價位置。「依據」預設自動:用CDP樞紐點(前一交易日高低收);若昨日振幅太小(例如漲停鎖死)導致CDP失真,自動改用近5日最高最低。也可手動切換成CDP、5日、10日、20日。「接近」的距離會依各股票自己的波動調整。卡片下方小字同時列出CDP、5日、10日高低供對照。都是機械式參考線,不是股價預測,不構成買賣建議。點任一檔看K線與細節。<span id="srcNote"></span></div>
+
+</div>
+
+<div data-pane="replay">
+<div class="sigbox" id="replayBox"><div class="sh"><b>盤後回放</b><small>載入中…</small></div></div>
+</div>
+
+<div data-pane="more">
+<div id="bearCardBox" style="display:none"></div>
+<div id="dtBox" style="display:none"></div>
+<div id="signalBox" style="display:none"></div>
+<div id="overnightLabBox" style="display:none"></div>
+<div id="labBox" style="display:none"></div>
+<details class="more" id="reviewPastWrap" style="display:none">
+  <summary>復盤紀錄(最近30個交易日)</summary>
+  <div class="rvdates" id="reviewDates"></div>
+  <div id="reviewPast"></div>
+</details>
+<details class="more" open>
+  <summary>熱力圖、量能排行、完整報價表</summary>
+  <h2>自選股漲跌幅熱力圖</h2>
+  <div class="card">
+    <div class="heatgrid" id="heatGrid">載入中...</div>
+    <div class="heatlegend" id="heatLegend"></div>
+  </div>
+  <h2>量能異常排行(自選股)</h2>
+  <div class="note" style="margin:0 0 6px">倍率是「今日盤中累積量 ÷ 近5日平均全天量」,開盤初期會偏低,越接近收盤越準。</div>
+  <div class="focusgrid" id="volumeCards">載入中...</div>
+  <div class="note" id="volumeNote" style="margin-top:0"></div>
+  <h2>自選股即時報價(依漲跌幅排序)</h2>
+  <div class="card tablewrap">
+    <div id="watchlistTable">載入中...</div>
+  </div>
+</details>
+
+<details class="more">
+  <summary>盤後籌碼訊號</summary>
+  <div class="card" id="chipSummary">載入中...</div>
+  <div class="card" id="chipRank" style="display:none">
+    <div style="margin-bottom:6px;color:var(--muted);font-size:13px">三大法人買超排行</div>
+    <div class="tablewrap" id="chipRankTable"></div>
+  </div>
+  <div class="card" id="chipWatch" style="display:none">
+    <div style="margin-bottom:6px;color:var(--muted);font-size:13px">重點觀察 / 放量關注</div>
+    <div id="chipWatchList"></div>
+  </div>
+</details>
+</div>
+
+<div class="note" style="margin-top:20px">
+  資料來源:大盤與自選股報價每約2分鐘由 GitHub Actions 向永豐 API 抓取一次(抓不到時改用鉅亨),非逐秒即時;
+  支撐壓力與觀察重點都是用前一交易日及今日高低價機械式算出的參考位置,不是買賣建議;
+  籌碼訊號為每日收盤後計算一次。程式碼見
+  <a href="https://github.com/wayne5171508-sudo/tw-signal-scanner" target="_blank">tw-signal-scanner</a>。
+</div>
+
+<script>
+let INTRADAY = null, HISTORY = null, CHIP = null, CURRENT_DETAIL = null, MARKET = null;
+let REVIEW = null, LAB = null, SLOW_AT = 0, REVIEW_PICK = null;
+let BEAR = null, BEAR_ALL = false, DAYTRADE = null;
+
+const num = n => { if(n === null || n === undefined || n === '') return null; const v = Number(n); return Number.isFinite(v) ? v : null; };
+const PCT_CLASS = p => { const v = num(p); return v > 0 ? 'up' : (v < 0 ? 'down' : 'flat'); };
+const ARROW = p => { const v = num(p); return v > 0 ? '▲' : (v < 0 ? '▼' : '—'); };
+const fmtPct = p => { const v = num(p); return v === null ? '-' : (v > 0 ? '+' : '') + v.toFixed(2) + '%'; };
+const fmtNum = n => { const v = num(n); return v === null ? '-' : (Number.isInteger(v) ? String(v) : v.toFixed(2)); };
+// 台股跳動檔位:股票 <10:0.01、<50:0.05、<100:0.1、<500:0.5、<1000:1、>=1000:5;ETF <50:0.01、其餘 0.05。指數不取整。
+function tickOf(code, p){
+  if(!code || String(code).includes(':')) return 0;
+  const etf = /^00/.test(String(code));
+  if(etf) return p < 50 ? 0.01 : 0.05;
+  return p < 10 ? 0.01 : p < 50 ? 0.05 : p < 100 ? 0.1 : p < 500 ? 0.5 : p < 1000 ? 1 : 5;
+}
+function toTick(p, code){
+  const v = num(p); if(v === null) return p;
+  const t = tickOf(code, v); if(!t) return v;
+  return Math.round(Math.round(v / t) * t * 100) / 100;
+}
+const fmtChange = c => { const v = num(c); return v === null ? '-' : (v > 0 ? '+' : '') + fmtNum(v); };
+const fmtTime = iso => {
+  if(!iso) return '-';
+  const d = new Date(iso);
+  // 明確指定台北時區——資料本身是台股盤中時間,不該因為手機當下所在時區不同就跟著變動
+  // (時間字串本身帶有+08:00,之前沒指定timeZone時會照瀏覽器當地時區顯示,在非台灣時區會跑掉)
+  return d.toLocaleString('zh-TW', {timeZone: 'Asia/Taipei', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', hour12:false});
+};
+
+// ---- 漲跌幅發散長條(diverging bar):紅漲綠跌,中間0為基準線,附方向箭頭做第二層辨識(不只靠顏色) ----
+function divBar(pct){
+  if(pct === null || pct === undefined){
+    return `<div class="divrow"><span class="divtrack"><span class="mid"></span></span><span class="divlabel flat">-</span></div>`;
+  }
+  const mag = Math.min(Math.abs(pct), 10) / 10 * 50; // ±10% 封顶,避免單一離群值把整排尺度拉爛
+  const cls = pct >= 0 ? 'up' : 'down';
+  return `
+    <div class="divrow">
+      <span class="divtrack"><span class="mid"></span><span class="fill ${cls}" style="width:${mag}%"></span></span>
+      <span class="divlabel ${PCT_CLASS(pct)}"><span class="ico">${ARROW(pct)}</span> ${fmtPct(pct)}</span>
+    </div>`;
+}
+
+function seriesFor(code, isIndex){
+  if(!HISTORY || !HISTORY.points || !HISTORY.points.length) return [];
+  const key = isIndex ? 'idx' : 'wl';
+  return HISTORY.points.map(p => p[key] ? p[key][code] : undefined).filter(v => v !== undefined && v !== null);
+}
+
+function sparklineSvg(series, w, h, color, fillColor, refLines, padOverride){
+  const pad = padOverride !== undefined ? padOverride : 54; // 右側留白給壓力/交界/支撐標籤
+  const plotW = w - pad;
+  if(!series || series.length < 2){
+    return `<svg width="${w}" height="${h}"></svg>`;
+  }
+  let vals = [...series];
+  (refLines||[]).forEach(r => { if(r.v != null) vals.push(r.v); });
+  const min = Math.min(...vals), max = Math.max(...vals);
+  const range = (max - min) || 1;
+  const step = plotW / (series.length - 1);
+  const yOf = v => +(h - ((v-min)/range)*h).toFixed(1);
+  const pts = series.map((v,i) => [+(i*step).toFixed(1), yOf(v)]);
+  const lineStr = pts.map(p => p.join(',')).join(' ');
+  const areaStr = `0,${h} ` + lineStr + ` ${plotW},${h}`;
+  const last = pts[pts.length-1];
+  const refSvg = (refLines||[]).filter(r => r.v != null).map(r => {
+    const y = Math.max(5, Math.min(h-5, yOf(r.v)));
+    return `<line x1="0" y1="${y}" x2="${plotW}" y2="${y}" stroke="${r.color}" stroke-width="1" stroke-dasharray="3,3" opacity="0.8"/>
+      <text x="${plotW+3}" y="${y+3}" font-size="9" fill="${r.color}">${r.label}</text>`;
+  }).join('');
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" overflow="visible">
+    <polygon points="${areaStr}" fill="${fillColor}" stroke="none"/>
+    ${refSvg}
+    <polyline points="${lineStr}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="${last[0]}" cy="${last[1]}" r="3.5" fill="${color}" stroke="var(--card)" stroke-width="1.5"/>
+  </svg>`;
+}
+
+// ---- 個股近似K線圖 --------------------------------------------------------------------
+// 免費報價源(cnyes)只給「現在的成交價」,沒有逐筆/分鐘K棒資料。這裡用每次排程(目前5分鐘
+// 一次)抓到的收盤價堆疊出「近似K棒」:開盤=上一次抓到的價,收盤=這一次的價,所以每根只有
+// 實體、沒有影線(誠實反映沒有分鐘內最高最低資料,不假裝精確)。量能不一樣——用「這次累積量
+// -上次累積量」算出的每個區間成交量是真的,不是估的。壓力/交界/支撐三條線直接畫成橫跨全圖
+// 的實線+右側色塊價格標籤,仿照看盤軟體的畫法,不是只在旁邊放小字。
+function buildCandleBars(code){
+  if(!HISTORY || !HISTORY.points) return [];
+  const pts = HISTORY.points.filter(p => p.wl && p.wl[code] !== undefined && p.wl[code] !== null);
+  const bars = [];
+  for(let i = 1; i < pts.length; i++){
+    const open = pts[i - 1].wl[code], close = pts[i].wl[code];
+    const vPrev = pts[i - 1].wlv ? pts[i - 1].wlv[code] : undefined;
+    const vNow = pts[i].wlv ? pts[i].wlv[code] : undefined;
+    const vol = (vPrev != null && vNow != null) ? Math.max(0, vNow - vPrev) : null;
+    bars.push({t: pts[i].t, open, close, high: Math.max(open, close), low: Math.min(open, close), vol});
+  }
+  return bars;
+}
+
+function niceTicks(min, max, count){
+  if(min === max){ min -= 1; max += 1; }
+  const range = max - min;
+  const rawStep = range / count;
+  const mag = Math.pow(10, Math.floor(Math.log10(rawStep)));
+  const norm = rawStep / mag;
+  const step = (norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 5 ? 5 : 10) * mag;
+  const ticks = [];
+  for(let t = Math.ceil(min / step) * step; t <= max; t += step) ticks.push(+t.toFixed(4));
+  return ticks;
+}
+
+
+// ================= 分區(做多區/平衡區/做空區) =================
+// 平衡區 = 盤中均價線上下 ZONE_BAND_PCT;做空區 = 平衡區上緣到壓力線;做多區 = 支撐線到平衡區下緣。
+// 只是「現在在哪個位置」的參考,不是買賣訊號(觸及回測顯示碰線後的反彈和隨機價位差不多)。
+const ZONE_BAND_PCT = 0.15;
+function approxVwap(code){
+  // 和 intraday.py 的 _approx_vwap 一樣:每段新增量 × (上一輪價 + 這一輪價)/2
+  if(!HISTORY || !HISTORY.points) return null;
+  let pv = 0, vv = 0, pp = null, pvol = 0;
+  for(const p of HISTORY.points){
+    const last = p.wl && p.wl[code], vol = p.wlv && p.wlv[code];
+    if(num(last) === null || num(vol) === null || vol < pvol) continue;
+    const ref = pp === null ? last : (pp + last) / 2;
+    pv += (vol - pvol) * ref; vv += vol - pvol; pp = last; pvol = vol;
+  }
+  return vv > 0 ? pv / vv : null;
+}
+function zoneInfo(q){
+  const {resTarget, supTarget, midVal} = effectiveLevels(q, false);
+  const bi = ((INTRADAY && INTRADAY.bias && INTRADAY.bias.items) || []).find(x => x.code === q.code && x.vwap != null);
+  const vwap = bi ? bi.vwap : (approxVwap(q.code) ?? midVal);
+  if(resTarget == null || supTarget == null || vwap == null || !(resTarget > supTarget)) return null;
+  // 均價線在支撐壓力區間外(例如大跌後均價遠在壓力上方)時,改用區間中點當平衡區,不然整段都會變成同一區
+  const vwapOut = !(vwap > supTarget && vwap < resTarget);
+  const c = vwapOut ? (supTarget + resTarget) / 2 : vwap;
+  const bandLo = Math.max(supTarget, c * (1 - ZONE_BAND_PCT / 100)), bandHi = Math.min(resTarget, c * (1 + ZONE_BAND_PCT / 100));
+  const last = q.last;
+  let zone = null, label = '';
+  if(num(last) !== null){
+    if(last > resTarget){ zone = 'over'; label = '已突破壓力'; }
+    else if(last < supTarget){ zone = 'under'; label = '已跌破支撐'; }
+    else if(last > bandHi){ zone = 'short'; label = '做空區'; }
+    else if(last < bandLo){ zone = 'long'; label = '做多區'; }
+    else { zone = 'mid'; label = '平衡區'; }
+  }
+  return {res: resTarget, sup: supTarget, vwap, center: c, vwapOut, bandLo, bandHi, zone, label, mid: midVal};
+}
+const ZONE_COLOR = {short: '#d1403f', long: '#188f63', mid: '#8a5cc7', over: '#d1403f', under: '#188f63'};
+function zoneStrip(q){
+  // 多空判斷列用的小縮圖:左綠(做多區)、中紫(平衡區)、右紅(做空區),圓點=現價
+  const z = zoneInfo(q);
+  if(!z) return '';
+  const span = z.res - z.sup, pos = v => Math.max(0, Math.min(100, (v - z.sup) / span * 100));
+  const a = pos(z.bandLo), b = pos(z.bandHi), dot = pos(q.last);
+  const out = z.zone === 'over' || z.zone === 'under';
+  return `<div class="zstrip"><div class="zbar"><i style="left:0;width:${a}%;background:var(--down-fill);border-color:var(--down)"></i><i style="left:${a}%;width:${Math.max(1.5, b - a)}%;background:rgba(138,92,199,.22);border-color:#8a5cc7"></i><i style="left:${b}%;width:${100 - b}%;background:var(--up-fill);border-color:var(--up)"></i><em style="left:${dot}%;${out ? 'background:var(--card);' : ''}border-color:${ZONE_COLOR[z.zone] || 'var(--text)'}"></em></div>
+    <div class="zft"><span class="down">支撐 ${fmtNum(z.sup)}</span><span style="color:${ZONE_COLOR[z.zone]};font-weight:700">現價在${z.label}</span><span class="up">壓力 ${fmtNum(z.res)}</span></div></div>`;
+}
+
+function candleChart(code, q){
+  const bars = buildCandleBars(code);
+  if(bars.length < 2){
+    return `<div class="note" style="padding:18px 0;text-align:center">今日資料點還不夠(至少要累積2次排程),K線圖稍後自動出現</div>`;
+  }
+
+  const baseW = 320, h = 196, volH = 44, gap = 6, axisW = 52, topPad = 6;
+  const plotW = baseW - axisW;
+  const plotH = h - volH - gap - topPad;
+
+  const {resTarget, resLabel, supTarget, supLabel, midVal, midLabel} = effectiveLevels(q, false);
+  const zi = zoneInfo(q);
+  const refLevels = [resTarget, supTarget, midVal, q.last, zi && zi.vwap].filter(v => v != null);
+  let min = Math.min(...bars.flatMap(b => [b.high, b.low]).concat(refLevels));
+  let max = Math.max(...bars.flatMap(b => [b.high, b.low]).concat(refLevels));
+  if(min === max){ min -= 1; max += 1; }
+  const pad = (max - min) * 0.1;
+  min -= pad; max += pad;
+  const yOf = v => topPad + plotH - ((v - min) / (max - min)) * plotH;
+
+  const n = bars.length;
+  const slot = plotW / n;
+  const bodyW = Math.max(2, Math.min(12, slot * 0.6));
+
+  const candleSvg = bars.map((b, i) => {
+    const cx = i * slot + slot / 2;
+    const color = b.close >= b.open ? 'var(--up)' : 'var(--down)';
+    const yTop = yOf(Math.max(b.open, b.close));
+    const yBot = yOf(Math.min(b.open, b.close));
+    const bh = Math.max(1.5, yBot - yTop);
+    return `<rect x="${(cx - bodyW / 2).toFixed(1)}" y="${yTop.toFixed(1)}" width="${bodyW.toFixed(1)}" height="${bh.toFixed(1)}" fill="${color}" rx="1"/>`;
+  }).join('');
+
+  const ticks = niceTicks(min, max, 4);
+  const gridSvg = ticks.map(t => {
+    const y = yOf(t);
+    return `<line x1="0" y1="${y.toFixed(1)}" x2="${plotW}" y2="${y.toFixed(1)}" stroke="var(--grid)" stroke-width="1"/>
+      <text x="${plotW + 5}" y="${(y + 3).toFixed(1)}" font-size="9.5" fill="var(--muted)">${fmtNum(t)}</text>`;
+  }).join('');
+
+  function levelLine(val, color, dash){
+    if(val == null) return '';
+    const y = Math.max(8, Math.min(topPad + plotH - 2, yOf(val)));
+    return `<line x1="0" y1="${y.toFixed(1)}" x2="${plotW}" y2="${y.toFixed(1)}" stroke="${color}" stroke-width="1.3"${dash ? ' stroke-dasharray="4,3"' : ''}/>
+      <rect x="${plotW + 2}" y="${(y - 8).toFixed(1)}" width="${axisW - 2}" height="16" rx="3" fill="${color}"/>
+      <text x="${plotW + 2 + (axisW - 2) / 2}" y="${(y + 4).toFixed(1)}" font-size="9.5" fill="#fff" text-anchor="middle">${fmtNum(val)}</text>`;
+  }
+  const levelsSvg = levelLine(resTarget, '#d1403f', false) + levelLine(midVal, '#9a8a2a', true) + levelLine(supTarget, '#188f63', false);
+  let zonesSvg = '', zoneTextSvg = '', priceSvg = '', markSvg = '';
+  if(zi){
+    const yr = Math.max(topPad, yOf(zi.res)), yhi = yOf(zi.bandHi), ylo = yOf(zi.bandLo), ys = Math.min(topPad + plotH, yOf(zi.sup));
+    const box = (y1, y2, fill, stroke) => y2 - y1 > 0.5 ? `<rect x="0" y="${y1.toFixed(1)}" width="${plotW}" height="${(y2 - y1).toFixed(1)}" fill="${fill}" stroke="${stroke}" stroke-width="0.6"/>` : '';
+    zonesSvg = box(yr, yhi, 'rgba(209,64,63,0.10)', 'rgba(209,64,63,0.45)') + box(yhi, ylo, 'rgba(138,92,199,0.20)', 'rgba(138,92,199,0.6)') + box(ylo, ys, 'rgba(24,143,99,0.10)', 'rgba(24,143,99,0.45)');
+    const yv = yOf(zi.vwap);
+    zonesSvg += `<line x1="0" y1="${yv.toFixed(1)}" x2="${plotW}" y2="${yv.toFixed(1)}" stroke="#8a5cc7" stroke-width="1" stroke-dasharray="2,2"/>`;
+    const tx = (y, t, c) => (y > topPad + 8 && y < topPad + plotH - 2) ? `<text x="${(plotW / 2).toFixed(1)}" y="${y.toFixed(1)}" font-size="10" font-weight="700" fill="${c}" text-anchor="middle" opacity="0.75">${t}</text>` : '';
+    zoneTextSvg = tx(yr + 12, '做空區', '#d1403f') + tx(ys - 4, '做多區', '#188f63');
+    if(num(q.last) !== null){
+      const yp = Math.max(topPad + 6, Math.min(topPad + plotH - 6, yOf(q.last))), zc = ZONE_COLOR[zi.zone] || 'var(--text)';
+      priceSvg = `<line x1="0" y1="${yp.toFixed(1)}" x2="${plotW}" y2="${yp.toFixed(1)}" stroke="${zc}" stroke-width="0.8" stroke-dasharray="1,2"/>
+        <rect x="${plotW - 58}" y="${(yp - 8).toFixed(1)}" width="56" height="16" rx="3" fill="${zc}"/>
+        <text x="${plotW - 30}" y="${(yp + 4).toFixed(1)}" font-size="9.5" fill="#fff" text-anchor="middle">${zi.label}</text>`;
+    }
+  }
+  // 觸發標記:多空判斷每條規則第一次觸發的位置;回測站得住=彩色,其餘灰色(只是紀錄,不是可下單訊號)
+  const hhmm = iso => { try { return new Date(iso).toLocaleTimeString('en-GB', {timeZone: 'Asia/Taipei', hour: '2-digit', minute: '2-digit'}); } catch(e){ return ''; } };
+  const bt = bars.map(b => hhmm(b.t));
+  // 同一時間、同方向只畫一個;其中任一條規則站得住就用彩色
+  const trigMap = {};
+  ((INTRADAY && INTRADAY.bias && INTRADAY.bias.items) || []).filter(x => x.code === code && x.trig_t && num(x.trig_price) !== null).forEach(x => {
+    const k = x.trig_t + x.side, o = trigMap[k];
+    if(!o) trigMap[k] = {...x, names: [x.rule_name || x.rule]};
+    else { o.names.push(x.rule_name || x.rule); o.holds = o.holds || x.holds; }
+  });
+  const trig = Object.values(trigMap);
+  markSvg = trig.map(x => {
+    let i = bt.findIndex(t => t >= x.trig_t);
+    if(i < 0) i = bars.length - 1;
+    const cx = i * slot + slot / 2, y = yOf(x.trig_price), lg = x.side === 'long';
+    const c = x.holds ? (lg ? '#d1403f' : '#188f63') : '#98968f';
+    const tip = lg ? `${cx},${(y + 3).toFixed(1)} ${cx - 5},${(y + 11).toFixed(1)} ${cx + 5},${(y + 11).toFixed(1)}` : `${cx},${(y - 3).toFixed(1)} ${cx - 5},${(y - 11).toFixed(1)} ${cx + 5},${(y - 11).toFixed(1)}`;
+    const ty = lg ? y + 21 : y - 14;
+    return `<polygon points="${tip}" fill="${c}"><title>${x.trig_t} ${bearEsc(x.names.join('、'))} @ ${fmtNum(x.trig_price)}${x.holds ? '' : '(未通過回測)'}</title></polygon>
+      <text x="${cx}" y="${ty.toFixed(1)}" font-size="8.5" fill="${c}" text-anchor="middle">${lg ? '多' : '空'}</text>`;
+  }).join('');
+
+  const vols = bars.map(b => b.vol).filter(v => v != null);
+  const maxVol = vols.length ? Math.max(...vols) : 0;
+  const volY0 = topPad + plotH + gap;
+  const volSvg = bars.map((b, i) => {
+    if(b.vol == null || !maxVol) return '';
+    const cx = i * slot + slot / 2;
+    const color = b.close >= b.open ? 'var(--up)' : 'var(--down)';
+    const bh = Math.max(1, (b.vol / maxVol) * (volH - 2));
+    return `<rect x="${(cx - bodyW / 2).toFixed(1)}" y="${(volY0 + (volH - 2) - bh).toFixed(1)}" width="${bodyW.toFixed(1)}" height="${bh.toFixed(1)}" fill="${color}" opacity="0.6"/>`;
+  }).join('');
+
+  return `
+    <svg width="100%" height="${h}" viewBox="0 0 ${baseW} ${h}" preserveAspectRatio="xMidYMid meet">
+      ${gridSvg}
+      ${zonesSvg}
+      ${zoneTextSvg}
+      ${candleSvg}
+      ${levelsSvg}
+      ${priceSvg}
+      ${markSvg}
+      <line x1="0" y1="${volY0.toFixed(1)}" x2="${plotW}" y2="${volY0.toFixed(1)}" stroke="var(--grid)" stroke-width="1"/>
+      ${volSvg}
+    </svg>
+    <div class="candletime"><span>${fmtTime(bars[0].t)}</span><span>量能(區間實際成交量)</span><span>${fmtTime(bars[bars.length - 1].t)}</span></div>
+    ${zi ? `<div class="zlegend"><span><i style="background:rgba(209,64,63,.25)"></i>做空區(平衡區上緣~壓力 ${fmtNum(zi.res)})</span><span><i style="background:rgba(138,92,199,.35)"></i>平衡區(${zi.vwapOut ? `均價 ${fmtNum(zi.vwap)} 在區間外,改用區間中點 ${fmtNum(zi.center)}` : `均價 ${fmtNum(zi.vwap)}`} ±${ZONE_BAND_PCT}%)</span><span><i style="background:rgba(24,143,99,.25)"></i>做多區(支撐 ${fmtNum(zi.sup)}~平衡區下緣)</span><span><b style="color:#d1403f">▲</b><b style="color:#188f63">▼</b> 多空判斷觸發(灰色=未通過回測)</span></div>
+    <div class="meta" style="margin-top:2px">分區只是「現在在哪個位置」的參考,不是買賣訊號:觸及回測顯示碰到支撐壓力後的反彈和隨機價位差不多。</div>` : ''}
+    <div class="meta" style="margin-top:2px">近似K線:每輪報價(盤中約 2~3 分鐘)一格,用當時成交價堆疊(非逐筆真實高低,沒有影線);下方量能是真實區間成交量,不是估的</div>`;
+}
+
+function renderWatchlist(data, filterText){
+  if(!data || !data.watchlist_quotes){
+    document.getElementById('watchlistTable').innerHTML = '<div class="err">暫無自選股資料</div>';
+    return;
+  }
+  let list = [...data.watchlist_quotes];
+  if(filterText){
+    const f = filterText.trim().toLowerCase();
+    list = list.filter(q => String(q.code).toLowerCase().includes(f) || (q.name && q.name.toLowerCase().includes(f)));
+  }
+  list.sort((a,b) => (b.pct ?? -999) - (a.pct ?? -999));
+  if(!list.length){
+    document.getElementById('watchlistTable').innerHTML = '<div class="note">找不到符合的股票</div>';
+    return;
+  }
+  let rows = list.map(q => {
+    const nearLimit = q.pct !== null && q.pct !== undefined && Math.abs(q.pct) >= 9.5;
+    return `
+    <tr onclick="openDetail('${q.code}', false)">
+      <td>${q.code} ${q.name}${nearLimit ? '<span class="tag warn">近停板</span>' : ''}</td>
+      <td class="${PCT_CLASS(q.change)}">${fmtNum(q.last)}</td>
+      <td>${divBar(q.pct)}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('watchlistTable').innerHTML = `
+    <table><thead><tr><th>代碼/名稱</th><th>成交</th><th>漲跌幅</th></tr></thead>
+    <tbody>${rows}</tbody></table>`;
+}
+
+function findChipEntry(code){
+  if(!CHIP) return null;
+  const pools = [...(CHIP.focus_stocks||[]), ...(CHIP.surge_watch||[])];
+  const hit = pools.find(s => s.code === code);
+  if(hit) return {type:'watch', data:hit};
+  const rank = (CHIP.institutional_buy_rank_top8||[]).findIndex(s => s.code === code);
+  if(rank >= 0) return {type:'rank', data:CHIP.institutional_buy_rank_top8[rank], rank: rank+1};
+  return null;
+}
+
+// ---- 自選股漲跌幅熱力圖:色塊一次看完,顏色深淺依漲跌幅大小(封頂±7%避免單一離群值
+// 把色階拉爛),紅漲綠跌維持跟全站一致的台股配色,格子裡的文字永遠是白色或深色(依底色深淺
+// 自動切換,不直接把文字染成資料色,符合排版可讀性原則)----
+function heatColor(pct){
+  const cap = 7;
+  const mag = Math.min(Math.abs(pct ?? 0), cap) / cap;      // 0~1
+  const alpha = 0.12 + mag * 0.78;                           // 淺到接近滿色
+  const rgb = (pct ?? 0) >= 0 ? '209,64,63' : '24,143,99';   // 對應 --up / --down
+  return {bg: `rgba(${rgb},${alpha.toFixed(2)})`, dark: alpha >= 0.5};
+}
+
+function renderHeatGrid(data){
+  const el = document.getElementById('heatGrid');
+  const legendEl = document.getElementById('heatLegend');
+  if(!data || !data.watchlist_quotes){
+    el.innerHTML = '<div class="note">暫無資料</div>';
+    return;
+  }
+  const list = [...data.watchlist_quotes].sort((a, b) => (b.pct ?? -999) - (a.pct ?? -999));
+  el.innerHTML = list.map(q => {
+    const {bg, dark} = heatColor(q.pct);
+    const textColor = dark ? '#ffffff' : 'var(--text)';
+    return `
+      <div class="heattile" style="background:${bg}" onclick="searchAndOpen('${q.code}')">
+        <span class="htcode" style="color:${textColor}">${q.code}</span>
+        <span class="htpct" style="color:${textColor}">${fmtPct(q.pct)}</span>
+      </div>`;
+  }).join('');
+  legendEl.innerHTML = `
+    <span><span class="lg" style="background:rgba(209,64,63,0.78)"></span>大漲</span>
+    <span><span class="lg" style="background:rgba(209,64,63,0.2)"></span>小漲</span>
+    <span><span class="lg" style="background:rgba(24,143,99,0.2)"></span>小跌</span>
+    <span><span class="lg" style="background:rgba(24,143,99,0.78)"></span>大跌</span>
+    <span>(顏色深淺封頂在±7%)</span>`;
+}
+
+// ---- 量能異常排行:全部自選股依「今日量/近5日均量」倍率排序,不是只有scan.py那20檔
+// 候選股才有。資料還在累積(上線前3天內)時 volume_multiple 會是 null,自動跳過不排 ----
+function renderVolumeCards(data){
+  const el = document.getElementById('volumeCards');
+  const noteEl = document.getElementById('volumeNote');
+  if(!data || !data.watchlist_quotes){
+    el.innerHTML = '<div class="note">暫無資料</div>';
+    noteEl.textContent = '';
+    return;
+  }
+  const withRatio = data.watchlist_quotes.filter(q => q.volume_multiple != null);
+  if(!withRatio.length){
+    el.innerHTML = '';
+    noteEl.textContent = '量能倍率需要至少3個交易日的歷史資料才能算,功能剛上線還在累積中,過幾天會自動出現。';
+    return;
+  }
+  const top = [...withRatio].sort((a, b) => b.volume_multiple - a.volume_multiple).slice(0, 5);
+  noteEl.textContent = '';
+  el.innerHTML = top.map((q, i) => `
+    <div class="focuscard volcard" onclick="searchAndOpen('${q.code}')">
+      <div class="fclabel">No.${i + 1} · 今日量/近5日均量</div>
+      <div class="fcname">${q.code} ${q.name}</div>
+      <span class="fcratio">${q.volume_multiple}倍</span>
+      <span class="fcprice ${PCT_CLASS(q.change)}">${fmtNum(q.last)} <span class="fcchg ${PCT_CLASS(q.change)}" style="display:inline">${ARROW(q.change)}${fmtPct(q.pct)}</span></span>
+    </div>`).join('');
+}
+
+function renderChipBox(code){
+  const entry = findChipEntry(code);
+  if(!entry){
+    return `<div class="chipbox"><span class="none">今日籌碼資料沒有特別標記這檔(不代表沒表現,只是沒進入篩選名單)</span></div>`;
+  }
+  if(entry.type === 'rank'){
+    return `<div class="chipbox">三大法人買超排行第 <b>${entry.rank}</b> 名,買超 <b>${fmtNum(entry.data.net_buy_lots)}</b> 張</div>`;
+  }
+  const s = entry.data;
+  return `<div class="chipbox">
+    ${s.signal_status || ''} · 技術分 <b>${fmtNum(s.tech_score)}</b>(${s.tag || '-'})
+    ${s.sector_cluster && s.sector_cluster !== '無族群效應' ? ' · ' + s.sector_cluster : ''}
+    ${s.limit_up_locked ? '<span class="tag warn">漲停鎖死</span>' : ''}
+    ${s.consecutive_buy_days ? ` · 連買${s.consecutive_buy_days}天` : ''}
+    ${s.cost_breakeven_tag && s.cost_breakeven_tag !== 'normal' ? ' · ' + s.cost_breakeven_tag : ''}
+    ${s.amplitude_tag ? ' · 振幅:' + s.amplitude_tag : ''}
+    ${s.gap_tag ? ' · 開盤缺口:' + s.gap_tag : ''}
+  </div>`;
+}
+
+// ---- 關鍵價位 meter:整個跌停-漲停區間當作量尺,標出低/昨收/高跟現價 ----
+function priceLadder(q){
+  const hasLimits = q.upper_limit != null && q.lower_limit != null;
+  const lo = hasLimits ? q.lower_limit : Math.min(q.low ?? q.last, q.prev_close ?? q.last);
+  const hi = hasLimits ? q.upper_limit : Math.max(q.high ?? q.last, q.prev_close ?? q.last);
+  const range = (hi - lo) || 1;
+  const pos = v => Math.max(0, Math.min(100, ((v - lo) / range) * 100));
+  const lastPos = pos(q.last);
+  const color = (q.last >= (q.prev_close ?? q.last)) ? 'var(--up)' : 'var(--down)';
+
+  const ticks = [];
+  if(q.low != null) ticks.push({v:q.low, label:'今日低 ' + fmtNum(q.low), where:'bottom'});
+  if(q.prev_close != null) ticks.push({v:q.prev_close, label:'昨收 ' + fmtNum(q.prev_close), where:'top', ref:true});
+  if(q.high != null) ticks.push({v:q.high, label:'今日高 ' + fmtNum(q.high), where:'bottom'});
+
+  const topTicks = ticks.filter(t => t.where==='top');
+  const botTicks = ticks.filter(t => t.where==='bottom');
+
+  return `
+    <div class="ladder">
+      <div class="laddertoplabels">${topTicks.map(t => `<span style="left:${pos(t.v)}%">${t.label}</span>`).join('')}</div>
+      <div class="laddertrack">
+        <div class="fill" style="width:${lastPos}%;background:${color};opacity:0.5"></div>
+        ${ticks.map(t => `<div class="tick${t.ref?' ref':''}" style="left:${pos(t.v)}%"></div>`).join('')}
+        <div class="now" style="left:${lastPos}%;background:${color}"></div>
+      </div>
+      <div class="ladderbottomlabels">${botTicks.map(t => `<span style="left:${pos(t.v)}%">${t.label}</span>`).join('')}</div>
+      ${hasLimits ? `<div class="ladderends"><span>跌停 ${fmtNum(lo)}</span><span>漲停 ${fmtNum(hi)}</span></div>` : ''}
+    </div>`;
+}
+
+// ---- 壓力/支撐取值規則:優先用CDP逆勢操作系統(前一個交易日高低收算出來的近高值/近低值,
+// 樞紐價當交界),這是台股看盤軟體常見、真的有依據的算法,不是當天的漲跌停也不是當天的
+// 高低點。只有「還沒有前一個交易日資料」(例如功能剛上線的第一個交易日)才會退回用今日目前
+// 為止的高低點當替代。股價真的衝到漲停/跌停鎖住時,不管哪種算法都會自然顯示成漲停/跌停。----
+let BASIS = 'auto';   // auto | cdp | 5 | 10 | 20
+try { const saved = localStorage.getItem('lvBasis'); if(saved) BASIS = saved; } catch(e) {}
+
+function swOk(sw, n){
+  if(!sw || sw['h' + n] == null || sw['l' + n] == null) return false;
+  return n === 5 ? sw.d5 >= 3 : sw['d' + n] >= n;
+}
+
+function keyLevels(q){
+  const cdp = q.cdp, sw = q.swing;
+  const hasCdp = !!(cdp && cdp.nh != null && cdp.nl != null && cdp.cdp != null);
+  const cdpLow = hasCdp && cdp.reliability === 'low';
+  let mode = BASIS;
+  if(mode === 'cdp' && !hasCdp) mode = 'auto';
+  if((mode === '5' || mode === '10' || mode === '20') && !swOk(sw, +mode)) mode = 'auto';
+  const forced = (mode === BASIS) && BASIS !== 'auto';
+  if(mode === 'auto') mode = (hasCdp && !cdpLow) ? 'cdp' : (swOk(sw, 5) ? '5' : (hasCdp ? 'cdp' : 'today'));
+
+  let resTarget, supTarget, resBase, supBase, swDays = null;
+  if(mode === 'cdp'){
+    resTarget = cdp.nh; supTarget = cdp.nl; resBase = 'CDP近高'; supBase = 'CDP近低';
+  } else if(mode === 'today'){
+    resTarget = q.high ?? q.upper_limit; supTarget = q.low ?? q.lower_limit; resBase = '今日高'; supBase = '今日低';
+  } else {
+    const n = +mode; swDays = sw['d' + n];
+    resTarget = sw['h' + n]; supTarget = sw['l' + n]; resBase = `近${swDays}日高`; supBase = `近${swDays}日低`;
+  }
+  // 顯示用價位取到台股實際可下單的跳動檔位(算法本身不動)
+  resTarget = toTick(resTarget, q.code); supTarget = toTick(supTarget, q.code);
+  // 壓力不可能高過今天漲停、支撐不可能低過今天跌停(今天碰不到),一律封頂
+  if(resTarget != null && q.upper_limit != null) resTarget = Math.min(resTarget, q.upper_limit);
+  if(supTarget != null && q.lower_limit != null) supTarget = Math.max(supTarget, q.lower_limit);
+  const midVal = toTick(hasCdp ? cdp.cdp : q.prev_close, q.code);
+  const midLabel = hasCdp ? 'CDP樞紐價' : '昨收';
+  const hitUpper = q.upper_limit != null && resTarget != null && resTarget >= q.upper_limit - 0.005;
+  const hitLower = q.lower_limit != null && supTarget != null && supTarget <= q.lower_limit + 0.005;
+  return {
+    resTarget, resLabel: hitUpper ? '漲停' : resBase, supTarget, supLabel: hitLower ? '跌停' : supBase,
+    midVal, midLabel, usingCdp: mode === 'cdp',
+    basis: mode === 'cdp' ? 'cdp' : (mode === 'today' ? 'today' : 'swing'), mode, forced, swDays, cdpLow, hasCdp,
+  };
+}
+
+// ---- 關鍵價位 chips:壓力(CDP近高,沒資料時退回今日高) / 交界(CDP樞紐價,沒資料時退回昨收) / 支撐(CDP近低,沒資料時退回今日低) ----
+// 卡片、K線圖、分區都用這一份:已突破壓力或跌破支撐時,換成「現價上方、下方最近的一條線」
+function effectiveLevels(q, isIndex){
+  const distPct = (target, base) => (target != null && base) ? (((target - base) / base) * 100) : null;
+  let {resTarget, resLabel, supTarget, supLabel, midVal, midLabel, usingCdp} = keyLevels(q);
+  let dRes = distPct(resTarget, q.last);
+  let dSup = distPct(q.last, supTarget);
+  // 已突破壓力或跌破支撐:換成「現價上方、下方最近的一條線」(來自日K算出的各類線),並標出剛被突破的那條
+  let brokeNote = '';
+  const cf = q.conf;
+  if(!isIndex && cf && ((dRes !== null && dRes < 0) || (dSup !== null && dSup < 0))){
+    const nm = x => (x.srcs || []).join('+') + (x.n >= 2 ? '★' : '');
+    const nr = (cf.res || [])[0], ns = (cf.sup || [])[0];
+    if(dRes < 0){ brokeNote = `已突破 ${resLabel} ${fmtNum(resTarget)},下方最近的線是支撐觀察`; }
+    else { brokeNote = `已跌破 ${supLabel} ${fmtNum(supTarget)},上方最近的線是壓力觀察`; }
+    if(nr){ resTarget = toTick(nr.price, q.code); resLabel = nm(nr); dRes = distPct(resTarget, q.last); }
+    if(ns){ supTarget = toTick(ns.price, q.code); supLabel = nm(ns); dSup = distPct(q.last, supTarget); }
+  }
+  return {resTarget, resLabel, supTarget, supLabel, midVal, midLabel, usingCdp, dRes, dSup, brokeNote};
+}
+function levelChips(q, isIndex){
+  const {resTarget, resLabel, supTarget, supLabel, midVal, midLabel, usingCdp, dRes, dSup, brokeNote} = effectiveLevels(q, isIndex);
+
+  return `
+    <div class="levelchips">
+      <div class="levelchip res">
+        <div class="lbl">▲ 壓力位(${resLabel})</div>
+        <div class="val">${fmtNum(resTarget)}</div>
+        <div class="sub">${dRes === null ? '距現價 -' : (dRes < 0 ? '已突破 ' + Math.abs(dRes).toFixed(2) + '%,轉為支撐觀察' : '距現價 +' + dRes.toFixed(2) + '%')}</div>
+      </div>
+      <div class="levelchip ref">
+        <div class="lbl">● 交界位(${midLabel})</div>
+        <div class="val">${fmtNum(midVal)}</div>
+        <div class="sub">現價 ${q.last >= (midVal ?? q.last) ? '在上方,偏多' : '在下方,偏空'}</div>
+      </div>
+      <div class="levelchip sup">
+        <div class="lbl">▼ 支撐位(${supLabel})</div>
+        <div class="val">${fmtNum(supTarget)}</div>
+        <div class="sub">${dSup === null ? '距現價 -' : (dSup < 0 ? '已跌破 ' + Math.abs(dSup).toFixed(2) + '%,轉為壓力觀察' : '距現價 -' + dSup.toFixed(2) + '%')}</div>
+      </div>
+    </div>
+    ${(dRes !== null && dSup !== null && dRes > 0 && dSup > 0) ? `<div class="lvrr"><div class="rrbar"><i class="rrdn" style="width:${dSup / (dRes + dSup) * 100}%"></i><i class="rrup" style="width:${dRes / (dRes + dSup) * 100}%"></i></div><div class="rrft"><span class="down">下行風險 -${dSup.toFixed(1)}%</span><span>損益比 ${(dRes / dSup).toFixed(1)}:1</span><span class="up">上行空間 +${dRes.toFixed(1)}%</span></div></div>` : ''}
+    ${brokeNote ? `<div class="lvhint">${brokeNote}</div>` : ''}
+    ${q.ex_today ? `<div class="lvhint">今天除權息/減資(參考價是前一日收盤的 ${(q.ex_today * 100).toFixed(1)}%),支撐壓力與均線已依參考價還原計算。</div>` : ''}
+    ${!isIndex ? levelWhy(q) : ''}`;
+}
+
+// ---- 機械式位置判讀(純粹描述現價在今天區間的位置,不是買賣建議) ----
+function biasNote(q){
+  if(q.last == null || q.prev_close == null) return '';
+  const nearUpper = q.pct !== null && q.pct >= 9.5;
+  const nearLower = q.pct !== null && q.pct <= -9.5;
+  if(nearUpper) return '鎖在漲停附近,留意是否打開、打開後量能怎麼變化。';
+  if(nearLower) return '鎖在跌停附近,留意是否打開、打開後賣壓怎麼變化。';
+
+  const vsHigh = q.high != null ? (q.high - q.last) : null;
+  const vsLow = q.low != null ? (q.last - q.low) : null;
+  const dayRange = (q.high != null && q.low != null) ? (q.high - q.low) : null;
+  const nearHigh = dayRange && vsHigh !== null && vsHigh <= dayRange * 0.15;
+  const nearLow = dayRange && vsLow !== null && vsLow <= dayRange * 0.15;
+
+  if(q.last > q.prev_close){
+    if(nearHigh) return '站上昨收,且貼近今天高點,屬於偏多但追價區,拉回看昨收守不守得住。';
+    return '站上昨收,偏多格局,觀察能不能繼續墊高今天高點。';
+  } else if(q.last < q.prev_close){
+    if(nearLow) return '跌破昨收,且貼近今天低點,屬於偏空且破底區,反彈看能不能站回昨收。';
+    return '跌破昨收,偏空格局,觀察昨收那條線有沒有機會站回去。';
+  }
+  return '剛好卡在昨收價位,方向還沒出來,觀察往上或往下先突破哪一邊。';
+}
+
+// ---- 壓力/支撐多日趨勢:看最近幾天CDP近高/近低值是不是持續墊高或走低,一樣是機械式算出來的
+// 歷史比較,不是預測。少於2個點(資料還在累積)就不顯示 ----
+function cdpTrendBlock(q){
+  const trend = q.cdp_trend;
+  if(!trend || trend.length < 2) return '';
+  const nhSeries = trend.map(p => p.nh);
+  const nlSeries = trend.map(p => p.nl);
+  const dirText = v => v > 0.01 ? '墊高' : (v < -0.01 ? '走低' : '持平');
+  const nhDir = nhSeries[nhSeries.length - 1] - nhSeries[0];
+  const nlDir = nlSeries[nlSeries.length - 1] - nlSeries[0];
+  return `
+    <div class="cdptrend">
+      <div class="meta">近${trend.length}個交易日 CDP壓力/支撐走勢(機械式歷史比較,不是預測)</div>
+      <div class="cdptrendrow">
+        <span class="cdptrendlbl res">壓力${dirText(nhDir)}</span>
+        ${sparklineSvg(nhSeries, 100, 28, 'var(--up)', 'var(--up-fill)', null, 0)}
+        <span class="cdptrendval">${fmtNum(nhSeries[0])} → ${fmtNum(nhSeries[nhSeries.length - 1])}</span>
+      </div>
+      <div class="cdptrendrow">
+        <span class="cdptrendlbl sup">支撐${dirText(nlDir)}</span>
+        ${sparklineSvg(nlSeries, 100, 28, 'var(--down)', 'var(--down-fill)', null, 0)}
+        <span class="cdptrendval">${fmtNum(nlSeries[0])} → ${fmtNum(nlSeries[nlSeries.length - 1])}</span>
+      </div>
+    </div>`;
+}
+
+function openDetail(code, isIndex, opts){
+  opts = opts || {};
+  const pool = isIndex ? (INTRADAY && INTRADAY.indices) : (INTRADAY && INTRADAY.watchlist_quotes);
+  if(!pool) return;
+  const q = pool.find(x => x.code === code);
+  if(!q) return;
+  CURRENT_DETAIL = {code, isIndex};
+  if(!opts.silent && document.body.dataset.tab !== 'stocks') setTab('stocks');
+
+  const series = seriesFor(code, isIndex);
+  const color = q.change > 0 ? 'var(--up)' : (q.change < 0 ? 'var(--down)' : 'var(--muted)');
+  const fillColor = q.change > 0 ? 'var(--up-fill)' : (q.change < 0 ? 'var(--down-fill)' : 'rgba(137,135,129,0.14)');
+  const {resTarget, supTarget, midVal} = keyLevels(q);
+  const refLines = [
+    {v: resTarget, color: '#d1403f', label: '壓力 ' + fmtNum(resTarget)},
+    {v: midVal, color: '#9a8a2a', label: '交界 ' + fmtNum(midVal)},
+    {v: supTarget, color: '#188f63', label: '支撐 ' + fmtNum(supTarget)},
+  ];
+  const volText = (q.volume !== null && q.volume !== undefined) ? Number(q.volume).toLocaleString('zh-TW') : '-';
+  const volMulText = (q.volume_multiple != null) ? `,為近5日均量的${q.volume_multiple}倍` : '';
+
+  document.getElementById('detailCard').innerHTML = `
+    <div class="dhead">
+      <div>
+        <span class="dname">${q.code !== q.name ? q.code + ' ' : ''}${q.name}</span>
+      </div>
+      <div style="text-align:right">
+        <span class="close" onclick="closeDetail()">收合 ✕</span>
+        <div><span class="dprice ${PCT_CLASS(q.change)}">${fmtNum(q.last)}</span></div>
+        <span class="dchg ${PCT_CLASS(q.change)}">${ARROW(q.change)} ${fmtChange(q.change)}(${fmtPct(q.pct)})</span>
+      </div>
+    </div>
+    ${!isIndex ? `<div class="meta">成交量 ${volText}${volMulText}(與昨日比較相對大小用,非委買委賣量;免費報價源無法取得買賣盤口)</div>` : ''}
+
+    ${!isIndex ? teamPanel(q) : ''}
+    ${!isIndex ? dtTools(q) : ''}
+    ${!isIndex ? tmPanel(q) : ''}
+    ${priceLadder(q)}
+    ${levelChips(q, isIndex)}
+    <div class="biasnote">${biasNote(q)}</div>
+    ${!isIndex ? cdpTrendBlock(q) : ''}
+
+    <div class="sparkwrap">
+      ${isIndex
+        ? `<div class="meta">今日走勢 + 壓力/交界/支撐參考線(從網頁開始記錄算起,盤中約每 2~3 分鐘一個點)</div>${sparklineSvg(series, 272, 64, color, fillColor, refLines)}`
+        : candleChart(code, q)}
+    </div>
+    ${!isIndex ? renderChipBox(code) : ''}
+  `;
+  document.getElementById('detailCard').style.display = '';
+  if(!opts.silent){
+    document.getElementById('detailCard').scrollIntoView({behavior:'smooth', block:'start'});
+  }
+}
+
+function closeDetail(){
+  document.getElementById('detailCard').style.display = 'none';
+  CURRENT_DETAIL = null;
+}
+
+function renderChip(data){
+  const summaryEl = document.getElementById('chipSummary');
+  if(!data){
+    summaryEl.innerHTML = '<div class="err">暫無籌碼資料</div>';
+    return;
+  }
+  if(data.market_status !== 'OK'){
+    summaryEl.innerHTML = `<div class="meta">${data.date || ''}</div>
+      <div class="note">今日籌碼資料尚未就緒(排程可能還沒跑完,晚點再看)。</div>`;
+    return;
+  }
+  const regime = data.market_regime || '-';
+  const badgeClass = regime === '多頭' ? 'bull' : (regime === '空頭' ? 'bear' : 'flat');
+  summaryEl.innerHTML = `
+    <div class="meta">${data.date}</div>
+    <span class="badge ${badgeClass}">大盤環境:${regime}</span>
+    <span class="tag">加權指數 ${fmtPct(data.taiex_change_pct)}</span>`
+    + ((t => t && t.sample_size > 0 ? `<div class="note" style="margin-top:8px">盤後訊號隔日成績(近 ${t.sample_size} 筆):收盤上漲 ${t.win_rate_close_pct}%,平均隔日收盤 ${fmtPct(t.avg_close_return_pct)},隔日最高平均 ${fmtPct(t.avg_day_high_return_pct)}。${t.sample_size < 30 ? '樣本還少,只當參考。' : ''}以訊號日收盤價為基準,未扣成本。</div>` : '')(data.track_record_stats));
+
+  if(data.institutional_buy_rank_top8 && data.institutional_buy_rank_top8.length){
+    document.getElementById('chipRank').style.display = '';
+    const rows = data.institutional_buy_rank_top8.map(r => `
+      <tr onclick="searchAndOpen('${r.code}')" style="cursor:pointer"><td>${r.code} ${r.name}</td><td>${fmtNum(r.net_buy_lots)} 張</td></tr>`).join('');
+    document.getElementById('chipRankTable').innerHTML = `
+      <table><thead><tr><th>個股</th><th>買超張數</th></tr></thead><tbody>${rows}</tbody></table>`;
+  }
+
+  const watch = [...(data.focus_stocks||[]), ...(data.surge_watch||[])];
+  if(watch.length){
+    document.getElementById('chipWatch').style.display = '';
+    document.getElementById('chipWatchList').innerHTML = watch.map(s => `
+      <div class="stockcard" onclick="searchAndOpen('${s.code}')" style="cursor:pointer">
+        <div class="row1"><span>${s.code} ${s.name}</span><span class="${PCT_CLASS(s.change)}">${fmtChange(s.change)}</span></div>
+        <div class="row2">
+          ${s.signal_status || ''} · 技術分 ${fmtNum(s.tech_score)}(${s.tag || '-'})
+          ${s.sector_cluster && s.sector_cluster !== '無族群效應' ? ' · ' + s.sector_cluster : ''}
+          ${s.limit_up_locked ? '<span class="tag warn">漲停鎖死</span>' : ''}
+          ${s.consecutive_buy_days ? ` · 連買${s.consecutive_buy_days}天` : ''}
+        </div>
+      </div>`).join('');
+  }
+}
+
+function searchAndOpen(code){
+  if(INTRADAY && INTRADAY.watchlist_quotes && INTRADAY.watchlist_quotes.find(q => q.code === code)){
+    setTab('stocks');
+    openDetail(code, false);
+  }
+}
+
+// ---- 分頁 ----
+const TABS = ['today', 'flow', 'stocks', 'replay', 'more'];
+function setTab(t){
+  if(!TABS.includes(t)) t = 'today';
+  document.body.dataset.tab = t;
+  document.querySelectorAll('#tabBar button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
+  window.scrollTo(0, 0);
+  if(t === 'replay') rpInit();
+}
+function initTab(){ setTab('today'); }   // 每次打開固定從「今日重點」開始
+
+// ---- 搜尋框 ----
+function setupSearch(){
+  const input = document.getElementById('searchInput');
+  const box = document.getElementById('suggestBox');
+
+  function matches(q){
+    if(!INTRADAY || !INTRADAY.watchlist_quotes) return [];
+    const f = q.trim().toLowerCase();
+    if(!f) return [];
+    return INTRADAY.watchlist_quotes.filter(s => String(s.code).toLowerCase().includes(f) || (s.name && s.name.toLowerCase().includes(f))).slice(0, 8);
+  }
+
+  input.addEventListener('input', () => {
+    const list = matches(input.value);
+    SEARCH_TEXT = input.value; renderLevels(INTRADAY);
+    if(!list.length){ box.style.display = 'none'; return; }
+    box.innerHTML = list.map(s => `<div onclick="pickSuggest('${bearEsc(s.code)}')">${bearEsc(s.code)} ${bearEsc(s.name)} <span style="color:var(--muted);float:right">${fmtNum(s.last)} ${fmtPct(s.pct)}</span></div>`).join('');
+    box.style.display = '';
+  });
+  input.addEventListener('keydown', e => {
+    if(e.key === 'Enter'){
+      const list = matches(input.value);
+      if(list.length) pickSuggest(list[0].code);
+    }
+  });
+  document.addEventListener('click', e => {
+    if(e.target !== input) box.style.display = 'none';
+  });
+}
+
+function pickSuggest(code){
+  document.getElementById('suggestBox').style.display = 'none';
+  document.getElementById('searchInput').value = '';
+  SEARCH_TEXT = ''; renderLevels(INTRADAY);
+  openDetail(code, false);
+}
+
+// ================= 健康檢查(data/health.json,由程式直接檢查資料檔產生) =================
+let HEALTH = null;
+function renderHealth(h){
+  const box = document.getElementById('healthBox');
+  if(!h || !Array.isArray(h.items)){ box.style.display = 'none'; return; }
+  const bad = h.items.filter(i => !i.ok);
+  const esc = t => String(t == null ? '' : t).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  const when = String(h.checked_at || '').slice(5, 16).replace('T', ' ');
+  box.innerHTML = `<details${bad.length ? ' open' : ''}><summary><span class="dot ${bad.length ? 'bad' : 'ok'}"></span>` +
+    (bad.length ? `資料檢查:${bad.length} 項有問題` : '資料檢查:全部正常') + ` · ${esc(when)}</summary><ul>` +
+    h.items.map(i => `<li class="${i.ok ? '' : 'bad'}">${i.ok ? '✓' : '✗'} ${esc(i.name)}:${esc(i.detail)}</li>`).join('') + '</ul></details>';
+  box.style.display = '';
+}
+
+let LOADING = false;
+async function loadAll(opts){
+  if(LOADING) return;     // 60 秒計時、15 秒偵測新資料、手動重新整理可能同時觸發,同時只跑一個
+  LOADING = true;
+  try{ await loadAllInner(opts); } finally { LOADING = false; }
+}
+async function loadAllInner(opts){
+  opts = opts || {};
+  // silent:true 用在60秒自動刷新——不要每次都把畫面閃一下「載入中」;抓取失敗時也保留
+  // 上一次抓到的好資料繼續顯示,不要用null把整個已經在看的畫面洗掉(手機網路本來就常常
+  // 斷斷續續,偶爾一次fetch失敗不該讓畫面整個消失)。
+  if(!opts.silent) document.getElementById('pageMeta').textContent = '載入中...';
+  let chip = CHIP, intraday = INTRADAY, history = HISTORY, errs = [];
+  try{
+    const r = await fetch('data/latest.json', {cache:'no-store'});
+    chip = await r.json();
+  }catch(e){ errs.push('籌碼資料讀取失敗(顯示上次資料)'); }
+  try{
+    const r = await fetch('data/intraday_latest.json', {cache:'no-store'});
+    intraday = await r.json();
+  }catch(e){ errs.push('即時報價讀取失敗(顯示上次資料)'); }
+  try{
+    const r = await fetch('data/intraday_history.json', {cache:'no-store'});
+    if(r.ok) history = await r.json();
+  }catch(e){ /* 走勢圖資料非必要,失敗就不畫 */ }
+
+  try{
+    const r = await fetch('data/market_scan.json', {cache:'no-store'});
+    if(r.ok) MARKET = await r.json();
+  }catch(e){ /* 全市場榜是試跑功能,讀不到就不顯示 */ }
+
+  // 復盤與策略驗證一天只在收盤後更新,不用每分鐘重抓:第一次載入、手動重新整理、或距離上次超過10分鐘才抓
+  if(!opts.silent || Date.now() - SLOW_AT > 600000){
+    SLOW_AT = Date.now();
+    try{ const r = await fetch('data/review.json', {cache:'no-store'}); if(r.ok) REVIEW = await r.json(); }catch(e){ /* 還沒有復盤資料 */ }
+    try{ const r = await fetch('data/lab.json', {cache:'no-store'}); if(r.ok) LAB = await r.json(); }catch(e){ /* 還沒有驗證資料 */ }
+    try{ const r = await fetch('data/bear_scorecard.json', {cache:'no-store'}); if(r.ok) BEAR = await r.json(); }catch(e){ /* 還沒有利空成績單 */ }
+    try{ const r = await fetch('data/daytrade.json', {cache:'no-store'}); if(r.ok) DAYTRADE = await r.json(); }catch(e){ /* 還沒有當沖回測 */ }
+  }
+  // 隔夜風向開盤前才更新,但開盤前盤中檔案不會動,所以每次都重抓(檔案很小)
+  try{ const r = await fetch('data/overnight.json', {cache:'no-store'}); if(r.ok) OVERNIGHT = await r.json(); }catch(e){ /* 還沒有隔夜風向 */ }
+  try{ const r = await fetch('data/health.json', {cache:'no-store'}); if(r.ok) HEALTH = await r.json(); }catch(e){ /* 沒有健康檢查就不顯示 */ }
+
+  CHIP = chip; INTRADAY = intraday; HISTORY = history;
+
+  const safe = (name, fn) => { try { fn(); } catch(e) { console.error('render ' + name, e); } };
+  safe('fresh', () => renderFresh(intraday));
+  safe('health', () => renderHealth(HEALTH));
+  safe('overnight', () => renderOvernight(OVERNIGHT));
+  safe('team', () => renderTeam(intraday));
+  safe('risk', () => renderRisk());
+  safe('bias', () => renderBias(intraday));
+  safe('tradeflags', () => renderTradeFlags(intraday));
+  safe('focus', () => renderFocus(intraday));
+  safe('opening', () => renderOpening(intraday));
+  safe('market', () => renderMarket(MARKET));
+  safe('flow', () => renderFlow(intraday, history));
+  safe('signals', () => renderSignals(intraday));
+  safe('review', () => renderReview(REVIEW));
+  safe('lab', () => renderLab(LAB));
+  safe('bear', () => renderBear(BEAR));
+  safe('daytrade', () => renderDaytrade(DAYTRADE));
+  safe('touchnote', () => renderTouchNote(intraday));
+  safe('srcnote', () => { const sn = document.getElementById('srcNote'); if(sn) sn.textContent = (intraday && intraday.official_bars_status) ? ' 日K資料狀態:' + intraday.official_bars_status + '。' : ''; });
+  safe('indices', () => renderIndices(intraday));
+  safe('levels', () => renderLevels(intraday));
+  safe('heat', () => renderHeatGrid(intraday));
+  safe('volume', () => renderVolumeCards(intraday));
+  safe('watchlist', () => renderWatchlist(intraday, ''));
+  safe('chip', () => renderChip(chip));
+
+  // 如果目前正開著某檔的個股分析卡,資料重新整理後也跟著刷新內容,不用手動重新搜尋/點擊;
+  // silent:true 避免每次自動刷新都把畫面滾回分析卡頂部,打斷正在看的位置。
+  if(CURRENT_DETAIL){
+    try { openDetail(CURRENT_DETAIL.code, CURRENT_DETAIL.isIndex, {silent: true}); } catch(e) { console.error('detail', e); }
+  }
+
+  document.getElementById('pageMeta').textContent =
+    `頁面載入時間 ${new Date().toLocaleString('zh-TW',{hour12:false})}` +
+    (errs.length ? ' · ' + errs.join('、') : '');
+}
+
+// 盤中約每 2~3 分鐘更新一次資料,頁面每 15 秒看有沒有新的一輪、每 60 秒自動重新抓一次,盤中開著不用一直手動按「重新整理」;
+// 分頁切到背景時瀏覽器本來就會自動降低timer頻率,不特別處理也不會浪費太多資源。
+
+// ================= 手機版:支撐壓力一覽 =================
+let LV_FILTER = 'key';
+let SEARCH_TEXT = '';
+
+function lvInfo(q){
+  const last = num(q.last);
+  if(last === null || last <= 0) return null;
+  const kl = keyLevels(q);
+  const res = kl.resTarget, sup = kl.supTarget;
+  if(res == null || sup == null || res <= sup) return null;
+  const dRes = (res - last) / last * 100;   // 正數=還沒到壓力,負數=已突破
+  const dSup = (last - sup) / last * 100;   // 正數=還在支撐上,負數=已跌破
+  // 「接近」的距離依這檔股票自己的波動調整:5日平均振幅的1/4,夾在0.6%~3%之間(沒資料用1.5%)
+  const adr = q.swing && q.swing.adr5;
+  const near = adr ? Math.min(3, Math.max(0.6, adr * 0.25)) : 1.5;
+  let state = 'mid';
+  if(kl.basis !== 'today'){
+    if(dRes < 0) state = 'breakout';
+    else if(dSup < 0) state = 'breakdown';
+    else if(dRes <= near && dRes <= dSup) state = 'nearRes';
+    else if(dSup <= near) state = 'nearSup';
+  }
+  return {res, sup, dRes, dSup, state, near, kl};
+}
+
+function renderIndices(data){
+  const el = document.getElementById('indicesGrid');
+  if(!data || !data.indices){ el.innerHTML = '<div class="err">暫無大盤資料</div>'; return; }
+  const short = {'集中市場加權指數':'加權指數','櫃買市場加權指數':'櫃買指數','費城半導體':'費半'};
+  const tse = data.indices.find(x => x.code === 'TWS:TSE01:INDEX');
+  el.innerHTML = data.indices.map(q => {
+    // 台指期:顯示期現價差(期貨 − 加權指數),正=期貨比現貨強;報價時間不是台股盤中(例如夜盤)時加註
+    let extra = '';
+    if(q.code === 'TWF:TXF:FUTURES' && tse && num(q.last) !== null && num(tse.last) !== null){
+      const basis = q.last - tse.last;
+      const hm = q.ts ? new Date(q.ts * 1000).toLocaleTimeString('en-GB', {timeZone: 'Asia/Taipei', hour: '2-digit', minute: '2-digit'}) : '';
+      const night = hm && (hm < '08:45' || hm > '13:45');
+      extra = `<div class="ic" style="color:var(--muted)">價差 ${basis > 0 ? '+' : ''}${fmtNum(Math.round(basis))}${night ? '・夜盤 ' + hm : ''}</div>`;
+    }
+    return `
+    <div class="idxtile" onclick="openDetail('${q.code}', true)">
+      <div class="in">${short[q.name] || q.name}</div>
+      <div class="iv ${PCT_CLASS(q.change)}">${fmtNum(q.last)}</div>
+      <div class="ic ${PCT_CLASS(q.change)}">${ARROW(q.change)} ${fmtPct(q.pct)}</div>${extra}
+    </div>`;
+  }).join('');
+}
+
+function renderFresh(data){
+  const el = document.getElementById('freshBar');
+  if(!data || !data.data_as_of){ el.textContent = ''; el.className = 'freshbar'; return; }
+  const mins = Math.max(0, Math.round((Date.now() - Date.parse(data.data_as_of)) / 60000));
+  const t = new Date(data.data_as_of).toLocaleTimeString('zh-TW', {timeZone:'Asia/Taipei', hour:'2-digit', minute:'2-digit', hour12:false});
+  let ago = mins < 60 ? `${mins}分鐘前` : (mins < 1440 ? `${Math.floor(mins/60)}小時前` : `${Math.floor(mins/1440)}天前`);
+  const tp = new Date(Date.now() + 8*3600000), tpm = tp.getUTCHours()*60 + tp.getUTCMinutes(), wd = tp.getUTCDay();
+  if(wd>=1 && wd<=5 && tpm < 9*60+5){
+    el.className = 'freshbar';
+    el.innerHTML = `尚未開盤,目前顯示上個交易日收盤資料(${t}),9:00 後自動轉為即時`;
+  } else if(mins > 20){
+    el.className = 'freshbar warn';
+    el.innerHTML = `報價時間 <b>${t}</b>(${ago}),收盤後屬正常;盤中若一直這樣代表資料來源延遲`;
+  } else {
+    el.className = 'freshbar';
+    el.innerHTML = `報價時間 <b>${t}</b>(${ago}),盤中約每 2~3 分鐘更新,有新資料頁面會自動刷新`;
+  }
+}
+
+// 「重點」= 量能異常(>=2.5倍)、今天被標記過,或量能偏大(>=1.5倍)且正在壓力/支撐附近
+function isKey(q, lv){
+  const p = num(q.pace) || 0;
+  const ff = INTRADAY && INTRADAY.focus_first;
+  return p >= 2.5 || !!(ff && ff[q.code]) || (p >= 1.5 && !!lv && lv.state !== 'mid');
+}
+
+function renderLevels(data){
+  const listEl = document.getElementById('levelList');
+  const fEl = document.getElementById('levelFilters');
+  if(!data || !data.watchlist_quotes){ listEl.innerHTML = '<div class="err">暫無自選股資料</div>'; fEl.innerHTML=''; return; }
+  const f = SEARCH_TEXT.trim().toLowerCase();
+  let rows = data.watchlist_quotes.map(q => ({q, lv: lvInfo(q)}));
+  if(f) rows = rows.filter(r => String(r.q.code).toLowerCase().includes(f) || (r.q.name && r.q.name.toLowerCase().includes(f)));
+  const cnt = {all: rows.length, key:0, res:0, sup:0, out:0};
+  rows.forEach(r => {
+    if(isKey(r.q, r.lv)) cnt.key++;
+    if(!r.lv) return;
+    if(r.lv.state === 'nearRes') cnt.res++;
+    else if(r.lv.state === 'nearSup') cnt.sup++;
+    else if(r.lv.state === 'breakout' || r.lv.state === 'breakdown') cnt.out++;
+  });
+  const defs = [['key','重點'],['res','接近壓力'],['sup','接近支撐'],['out','突破/跌破'],['all','全部']];
+  renderBasisChips();
+  fEl.innerHTML = defs.map(([k,l]) => `<span class="fchip ${LV_FILTER===k?'on':''}" onclick="setLvFilter('${k}')">${l} ${cnt[k]}</span>`).join('');
+  rows = rows.filter(r => {
+    if(LV_FILTER === 'all' || f) return true;   // 有搜尋字時顯示所有符合的,不受分類限制
+    if(LV_FILTER === 'key') return isKey(r.q, r.lv);
+    if(!r.lv) return false;
+    if(LV_FILTER === 'res') return r.lv.state === 'nearRes';
+    if(LV_FILTER === 'sup') return r.lv.state === 'nearSup';
+    return r.lv.state === 'breakout' || r.lv.state === 'breakdown';
+  });
+  // 排序:已突破/跌破最前,其次依「離最近一條線的距離」由近到遠;沒資料的排最後
+  const key = r => r.lv ? Math.min(r.lv.dRes, r.lv.dSup) : 999;
+  rows.sort((a, b) => key(a) - key(b));
+  if(!rows.length){ listEl.innerHTML = '<div class="note">這個分類目前沒有股票</div>'; return; }
+  listEl.innerHTML = rows.map(({q, lv}) => lvCard(q, lv)).join('');
+}
+
+function reasonText(q){
+  const c = q.cdp;
+  if(!c || c.reliability !== 'low') return '';
+  if(c.low_reason === 'limit_lock') return `昨日${(c.prev_move_pct ?? 0) >= 0 ? '漲停' : '跌停'}收盤且振幅僅 ${c.prev_range_pct}%,CDP 線太窄`;
+  if(c.low_reason === 'basis_mismatch') return '昨日資料來源對不上昨收,CDP 可信度低';
+  return `昨日振幅僅 ${c.prev_range_pct}%,CDP 線太窄`;
+}
+
+function srcText(q){
+  const b = q.cdp && q.cdp.basis;
+  if(!b) return '';
+  if(b.source === 'official') return `正式日K ${String(b.date || '').slice(5).replace('-', '/')}`;
+  return '即時記錄,非正式日K';
+}
+
+function levelWhy(q){
+  const kl = keyLevels(q);
+  if(kl.basis === 'today') return `<div class="lvhint" style="margin-top:6px">歷史資料不足,暫用今日高低點。</div>`;
+  if(kl.basis === 'swing'){
+    const why = kl.forced ? '手動選擇依據,' : (reasonText(q) ? reasonText(q) + ',' : '沒有前一日資料可算CDP,');
+    return `<div class="lvhint" style="margin-top:6px">${why}目前用近${kl.swDays}日最高/最低當壓力支撐。</div>`;
+  }
+  if(kl.cdpLow) return `<div class="lvhint" style="margin-top:6px">${reasonText(q)},僅供參考,請對照波段高低。</div>`;
+  return '';
+}
+
+function lvExtra(q){
+  const parts = [];
+  const cdp = q.cdp, sw = q.swing;
+  if(cdp && cdp.nh != null){
+    const low = cdp.reliability === 'low';
+    parts.push(`<span class="${low ? 'dim' : ''}">CDP 壓${fmtNum(cdp.nh)} 支${fmtNum(cdp.nl)}${low ? '(參考性低)' : ''}</span>`);
+  }
+  if(sw){
+    parts.push(`<span>${sw.d5}日 高${fmtNum(sw.h5)} 低${fmtNum(sw.l5)}</span>`);
+    if(sw.d10 > sw.d5) parts.push(`<span>${sw.d10}日 高${fmtNum(sw.h10)} 低${fmtNum(sw.l10)}</span>`);
+    if(sw.d20 > sw.d10) parts.push(`<span>${sw.d20}日 高${fmtNum(sw.h20)} 低${fmtNum(sw.l20)}</span>`);
+    const ma = sw.ma || {};
+    const m = [];
+    if(ma.ma20 != null) m.push(`月線${fmtNum(ma.ma20)}`);
+    if(ma.ma60 != null) m.push(`季線${fmtNum(ma.ma60)}`);
+    if(m.length) parts.push(`<span>${m.join(' ')}</span>`);
+  }
+  const tr = touchRows(q);
+  return (parts.length ? `<div class="lvextra">${parts.join('')}</div>` : '') + confRows(q) + tr;
+}
+
+// 觸及回測:顯示「碰到線後明確回落/彈開」的比例與碰到次數。樣本少的個股,比例會往「全部自選股的平均」拉近
+// (調整後 = (實際次數 + K×全體比例) / (碰到次數 + K)),避免碰到3次就顯示100%。次數少於5次的淡化顯示。
+const SHRINK_K = 8;
+function touchRows(q){
+  const t = q && q.touch;
+  if(!t || typeof t !== 'object') return '';
+  const pool = (INTRADAY && INTRADAY.touch_summary) || {};
+  const defs = [['cdp','CDP'],['sw5','5日'],['sw10','10日'],['sw20','20日']];
+  const row = (side, label) => {
+    const bits = [];
+    for(const [k, nm] of defs){
+      const r = t[k] && t[k][side];
+      if(!r || !(r.n > 0)) continue;
+      const g = pool[k] && pool[k][side];
+      const p0 = (g && g.n > 0) ? g.rev / g.n : 0.5;
+      const adj = Math.round((r.rev + SHRINK_K * p0) / (r.n + SHRINK_K) * 100);
+      bits.push(`<span class="${r.n < 5 ? 'dim2' : ''}" title="實際 ${r.rev}/${r.n}">${nm} ${adj}%(${r.n}次)</span>`);
+    }
+    return bits.length ? `<div class="lvextra tchrow"><span><b>${label}</b></span>${bits.join('')}</div>` : '';
+  };
+  let out = row('res', '壓力回測(回落)') + row('sup', '支撐回測(彈開)');
+  const fol = t.fol;
+  if(fol){
+    const f = side => {
+      const r = fol[side]; if(!r || !(r.n1 > 0)) return '';
+      const g = (pool_fol(side));
+      const a1 = Math.round((r.ok1 + SHRINK_K * g.p1) / (r.n1 + SHRINK_K) * 100);
+      const a3 = r.n3 > 0 ? Math.round((r.ok3 + SHRINK_K * g.p3) / (r.n3 + SHRINK_K) * 100) : null;
+      return `<span class="${r.n1 < 5 ? 'dim2' : ''}" title="隔天 ${r.ok1}/${r.n1},第3天 ${r.ok3}/${r.n3}">隔天 ${a1}%${a3 !== null ? ',第3天 ' + a3 + '%' : ''}(${r.n1}次)</span>`;
+    };
+    const fr = f('res'), fs = f('sup');
+    if(fr) out += `<div class="lvextra tchrow"><span><b>壓力守住後</b></span>${fr}</div>`;
+    if(fs) out += `<div class="lvextra tchrow"><span><b>支撐守住後</b></span>${fs}</div>`;
+  }
+  return out ? out + `<div class="tchnote">近${t.days}個交易日。${(pool.base && pool.base.res && pool.base.res.n > 0) ? '隨機價位對照:壓力回落 ' + Math.round(pool.base.res.rev / pool.base.res.n * 100) + '%、支撐彈開 ' + Math.round(pool.base.sup.rev / pool.base.sup.n * 100) + '%。' : ''}百分比=碰到線後收盤明確離開的比例,次數少時已往全體平均調整</div>` : '';
+}
+
+function pool_fol(side){
+  const g = ((INTRADAY && INTRADAY.touch_summary) || {}).fol;
+  const r = g && g[side];
+  return {p1: (r && r.n1 > 0) ? r.ok1 / r.n1 : 0.5, p3: (r && r.n3 > 0) ? r.ok3 / r.n3 : 0.5};
+}
+const pct2 = r => (r && r.n > 0) ? `${Math.round(r.rev / r.n * 100)}%(${r.n})` : '-';
+
+// 查新聞:Google 新聞搜尋「股票名稱 代號」,只看最近一天
+function newsLink(name, code){
+  const q = encodeURIComponent(`${name} ${code}`) + '%20when%3A1d';
+  return `<a class="newslk" href="https://news.google.com/search?q=${q}&hl=zh-TW&gl=TW&ceid=TW%3Azh-Hant" target="_blank" rel="noopener" onclick="event.stopPropagation()">查新聞</a>`;
+}
+
+// 發現後狀態:依「現價相對今日高低」判斷(進場方看是否被拉回,出場方看是否反彈)
+function afterInfo(q, side, ff){
+  const last = num(q.last), hi = num(q.high), lo = num(q.low);
+  let tag = '';
+  if(last !== null && hi && lo){
+    if(side === 'in'){
+      const dd = (last / hi - 1) * 100;
+      tag = dd <= -2 ? `<span class="stt hold">已拉回 高點${dd.toFixed(1)}%</span>` : (dd >= -0.5 ? '<span class="stt str">續強 在高點附近</span>' : '<span class="stt">高檔震盪</span>');
+    } else if(side === 'out'){
+      const rb = (last / lo - 1) * 100;
+      tag = rb >= 2 ? `<span class="stt hold">已反彈 低點+${rb.toFixed(1)}%</span>` : (rb <= 0.5 ? '<span class="stt wk">續弱 在低點附近</span>' : '<span class="stt">低檔震盪</span>');
+    }
+  }
+  let txt = '';
+  if(ff && num(ff.price) && last !== null){
+    const r = (last / ff.price - 1) * 100;
+    const cls = r > 0 ? 'up' : (r < 0 ? 'down' : 'flat');
+    txt = `${ff.t} 發現時 ${fmtNum(ff.price)}(${ff.pct == null ? '-' : fmtPct(ff.pct)}),發現後 <b class="${cls}">${r > 0 ? '+' : ''}${r.toFixed(1)}%</b>`;
+  }
+  return {tag, txt};
+}
+
+function flameCount(p){ return [1.5, 2.5, 4, 6, 8].filter(t => p >= t).length; }
+
+function focusVerdict(side, st){
+  if(side === 'in'){
+    if(st === 'breakout') return '強勢突破';
+    if(st === 'nearRes') return '衝壓力中';
+    return '放量上攻';
+  }
+  if(side === 'out'){
+    if(st === 'breakdown') return '放量跌破';
+    if(st === 'nearSup') return '測支撐中';
+    return '放量下殺';
+  }
+  if(st === 'breakout') return '量大過壓力';
+  if(st === 'breakdown') return '量大破支撐';
+  return '量大震盪';
+}
+
+function moodHtml(intraday, qs){
+  let med = intraday && intraday.market_regime ? num(intraday.market_regime.median_pct) : null;
+  if(med === null){
+    const ps = qs.map(q => num(q.pct)).filter(v => v !== null).sort((a, b) => a - b);
+    med = ps.length ? ps[Math.floor(ps.length / 2)] : null;
+  }
+  if(med === null) return '';
+  const pos = Math.max(0, Math.min(100, (med + 3) / 6 * 100));
+  const label = med <= -1 ? '偏弱' : (med >= 1 ? '偏強' : '平穩');
+  const cls = med <= -1 ? 'down' : (med >= 1 ? 'up' : '');
+  const up = qs.filter(q => num(q.pct) > 0).length, dn = qs.filter(q => num(q.pct) < 0).length;
+  return `<div class="mood">
+    <div class="moodhd"><span>自選股今日溫度</span><b class="${cls}">${label} ${fmtPct(med)}</b></div>
+    <div class="moodbar"><i class="moodmark" style="left:${pos}%"></i></div>
+    <div class="moodft"><span>-3%</span><span>紅 ${up} 檔漲 / 綠 ${dn} 檔跌</span><span>+3%</span></div>
+  </div>`;
+}
+
+function miniMapHtml(qs){
+  const list = [...qs].filter(q => num(q.last) !== null).sort((a, b) => (num(b.pct) ?? -999) - (num(a.pct) ?? -999));
+  const sq = q => {
+    const {bg} = heatColor(q.pct);
+    const hot = num(q.pace) !== null && q.pace >= 2.5;
+    return `<i class="mm${hot ? ' hot' : ''}" style="background:${bg}" title="${q.name} ${fmtPct(q.pct)}${hot ? ' 量能 ' + q.pace + '倍' : ''}" onclick="searchAndOpen('${q.code}')"></i>`;
+  };
+  return `<div class="minimap"><div class="mmhd">全部 ${list.length} 檔(由漲到跌,黃框=量能異常)</div><div class="mmgrid">${list.map(sq).join('')}</div></div>`;
+}
+
+function renderFocus(intraday){
+  const el = document.getElementById('focusBox');
+  if(!el) return;
+  const qs = (intraday && intraday.watchlist_quotes) || [];
+  const oa = intraday && intraday.opening_alerts;
+  const peak = {};
+  ((oa && oa.items) || []).forEach(x => { peak[x.code] = x; });
+  const cands = [];
+  for(const q of qs){
+    if(num(q.last) === null) continue;
+    const pace = num(q.pace);
+    const op = peak[q.code];
+    const p = Math.max(pace || 0, (oa && oa.active && op) ? op.pace || 0 : 0);
+    const lv = lvInfo(q);
+    const st = lv ? lv.state : 'mid';
+    const lvBonus = (st === 'breakout' || st === 'breakdown') ? 3 : (st === 'nearRes' || st === 'nearSup') ? 1.5 : 0;
+    const hot = p >= 2.5, edge = p >= 1.5 && lvBonus > 0;
+    if(!hot && !edge) continue;
+    const pct = num(q.pct);
+    const side = (pct === null || Math.abs(pct) < 0.5) ? 'flat' : (pct > 0 ? 'in' : 'out');
+    cands.push({q, lv, st, side, p, pct, score: Math.min(p, 10) + lvBonus + (Math.abs(pct || 0) >= 3 ? 1 : 0)});
+  }
+  cands.sort((a, b) => b.score - a.score);
+  const top = cands.slice(0, 5);
+  const t = intraday && intraday.checked_at ? fmtTime(intraday.checked_at) : '';
+  const live = oa && oa.active;
+  const icon = {in:'▲', out:'▼', flat:'◆'};
+  const FF = (intraday && intraday.focus_first) || {};
+  const card = c => {
+    const ai = afterInfo(c.q, c.side, FF[c.q.code]);
+    const n = flameCount(c.p);
+    const flames = '🔥'.repeat(n) + '<span class="fl0">' + '●'.repeat(5 - n) + '</span>';
+    let bar = '';
+    if(c.lv){
+      const pos = Math.max(0, Math.min(100, (c.q.last - c.lv.sup) / (c.lv.res - c.lv.sup) * 100));
+      const out = c.st === 'breakout' || c.st === 'breakdown';
+      bar = `<div class="pbar"><div class="pbl">${fmtNum(c.lv.sup)}</div><div class="pbt"><i class="pdot ${out ? 'hollow' : ''} ${c.side}" style="left:${pos}%"></i></div><div class="pbl">${fmtNum(c.lv.res)}</div></div>
+             <div class="pcap"><span>支撐</span><span>${c.st === 'breakout' ? '已突破壓力' : (c.st === 'breakdown' ? '已跌破支撐' : '現價位置')}</span><span>壓力</span></div>`;
+    }
+    return `<div class="fcard ${c.side}" onclick="searchAndOpen('${c.q.code}')">
+      <div class="fic ${c.side}">${icon[c.side]}</div>
+      <div class="fbody">
+        <div class="ftop"><div class="fname">${c.q.name}<small>${c.q.code}</small></div><div class="fprice"><b>${fmtNum(c.q.last)}</b><span class="${c.side}">${c.pct === null ? '-' : fmtPct(c.pct)}</span></div></div>
+        <div class="fmid"><span class="fverdict ${c.side}">${focusVerdict(c.side, c.st)}</span><span class="flames" title="量能 ${c.p.toFixed(1)} 倍">${flames}</span><span class="fx">${c.p.toFixed(1)}倍</span>${ai.tag}${newsLink(c.q.name, c.q.code)}</div>
+        ${ai.txt ? `<div class="found">${ai.txt}</div>` : ''}
+        ${(t => t ? `<div class="found">${t}</div>` : '')(sigTags(c.q))}
+        ${bar}
+      </div>
+    </div>`;
+  };
+  el.className = 'focusbox';
+  el.innerHTML = moodHtml(intraday, qs)
+    + `<div class="ohd"><b>今日焦點${live ? '(開盤爆量中)' : ''}</b><small>${t ? t + ' 更新' : ''}</small></div>`
+    + (top.length ? top.map(card).join('') : `<div class="fempty">目前沒有量能異常的標的</div>`)
+    + miniMapHtml(qs)
+    + `<details class="howto"><summary>怎麼看這些圖示</summary><div class="onote">▲紅=量大且上漲(疑似進場),▼綠=量大且下跌(疑似出場),◆灰=量大但漲跌小。🔥越多代表量能比平常越大(5格=約8倍以上)。橫條是現價在「支撐到壓力」之間的位置,圓點空心代表已經超出範圍。標籤是依漲跌推測,成交量本身分不出買方賣方。這是觀察清單,不是買賣建議。</div></details>`
+    + focusStatsHtml(intraday && intraday.focus_stats);
+  el.style.display = '';
+}
+
+function focusStatsHtml(fs){
+  const pc = (w, n) => n > 0 ? Math.round(w / n * 100) + '%' : '-';
+  let body;
+  if(!fs || !(fs.n > 0)){
+    body = '尚無資料。每天收盤後自動評估當天焦點,累積幾天後這裡會出現結果。';
+  } else {
+    const side = (nm, r) => (r && r.n > 0)
+      ? `<div>${nm}:${r.n} 筆,收盤方向正確 ${pc(r.win, r.n)},平均收盤 ${r.avg_ret > 0 ? '+' : ''}${r.avg_ret}%,盤中最有利 ${r.avg_fav > 0 ? '+' : ''}${r.avg_fav}%,最不利 ${r.avg_adv}%${r.n_ex > 0 && r.avg_excess != null ? `,比同時段自選股平均 <b>${r.avg_excess > 0 ? '多' : '少'} ${Math.abs(r.avg_excess)}%</b>(${r.n_ex}筆)` : ''}</div>` : '';
+    const bk = fs.buckets || {};
+    const bkt = ['2.5-4', '4-6', '6+'].map(k => bk[k] && bk[k].n > 0 ? `${k}倍 ${pc(bk[k].win, bk[k].n)}(${bk[k].n}筆)` : '').filter(Boolean).join('、');
+    body = side('進場(量大上漲)', fs.in) + side('出場(量大下跌)', fs.out)
+      + (bkt ? `<div>依量能倍數的方向正確率:${bkt}</div>` : '')
+      + ((nm => Object.keys(fs.by_regime || {}).map(k => { const r = fs.by_regime[k], i = r.in || {n:0}; return i.n > 0 ? `<div>大盤${nm[k]}日(${r.days}天):進場 ${i.n} 筆,收盤上漲 ${pc(i.win, i.n)},平均 ${i.avg_ret > 0 ? '+' : ''}${i.avg_ret}%</div>` : ''; }).join(''))({strong:'偏強', normal:'平穩', weak:'偏弱'}))
+      + `<div style="margin-top:4px">資料:${fs.days} 個交易日、${fs.n} 筆(方向不明 ${fs.flat ? fs.flat.n : 0} 筆未計入方向)。記錄價=名單第一次出現當下的價格,收盤價以收盤前最後一筆計。「比同時段自選股平均多/少」是和同一段時間全部自選股(不含ETF)的平均漲跌相比,扣掉大盤整體漲跌後才看得出這檔本身有沒有比較強。樣本少時請勿過度解讀。</div>`;
+  }
+  return `<details style="margin-top:8px"><summary style="cursor:pointer;color:var(--muted);font-size:12px">焦點成績單(過去的表現)</summary><div class="onote" style="margin-top:6px">${body}</div></details>`;
+}
+
+// ================= 全市場爆量榜(試跑) =================
+function renderMarket(mk){
+  const el = document.getElementById('marketBox');
+  if(!el) return;
+  const today = new Date(Date.now() + 8*3600000).toISOString().slice(0, 10);
+  const keys = mk && mk.date === today ? Object.keys(mk.scans || {}).filter(k => (mk.scans[k].items || []).length).sort((a, b) => b - a) : [];
+  let sc = keys.length ? mk.scans[keys[0]] : null;
+  // 永豐每輪更新的全市場榜(live)比固定時點新,就優先顯示
+  const lv = mk && mk.date === today && mk.live && (mk.live.items || []).length ? mk.live : null;
+  const isLive = !!(lv && (!sc || lv.as_of >= sc.as_of));
+  if(isLive) sc = lv;
+  if(!sc){ el.style.display = 'none'; return; }
+  const row = (x, i) => {
+    const side = x.pct == null || Math.abs(x.pct) < 0.5 ? 'flat' : (x.pct > 0 ? 'in' : 'out');
+    return `<div class="orow" ${x.in_watch ? `onclick="searchAndOpen('${x.code}')"` : ''}>
+      <span class="orank">${i + 1}</span>
+      <span class="tag ${side}">${x.in_watch ? '自選' : '新發現'}</span>
+      <span class="nm">${x.name}<small>${x.code}</small> ${newsLink(x.name, x.code)}</span>
+      <span class="rt"><b>${fmtNum(x.last)}</b> ${fmtPct(x.pct)}<br>量能約 ${x.pace}倍</span>
+    </div>`;
+  };
+  el.className = 'openbox';
+  el.innerHTML = `<div class="ohd"><b>全市場爆量榜${isLive ? '' : '(試跑)'}</b><small>${sc.as_of} 掃描,共 ${sc.diag && sc.diag.rows || '-'} 檔${isLive ? ' · 每2分鐘更新' : ''}</small></div>`
+    + sc.items.slice(0, 10).map(row).join('')
+    + `<div class="onote">掃描全部上市櫃股票,倍數用「前一交易日全天量」粗估,比自選股的算法粗糙,只拿來找出沒在自選清單裡的爆量股。盤中用永豐每 2 分鐘掃一次全市場;09:30、10:30、12:00 另外存快照做策略驗證。數字僅供參考。</div>`;
+  el.style.display = '';
+}
+
+// ================= 訊號實驗室 =================
+// 條件要和 intraday.py 的 SIGNAL_STRATS 保持一致。
+const SIG_DEFS = {
+  '追強':     {side:'long',  desc:'漲2%以上、量能3倍以上、還在今日高點附近', f:(pct, pace, dd, up) => pct >= 2 && pace >= 3 && dd >= -0.5},
+  '拉回買':   {side:'long',  desc:'漲2%以上、量能3倍以上、從高點拉回2%以上', f:(pct, pace, dd, up) => pct >= 2 && pace >= 3 && dd <= -2},
+  '弱勢爆量': {side:'short', desc:'跌2%以上、量能3倍以上(放空方向)',         f:(pct, pace, dd, up) => pct <= -2 && pace >= 3},
+  '低檔反彈': {side:'long',  desc:'跌2%以上、量能3倍以上、從低點彈2%以上',   f:(pct, pace, dd, up) => pct <= -2 && pace >= 3 && up >= 2},
+};
+const SIG_MIN_N = 30;
+
+function sigVerdict(r){
+  if(!r || !r.n) return {t:'尚無資料', c:''};
+  if(r.n < SIG_MIN_N) return {t:`驗證中 ${r.n}/${SIG_MIN_N}筆`, c:''};
+  if(r.edge >= 0.4) return {t:'有優勢跡象', c:'good'};
+  if(r.edge <= 0) return {t:'沒有優勢', c:'bad'};
+  return {t:'優勢不明顯', c:''};
+}
+
+function sigTags(q){
+  const ss = INTRADAY && INTRADAY.signal_stats && INTRADAY.signal_stats.strats;
+  const pct = num(q.pct), pace = num(q.pace), last = num(q.last), hi = num(q.high), lo = num(q.low);
+  if(pct === null || pace === null || last === null || !hi || !lo) return '';
+  const dd = (last / hi - 1) * 100, up = (last / lo - 1) * 100;
+  return Object.keys(SIG_DEFS).filter(k => SIG_DEFS[k].f(pct, pace, dd, up)).map(k => {
+    const v = sigVerdict(ss && ss[k]);
+    const dir = SIG_DEFS[k].side === 'long' ? '偏多' : '偏空';
+    return `<span class="stt ${v.c === 'good' ? 'str' : (v.c === 'bad' ? 'wk' : 'hold')}" title="${SIG_DEFS[k].desc}">${k}(${dir}) ${v.t}</span>`;
+  }).join(' ');
+}
+
+function sigRowsHtml(ss){
+  const sg = x => (x > 0 ? '+' : '') + x.toFixed(2) + '%';
+  return Object.keys(SIG_DEFS).map(k => {
+    const r = ss.strats && ss.strats[k], v = sigVerdict(r);
+    const l2 = (r && r.n) ? `${r.n} 筆,收盤賺錢 ${Math.round(r.win / r.n * 100)}%,平均 ${sg(r.avg)},同時點全體 ${sg(r.base)},差距 <b>${sg(r.edge)}</b>` : '還沒有符合的樣本';
+    return `<div class="sigrow"><div class="l1"><span><b>${k}</b> <small style="color:var(--muted)">${SIG_DEFS[k].side === 'long' ? '做多' : '放空'}</small></span><span class="sigv ${v.c}">${v.t}</span></div><div class="l2">${SIG_DEFS[k].desc}<br>${l2}</div></div>`;
+  }).join('');
+}
+
+function renderSignals(intraday){
+  const el = document.getElementById('signalBox');
+  if(!el) return;
+  const ss = intraday && intraday.signal_stats, ms = intraday && intraday.market_signal_stats;
+  if(!ss){ el.style.display = 'none'; return; }
+  el.className = 'sigbox';
+  el.innerHTML = `<div class="sh"><b>訊號實驗室</b><small>${ss.days} 個交易日</small></div>
+    <div class="onote" style="margin:0 0 4px">每天 09:30、10:30、12:00、13:00 記下符合條件的股票,假設當下進場抱到收盤,和同時點全部股票的平均比較。「差距」要穩定大於 ${ss.cost_pct}%(來回成本)、樣本累積到 ${SIG_MIN_N} 筆以上,才算有優勢跡象。驗證前只是觀察,不是買賣建議。</div>`
+    + `<div class="onote" style="margin:8px 0 0"><b>自選股樣本</b></div>` + sigRowsHtml(ss)
+    + (ms && ms.days ? `<div class="onote" style="margin:12px 0 0"><b>全市場樣本</b>(${ms.days} 個交易日)</div><div class="onote" style="margin:0 0 4px">範圍是上市櫃成交量較大的約 660 檔,每天符合的筆數比自選股多很多,所以驗證得比較快。量能倍數用較粗的算法,和自選股的不完全一樣,兩邊分開看。</div>` + sigRowsHtml(ms) : '');
+  el.style.display = '';
+}
+
+// ================= 隔夜風向(data/overnight.json,overnight.py 開盤前拍) =================
+let OVERNIGHT = null;
+const ON_CLASS = {'順風': 'up', '逆風': 'down', '中性': ''};
+
+function onTime(ts){
+  if(!ts) return '';
+  const d = new Date(ts * 1000);
+  return d.toLocaleString('zh-TW', {month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit', hour12:false, timeZone:'Asia/Taipei'});
+}
+
+function onLabLine(st){
+  if(!st || !st.days) return '還沒有驗證樣本';
+  return st.days < st.min_days ? `驗證中 ${st.days}/${st.min_days} 天` : `已累積 ${st.days} 天,看「更多 > 隔夜風向驗證」`;
+}
+
+function renderOvernight(on){
+  const el = document.getElementById('overnightBox');
+  if(!el) return;
+  const s = on && on.days && on.days[on.latest];
+  if(!s){ el.style.display = 'none'; return; }
+  const today = new Date().toLocaleDateString('sv-SE', {timeZone:'Asia/Taipei'});
+  const md = s.date.slice(5).replace('-', '/');
+  const sg = x => num(x) === null ? '-' : (x > 0 ? '+' : '') + Number(x).toFixed(2) + '%';
+  const rows = (s.items || []).map((it, i) => {
+    const main = i === 0;
+    const val = it.pct == null ? `<small>${it.note || '無資料'}</small>` : `<span class="${PCT_CLASS(it.pct)}">${sg(it.pct)}</span>`;
+    const sub = [it.last != null ? fmtNum(it.last) : '', it.rel ? '關聯:' + it.rel : '', (it.pct != null && it.note) ? it.note : ''].filter(Boolean).join(' · ');
+    return `<div class="onrow${main ? ' main' : ''}"><span>${it.name}${main ? ' <small>主指標</small>' : ''}<br><small>${sub}${it.ts ? ' · ' + onTime(it.ts) : ''}</small></span>${val}</div>`;
+  }).join('');
+  const a = s.adr;
+  const adr = a ? `<div class="onrow"><span>台積電ADR換算溢價<br><small>ADR ${a.adr} × 匯率 ${a.fx} ÷ 5 = ${a.eq} 元,台股昨收 ${fmtNum(a.tw_close)}</small></span><span class="${PCT_CLASS(a.premium)}">${sg(a.premium)}</span></div>` : '';
+  const o = s.outcome || {};
+  const res = o.gap != null ? `<div class="onote" style="margin-top:8px">${s.date === today ? '今天' : '當天'}結果:自選股平均開盤 <b class="${PCT_CLASS(o.gap)}">${sg(o.gap)}</b>${o.oc != null ? `,開盤到收盤 <b class="${PCT_CLASS(o.oc)}">${sg(o.oc)}</b>` : ''}</div>` : '';
+  const st = on.stats || {};
+  const why = s.wind ? `依${s.basis}漲跌${s.basis === '夜盤' ? '±' + (st.th_txf ?? 0.3) : '±' + (st.th_sox ?? 1)}%判斷` : '';
+  el.className = 'sigbox';
+  el.innerHTML = `<div class="sh"><b>隔夜風向 <span class="onwind ${ON_CLASS[s.wind] || ''}">${s.wind || '無資料'}</span></b><small>${md}${s.date === today ? '' : '(非今天)'} ${s.taken_at.slice(11, 16)} 記錄</small></div>
+    ${s.diverge ? '<div class="onote" style="margin:0 0 4px;color:var(--text)">⚠ 費半和夜盤方向相反,風向參考性較低</div>' : ''}
+    ${rows}${adr}${res}
+    <div class="onote">${why}。只說明開盤是順風還是逆風,不會告訴你哪一檔會爆量,也不是買賣建議。門檻是暫定的,${onLabLine(st)}。</div>`;
+  el.style.display = '';
+  renderOvernightLab(st);
+}
+
+function renderOvernightLab(st){
+  const el = document.getElementById('overnightLabBox');
+  if(!el) return;
+  if(!st || !st.by){ el.style.display = 'none'; return; }
+  const sg = x => num(x) === null ? '-' : (x > 0 ? '+' : '') + Number(x).toFixed(2) + '%';
+  const hitName = {'順風': '開高', '逆風': '開低', '中性': '開平(±0.5%內)'};
+  const rows = ['順風', '中性', '逆風'].map(w => {
+    const b = st.by[w] || {};
+    if(!b.days) return `<div class="sigrow"><div class="l1"><span><b>${w}</b></span><span class="sigv">尚無資料</span></div></div>`;
+    const fi = b.f_in || {}, fo = b.f_out || {};
+    const f = [fi.n ? `焦點偏多 ${fi.n} 檔收盤上漲 ${Math.round(fi.win / fi.n * 100)}%(平均 ${sg(fi.avg)})` : '', fo.n ? `焦點偏空 ${fo.n} 檔收盤下跌 ${Math.round(fo.win / fo.n * 100)}%` : ''].filter(Boolean).join(';');
+    return `<div class="sigrow"><div class="l1"><span><b>${w}</b> <small style="color:var(--muted)">${b.days} 天</small></span><span class="sigv">${hitName[w]} ${b.hit}/${b.days} 天</span></div>
+      <div class="l2">自選股平均開盤 ${sg(b.gap)},開盤到收盤 ${sg(b.oc)}${f ? '<br>' + f : ''}</div></div>`;
+  }).join('');
+  el.className = 'sigbox';
+  el.innerHTML = `<div class="sh"><b>隔夜風向驗證</b><small>${st.days} 個交易日${st.days < st.min_days ? `,驗證中 ${st.days}/${st.min_days}` : ''}</small></div>
+    <div class="onote" style="margin:0 0 4px">每天開盤前記下風向,開盤後對照自選股(不含ETF)平均跳空、開盤到收盤、焦點名單收盤成績。要看的是:風向能不能說中開盤方向(預期可以),以及能不能說中盤中走勢(預期不太行)。只觀察,不拿來下單。</div>
+    ${rows}
+    ${st.corr_txf_gap != null ? `<div class="onote">夜盤漲跌和自選股平均開盤的相關係數 <b>${st.corr_txf_gap}</b>(1=完全同向,0=沒關係)</div>` : ''}`;
+  el.style.display = '';
+}
+
+// ================= 收盤復盤(data/review.json,13:31 後自動整理) =================
+function rvChip(x, extra){
+  const c = num(x.pct) > 0 ? 'up' : (num(x.pct) < 0 ? 'down' : '');
+  return `<span class="rvchip ${c}" onclick="searchAndOpen('${x.code}')">${x.name || x.code} ${fmtPct(x.pct)}${extra ? ' ' + extra : ''}</span>`;
+}
+function rvChips(list, extraFn){
+  return (list && list.length) ? `<div class="rvchips">${list.map(x => rvChip(x, extraFn ? extraFn(x) : '')).join('')}</div>` : '<div class="rvsub">無</div>';
+}
+function rvSigned(v, unit){ const x = num(v); return x === null ? '-' : (x > 0 ? '+' : '') + x.toFixed(2) + (unit || '%'); }
+
+function reviewHtml(rv, title, openAll){
+  if(!rv) return '';
+  const md = rv.date ? rv.date.slice(5).replace('-', '/') : '';
+  const op = openAll ? ' open' : '';
+  const sum = (rv.summary || []).map(t => `<li>${t}</li>`).join('');
+  const gs = (rv.groups || []).map(g => `<div class="rvrow"><span>${g.g}<small style="color:var(--muted)"> ${g.n}檔</small></span><span><span class="${PCT_CLASS(g.avg)}">${fmtPct(g.avg)}</span>${g.flow != null ? ` <small style="color:var(--muted)">資金 ${flowFmt(g.flow)}</small>` : ''}</span></div>`).join('');
+  const lv = rv.levels || {};
+  const fc = rv.focus || {};
+  const fl = (fc.list || []).map(x => `<div class="rvrow" onclick="searchAndOpen('${x.code}')"><span>${x.name}<small style="color:var(--muted)"> ${x.t} ${fmtNum(x.price)} 量${x.pace}倍</small></span><span class="${PCT_CLASS(x.ret)}">${x.ret == null ? '-' : rvSigned(x.ret)}${x.mkt != null ? ` <small style="color:var(--muted)">平均${rvSigned(x.mkt)}</small>` : ''}</span></div>`).join('');
+  const sg = rv.signals ? Object.keys(rv.signals).map(k => { const s = rv.signals[k]; return `<div class="rvrow"><span>${k}<small style="color:var(--muted)"> ${s.side === 'long' ? '做多' : '放空'} ${s.n}筆</small></span><span class="${PCT_CLASS(s.avg)}">${rvSigned(s.avg)} <small style="color:var(--muted)">扣成本${rvSigned(s.net)}</small></span></div>`; }).join('') : '';
+  const mk = rv.market && rv.market.items && rv.market.items.length ? rv.market.items.map(x => `<div class="rvrow"><span>${x.name}<small style="color:var(--muted)"> ${x.code} ${{30:'09:30',90:'10:30',180:'12:00'}[x.snap] || ''} 量${x.pace}倍</small></span><span class="${PCT_CLASS(x.ret)}">${x.ret == null ? '收盤價未取得' : '之後到收盤 ' + rvSigned(x.ret)}</span></div>`).join('') : '';
+  const wn = rv.watch_next || {};
+  return `<div class="rvbox">
+    <div class="rvhd"><b>${title} ${md}</b><small>${rv.as_of || ''} 整理</small></div>
+    <ul>${sum}</ul>
+    <details${op}><summary>族群強弱</summary>${gs}<div class="rvsub">資金=主動買減主動賣的估計(${rv.flow_source || '量×價估算'}),單位億。</div></details>
+    <details${op}><summary>漲跌幅前五、量能最大</summary>
+      <div class="rvsub">漲最多</div>${rvChips(rv.movers && rv.movers.up)}
+      <div class="rvsub">跌最多</div>${rvChips(rv.movers && rv.movers.down)}
+      <div class="rvsub">量能倍數最大</div>${rvChips(rv.big_volume, x => x.pace != null ? x.pace + '倍' : '')}
+      ${(rv.limit_up || []).length ? `<div class="rvsub">漲停</div>${rvChips(rv.limit_up)}` : ''}
+      ${(rv.limit_down || []).length ? `<div class="rvsub">跌停</div>${rvChips(rv.limit_down)}` : ''}
+    </details>
+    <details${op}><summary>支撐壓力結果</summary>
+      <div class="rvsub">收盤站上壓力(自動依據)</div>${rvChips(lv.breakout, x => '線' + fmtNum(x.line))}
+      <div class="rvsub">收盤跌破支撐</div>${rvChips(lv.breakdown, x => '線' + fmtNum(x.line))}
+      <div class="rvsub">盤中突破前20日最高</div>${rvChips(lv.new_high20)}
+      <div class="rvsub">盤中跌破前20日最低</div>${rvChips(lv.new_low20)}
+    </details>
+    ${fc.n ? `<details${op}><summary>今日焦點名單收盤成績(${fc.n}檔)</summary>${fl}<div class="rvsub">記錄價=當天第一次上榜的價格;「平均」=同一段時間全部自選股平均漲跌。</div></details>` : ''}
+    ${sg ? `<details${op}><summary>訊號實驗室今天的結果</summary>${sg}<div class="rvsub">只有一天的結果,好壞都可能是運氣,要看「更多」裡的累積統計。</div></details>` : ''}
+    ${mk ? `<details${op}><summary>全市場新發現(不在自選)</summary>${mk}</details>` : ''}
+    <details${op}><summary>明日觀察(機械條件)</summary>
+      <div class="rvsub">強勢:漲3%以上、收在今日高點1%內、量能1.5倍以上,而且收盤站上壓力</div>${rvChips(wn.strong)}
+      <div class="rvsub">弱勢:跌3%以上、收在今日低點1%內、量能1.5倍以上,而且收盤跌破支撐</div>${rvChips(wn.weak)}
+    </details>
+    <div class="onote">全部是當天已經發生的數字整理,用來回顧,不是預測、也不是買賣建議。</div>
+  </div>`;
+}
+
+function renderReview(store){
+  const top = document.getElementById('reviewTop'), bot = document.getElementById('reviewBottom');
+  const wrap = document.getElementById('reviewPastWrap');
+  if(!top || !bot) return;
+  const days = (store && store.days) || {};
+  const dates = Object.keys(days).sort().reverse();
+  if(!dates.length){ top.style.display = bot.style.display = 'none'; if(wrap) wrap.style.display = 'none'; return; }
+  const rv = days[store.latest] || days[dates[0]];
+  const tp = new Date(Date.now() + 8*3600000), tpm = tp.getUTCHours()*60 + tp.getUTCMinutes(), wd = tp.getUTCDay();
+  const todayStr = tp.toISOString().slice(0, 10);
+  const session = wd >= 1 && wd <= 5 && tpm >= 9*60 && tpm < 13*60 + 31;
+  if(!session){
+    top.innerHTML = reviewHtml(rv, rv.date === todayStr ? '今日復盤' : '上個交易日復盤', false);
+    top.style.display = ''; bot.style.display = 'none';
+  } else {
+    // 盤中把版面留給即時資料,昨天的復盤收在最下面
+    bot.innerHTML = `<details style="margin-top:10px"><summary style="cursor:pointer;color:var(--muted);font-size:12px">上個交易日復盤(${rv.date.slice(5).replace('-', '/')})</summary>${reviewHtml(rv, '復盤', false)}</details>`;
+    bot.style.display = ''; top.style.display = 'none';
+  }
+  if(wrap){
+    if(!REVIEW_PICK || !days[REVIEW_PICK]) REVIEW_PICK = dates[0];
+    document.getElementById('reviewDates').innerHTML = dates.map(d => `<button class="${d === REVIEW_PICK ? 'on' : ''}" onclick="pickReview('${d}')">${d.slice(5).replace('-', '/')}</button>`).join('');
+    document.getElementById('reviewPast').innerHTML = reviewHtml(days[REVIEW_PICK], '復盤', false);
+    wrap.style.display = '';
+  }
+}
+function pickReview(d){ REVIEW_PICK = d; renderReview(REVIEW); }
+
+// ================= 策略驗證室(data/lab.json) =================
+function labVerdict(st){
+  if(!st || !st.n) return {t:'尚無樣本', c:''};
+  if(st.n < 30 || (st.days || 0) < 5) return {t:'累積中', c:''};
+  if(st.edge > 0.4 && (st.t || 0) >= 2) return {t:'有優勢跡象', c:'good'};
+  if(st.edge <= 0) return {t:'沒有優勢', c:'bad'};
+  return {t:'優勢不明顯', c:''};
+}
+function renderLab(lab){
+  const el = document.getElementById('labBox');
+  if(!el) return;
+  if(!lab || !lab.rsi){ el.style.display = 'none'; return; }
+  const r = lab.rsi, ex = lab.exit_desc || {};
+  const sg = v => v == null ? '-' : (v > 0 ? '+' : '') + v.toFixed(2);
+  const rows = Object.keys(r.strats || {}).map(k => {
+    const s = r.strats[k];
+    const cells = ['close', 'c', 'ce'].map(e => {
+      const a = (s.exits[e] || {}).all || {};
+      return a.n ? `<td>${a.n}<br><small>${sg(a.edge)}</small></td>` : '<td>-</td>';
+    }).join('');
+    const best = ['close', 'c', 'ce'].map(e => (s.exits[e] || {}).all || {}).filter(a => a.n).sort((a, b) => b.edge - a.edge)[0];
+    const v = labVerdict(best);
+    return `<tr><td style="text-align:left"><b>${s.name}</b><br><small style="color:var(--muted)">${s.desc}</small></td>${cells}<td><span class="labtag ${v.c}">${v.t}</span></td></tr>`;
+  }).join('');
+  const sw = lab.sweep || {};
+  const swHtml = ['watch', 'market'].map(k => {
+    const x = sw[k] || {}, nm = k === 'watch' ? '自選股' : '全市場';
+    if(!x.ready) return `<div class="rvsub">${nm}:樣本 ${x.days || 0}/${x.need || 6} 個交易日,夠了才開始掃描。</div>`;
+    const fams = Object.keys(x.families || {}).map(f => {
+      const fx = x.families[f];
+      const top = (fx.top || []).slice(0, 3).map(t => `<div class="rvrow"><span>漲跌${f === '弱勢爆量' || f === '低檔反彈' ? '≤-' : '≥'}${t.P}% 量≥${t.V}倍${t.X ? ' 第三條件' + t.X + '%' : ''}${t.default ? '(目前設定)' : ''}</span><span>訓練${sg(t.train.edge)}(${t.train.n}) → 驗證${t.test.n ? sg(t.test.edge) : '-'}(${t.test.n || 0}) <span class="labtag ${t.holds ? 'good' : ''}">${t.holds ? '站得住' : '未確認'}</span></span></div>`).join('');
+      return `<div class="rvsub"><b>${f}</b>(試了 ${fx.tested} 組,站得住 ${fx.n_hold || 0} 組)</div>${top}`;
+    }).join('');
+    return `<div class="rvsub"><b>${nm}</b>:${x.train_days} 天訓練、${x.test_days} 天驗證(${x.split} 起)</div>${fams}`;
+  }).join('');
+  el.className = 'sigbox';
+  el.innerHTML = `<div class="sh"><b>策略驗證室</b><small>${lab.updated || ''} 更新</small></div>
+    <div class="onote" style="margin:0 0 4px">RSI 規則用每天存下來的盤中走勢(約5分鐘一點)回測,已累積 ${r.days || 0} 個交易日${r.first ? `(${r.first.slice(5)}~${r.last.slice(5)})` : ''}。每格=筆數/比同時段全體平均多幾%(已含進出場時間對齊,還沒扣 ${lab.cost_pct}% 成本)。至少 30 筆、5 天以上才下判斷,而且差距要大於成本、以天為單位至少是標準誤的 2 倍才算「有優勢跡象」。</div>
+    <div class="tablewrap"><table class="labtbl"><thead><tr><th style="text-align:left">RSI 規則</th><th>收盤出</th><th>C</th><th>C+E</th><th>判斷</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="onote">出場方式:收盤出=${ex.close || '抱到收盤'};C=RSI7曾到80以上,之後跌破RSI14才出場;C+E=同C,但RSI14連續3根卡在80以上時改成跌破12根均線才出場。放空方向一律收盤出。</div>
+    <details style="margin-top:8px"><summary style="cursor:pointer;color:var(--muted);font-size:12px">參數掃描與樣本外驗證</summary>
+      <div class="onote">把四種策略的門檻全部組合試一遍,用前 60% 的交易日挑最好的參數,再看後 40% 沒用過的日子是不是還有效。「站得住」=驗證段至少 20 筆,訓練段和驗證段的差距都大於成本,而且以「天」為單位都至少是標準誤的 2 倍(用亂數資料測過,沒有這條會把運氣當優勢)。試的組合越多,越容易有一組剛好好看,所以只看「站得住」的。</div>${swHtml}</details>
+    <div class="onote">歷史統計,不是預測、也不是買賣建議。</div>`;
+  el.style.display = '';
+}
+
+// ================= 收盤後利空雷達(data/bear_scorecard.json,每個交易日 14:30 由 bear_signals.py 產生) =================
+const BEAR_ST = {active: '有效', watch: '觀察', inactive: '無效'};
+function bearEsc(t){ return String(t == null ? '' : t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function bearPct(v, d){ return v == null ? '-' : (v > 0 ? '+' : '') + Number(v).toFixed(d == null ? 2 : d) + '%'; }
+function bearWindows(w, cond){
+  const c = w && w[cond];
+  if(!c || !c.by_window) return '';
+  const cells = (w.windows || []).map(x => {
+    const b = c.by_window[x.key]; if(!b) return '<div>-</div>';
+    const cls = x.key === c.best ? 'best' : (x.key === c.avoid ? 'avoid' : '');
+    const mark = x.key === c.best ? '建議' : (x.key === c.avoid ? '避開' : '&nbsp;');
+    return `<div class="${cls}"><b>${x.key}:00</b><span>${bearPct(b.cheap)}</span><i>${mark}</i></div>`;
+  }).join('');
+  let msg;
+  if(!c.ready) msg = `樣本 ${c.days} 天,至少 60 天才下結論。`;
+  else if(!c.clear) msg = `各時段和收盤價差不多(差距在統計誤差內),沒有明確較好的進場時段。`;
+  else {
+    const bw = c.by_window, best = (w.windows.find(x => x.key === c.best) || {}).label, avoid = (w.windows.find(x => x.key === c.avoid) || {}).label;
+    msg = `${avoid} 買平均比收盤貴 ${bw[c.avoid].cheap.toFixed(2)}%,${best} 最接近收盤價(${bearPct(bw[c.best].cheap)})。越晚買越便宜。`;
+  }
+  return `<div class="bwin">${cells}</div><div class="onote" style="margin-top:2px">${msg}(${c.days} 個交易日)</div>`;
+}
+function bearRR(rr){
+  if(!rr) return '';
+  if(rr.note) return `<div class="onote" style="color:var(--down)">${bearEsc(rr.note)}(近20日低 ${rr.stop})</div>`;
+  const tot = (rr.risk || 0) + (rr.reward || 0);
+  if(!(tot > 0)) return '';
+  // 停損太近時比值會很誇張(例如 18:1),實際上很容易被正常震盪洗掉,顯示上限 5:1 並提醒
+  const rrTxt = rr.rr >= 5 ? '5+:1' : rr.rr.toFixed(1) + ':1';
+  const tight = rr.risk < 2 ? `<div class="onote" style="margin-top:2px">停損只差 ${rr.risk.toFixed(1)}%,很容易被正常震盪碰到,損益比參考性低。</div>` : '';
+  return `<div class="lvrr"><div class="rrbar"><i class="rrdn" style="width:${rr.risk / tot * 100}%"></i><i class="rrup" style="width:${rr.reward / tot * 100}%"></i></div>
+    <div class="rrft"><span class="down">停損 ${rr.stop}(-${rr.risk.toFixed(1)}%)</span><span><b style="color:var(--text)">損益比 ${rrTxt}</b></span><span class="up">目標 ${rr.target}(+${rr.reward.toFixed(1)}%)</span></div></div>${tight}`;
+}
+function renderBear(sc){
+  const el = document.getElementById('bearBox'), card = document.getElementById('bearCardBox');
+  if(!el || !card) return;
+  if(!sc || !sc.signals){ el.style.display = 'none'; card.style.display = 'none'; return; }
+  const sig = sc.signals, base = sc.baseline || {}, brr = (base.rr5 || {}).rr;
+  const d = (sc.latest_bar || '').slice(5).replace('-', '/');
+  // 今日重點:今天收盤出現利空訊號的股票(只列有效/觀察),加上進場時段
+  const items = (sc.today || []).filter(x => x.level !== 'low');
+  const shown = BEAR_ALL ? items : items.slice(0, 6);
+  const rows = shown.map(x => {
+    const lv = x.level === 'high' ? '▼▼' : '▼';
+    const chips = x.signals.filter(s => s.status !== 'inactive').map(s => `<span class="bchip ${s.status}">${bearEsc(s.name)}</span>`).join('');
+    return `<div class="bsig" onclick="openDetail('${bearEsc(x.code)}', false)" style="cursor:pointer">
+      <div class="l1"><span><span class="blvl">${lv}</span><b>${bearEsc(x.name)}</b> <small style="color:var(--muted)">${bearEsc(x.code)}</small>${flagBadges(((INTRADAY && INTRADAY.watchlist_quotes) || []).find(w => w.code === x.code))}</span>
+      <span class="${x.pct < 0 ? 'down' : (x.pct > 0 ? 'up' : 'flat')}" style="font-variant-numeric:tabular-nums">${x.close} ${bearPct(x.pct)}</span></div>
+      <div>${chips}</div>${bearRR(x.rr)}</div>`;
+  }).join('');
+  const nHigh = items.filter(x => x.level === 'high').length;
+  const moreBtn = items.length > 6 ? `<button class="bmore" onclick="BEAR_ALL=!BEAR_ALL;renderBear(BEAR)">${BEAR_ALL ? '收起' : `顯示全部 ${items.length} 檔`}</button>` : '';
+  el.className = 'sigbox';
+  el.innerHTML = `<div class="sh"><b>收盤後利空雷達</b><small>${d} 收盤・每個交易日 14:30 更新</small></div>
+    <div class="rvsub" style="font-size:12px;color:var(--muted);margin:2px 0">建議進場時段(一般日子,平均比收盤貴/便宜多少)</div>
+    ${bearWindows(sc.entry_windows, 'all')}
+    <div class="rvsub" style="font-size:12px;color:var(--muted);margin:8px 0 2px">利空訊號隔天(前一天收盤出現有效或觀察中的訊號)</div>
+    ${bearWindows(sc.entry_windows, 'after_bear')}
+    <div class="rvsub" style="font-size:12px;color:var(--muted);margin:10px 0 0">今天收盤出現利空:<b style="color:var(--down)">▼▼ ${nHigh} 檔</b>(有效訊號)・▼ ${items.length - nHigh} 檔(觀察中)</div>
+    ${rows || '<div class="onote">今天沒有出現有效或觀察中的利空訊號。</div>'}${moreBtn}
+    <div class="onote">▼▼=出現「有效」訊號(回測明顯跑輸大盤);▼=只有「觀察」訊號。損益比用近20日最低當停損、近20日最高當目標,從今天收盤價算。點任一檔看K線。完整成績單在「更多」。歷史統計,不是預測,不構成買賣建議。</div>`;
+  el.style.display = '';
+
+  // 更多:每個訊號的回測成績單
+  const keys = Object.keys(sig).sort((a, b) => ({active: 0, watch: 1, inactive: 2}[sig[a].status] - {active: 0, watch: 1, inactive: 2}[sig[b].status]) || ((sig[a].t5 || {}).ex - (sig[b].t5 || {}).ex));
+  const maxAbs = Math.max(1, ...keys.map(k => Math.abs((sig[k].t5 || {}).ex || 0)));
+  const srows = keys.map(k => {
+    const s = sig[k], t5 = s.t5 || {}, rr = s.rr5 || {};
+    const w = Math.abs(t5.ex || 0) / maxAbs * 50;
+    const bar = t5.ex < 0 ? `<i style="right:50%;width:${w}%"></i>` : `<i class="pos" style="left:50%;width:${w}%"></i>`;
+    return `<div class="bsig"><div class="l1"><span><b>${bearEsc(s.name)}</b></span><span class="bst ${s.status}">${BEAR_ST[s.status]}</span></div>
+      <div class="bbar">${bar}<em></em></div>
+      <div class="l2"><span>5天後 <b class="${t5.ex < 0 ? 'down' : ''}">${bearPct(t5.ex)}</b></span><span>跑輸 ${t5.lose == null ? '-' : t5.lose + '%'}</span><span>損益比 ${rr.rr == null ? '-' : rr.rr.toFixed(2)}${brr ? ` / 一般 ${brr.toFixed(2)}` : ''}</span><span>驗證段 ${bearPct((s.test || {}).ex)}</span><span>${t5.n || 0} 次</span></div>
+      <div class="onote" style="margin-top:2px">${bearEsc(s.desc)}</div></div>`;
+  }).join('');
+  const dq = sc.data_quality || {};
+  card.className = 'sigbox';
+  card.innerHTML = `<div class="sh"><b>利空訊號成績單</b><small>回測 ${(sc.period || [])[0] || ''} ~ ${(sc.period || [])[1] || ''}・${sc.stocks} 檔</small></div>
+    <div class="onote" style="margin:0 0 4px">每個訊號出現後 5 天,相對自選股平均的超額報酬(綠色往左=跑輸大盤)。一般日子跑輸機率約 ${(base.t5 || {}).lose || '-'}%。<span class="bst active">有效</span>=全期間和最後 1/3 驗證段都明顯跑輸;<span class="bst watch">觀察</span>=有跑輸傾向但未全部過關;<span class="bst inactive">無效</span>=和一般日子差不多,不要當利空。損益比=5 天內平均最多反彈 ÷ 最多再跌(以抱著股票的人看),比一般日子低代表抱著不划算。</div>
+    ${srows}
+    <div class="onote">資料處理:價格已還原除權息與分割(${dq.adjusted_stocks || 0} 檔、${dq.adjusted_events || 0} 次事件),事件當天不判斷訊號;ETF 不納入。${bearEsc(sc.note || '')}</div>`;
+  card.style.display = '';
+}
+
+// ================= 當沖規則實驗室(data/daytrade.json,收盤後由 daytrade_lab.py 產生) =================
+// 只有「訓練段和驗證段扣成本後都賺錢、t 值都 >= 2」的規則才會出現在今日重點;其餘只在「更多」照實列出。
+function dtExit(b){ return `停損 ${b.stop}%・${b.target ? '停利 ' + b.target + '%' : '不設停利,13:20 出場'}`; }
+// ================= 多空判斷(公式在 bias.py,回測在 daytrade_lab.py 的 score_* 規則) =================
+function renderBias(intraday){
+  const el = document.getElementById('biasBox');
+  if(!el) return;
+  const b = intraday && intraday.bias;
+  if(!b){ el.style.display = 'none'; return; }
+  const rules = b.rules || {};
+  const nHolds = Object.values(rules).filter(r => r.holds).length;
+  const all = b.items || [];
+  const items = all.filter(x => x.holds);
+  el.className = 'sigbox';
+  const head = `<div class="sh"><b>多空判斷(當沖)</b><small>${b.as_of} 資料・約延遲 1~7 分鐘</small></div>`;
+  // 沒有任何規則通過回測:不列訊號,只顯示一行狀態,讓人知道系統有在跑
+  if(!nHolds){
+    const nt = all.length, nc = new Set(all.map(x => x.code)).size;
+    el.innerHTML = head + `<div class="onote" style="margin:0"><span class="bst inactive">沒有規則通過回測</span> 分數類 ${Object.keys(rules).length} 條規則扣成本後都沒有站得住,所以不列進出場訊號(今天已有 ${nc} 檔觸發 ${nt} 次,僅記錄)。成績在「更多 > 當沖規則實驗室」,每天收盤後重算。</div>`;
+    el.style.display = '';
+    return;
+  }
+  const fresh = items.filter(x => x.fresh), stale = items.filter(x => !x.fresh);
+  const lvl = x => [x.stop != null ? `停損 ${fmtNum(x.stop)}(${x.stop_pct}%)` : '',
+    x.target != null ? `停利 ${fmtNum(x.target)}(${x.target_pct}%)` : (x.stop != null ? '停利 抱到13:20' : '')].filter(Boolean);
+  const row = x => {
+    const lg = x.side === 'long', cls = lg ? 'up' : 'down';
+    return `<div class="bsig" style="cursor:pointer" onclick="searchAndOpen('${x.code}')"><div class="l1"><span><b>${bearEsc(x.name)}</b> <small style="color:var(--muted)">${x.code}</small> <span class="bchip" style="background:var(--${lg ? 'up' : 'down'}-fill);color:var(--${cls});font-weight:700">${lg ? '做多' : '放空'}</span>${flagBadges(((INTRADAY && INTRADAY.watchlist_quotes) || []).find(w => w.code === x.code))}</span><span class="${cls}"><b>${x.score > 0 ? '+' : ''}${x.score}</b></span></div>
+      <div class="l2"><span>${x.trig_t} 觸發 @ <b>${fmtNum(x.trig_price)}</b>(${Math.round(x.age_min)} 分鐘前)</span><span>現價 ${fmtNum(x.last)}(部位 <b class="${x.move_pct > 0 ? 'up' : (x.move_pct < 0 ? 'down' : '')}">${x.move_pct > 0 ? '+' : ''}${x.move_pct}%</b>)</span>${lvl(x).map(t => `<span>${t}</span>`).join('')}</div>
+      ${(() => { const q = ((INTRADAY && INTRADAY.watchlist_quotes) || []).find(w => w.code === x.code); return q ? zoneStrip(q) : ''; })()}
+      <div class="onote" style="margin-top:2px">${bearEsc(x.rule_name)}・理由:${(x.reasons || []).join('、') || '-'}${x.vwap != null ? '・均價 ' + fmtNum(x.vwap) : ''}</div></div>`;
+  };
+  const staleRow = x => `<div class="rvrow" style="font-size:12px;color:var(--muted)"><span>${bearEsc(x.name)} ${x.side === 'long' ? '做多' : '放空'}・${x.trig_t} @ ${fmtNum(x.trig_price)}</span><span class="${x.move_pct > 0 ? 'up' : x.move_pct < 0 ? 'down' : ''}">${x.move_pct > 0 ? '+' : ''}${x.move_pct}%</span></div>`;
+  const when = !b.active ? `<div class="onote" style="margin:0 0 4px"><b>${b.as_of < '09:15' ? '09:15 後才開始判斷(要先有開盤區間)' : '12:30 之後不再出新訊號,以下是今天的觸發紀錄'}</b></div>` : '';
+  el.innerHTML = head + when +
+    `<div class="onote" style="margin:0 0 4px"><span class="bst active">回測站得住 ${nHolds} 條</span> 只列這些規則的觸發。觸發 ${b.fresh_min} 分鐘內算「剛觸發」;回測是觸發後下一根(5 分鐘)進場,停損停利都以觸發價計。</div>` +
+    (fresh.length ? `<div class="rvsub" style="font-size:12px;color:var(--muted);margin:6px 0 0">剛觸發</div>${fresh.map(row).join('')}` : `<div class="fempty">目前沒有 ${b.fresh_min} 分鐘內的新觸發</div>`) +
+    (stale.length ? `<details style="margin-top:6px"><summary style="cursor:pointer;color:var(--muted);font-size:12px">已觸發,不追(${stale.length})・右邊是從觸發價算的部位損益(做空時價格下跌為正)</summary><div class="rvbox">${stale.map(staleRow).join('')}</div></details>` : '') +
+    `<details class="howto"><summary>分數怎麼算</summary><div class="onote">每檔每一輪算 -100 ~ +100 分:大盤 ${(b.weights || {}).mkt}、均價線 ${(b.weights || {}).vwap}、開盤區間 ${(b.weights || {}).orb}、量能 ${(b.weights || {}).vol}、當日位置 ${(b.weights || {}).pos}、族群 ${(b.weights || {}).grp}。規則條件和回測共用同一份程式(bias.py),每條規則每天只記第一次觸發。量能倍數和回測一樣用「前 20 天同一時間的累積量」(資料累積到 5 天前先用全天均量估計${b.pace_src ? ',這一輪 ' + b.pace_src.same_time + ' 檔用同時間算法' : ''})。${b.bar_src && b.bar_src.k5 ? '規則觸發用永豐 1 分K 組成的真實 5 分K 逐根判斷(這一輪 ' + b.bar_src.k5 + ' 檔' + (b.k5_last ? ',最新收完的是 ' + b.k5_last + ' 那根' : '') + '),跟回測同一套資料:這根收盤成立、下一根開盤價進場,觸發時間是那根收盤的時間;' : ''}${b.bar_src && b.bar_src.snap ? b.bar_src.snap + ' 檔沒有 5 分K,改用每輪快照近似。' : ''}均價線在報價沒有成交金額時用快照估算。這是機械式規則,不是預測,不構成買賣建議。</div></details>`;
+  el.style.display = '';
+}
+
+// 盤中觸發的實際成績(data/daytrade.json 的 live,來源 data/bias_log.json)與 5 分K 存檔累積天數
+function dtLive(dt){
+  const lv = dt.live || {}, ar = dt.archive || {};
+  const arc = ar.days ? `5 分K 已永久存檔 ${ar.days} 天(${(ar.first || '').slice(5)} 起),Yahoo 只給最近 60 天,之後回測樣本會一天一天變多。` : '';
+  const ks = Object.keys(lv.rules || {}).sort((a, b) => lv.rules[b].n - lv.rules[a].n);
+  const body = !ks.length ? `<div class="onote" style="margin:2px 0 0">還沒有盤中觸發成績。每個交易日盤中的觸發會記下來,收盤後用當天 5 分K 從「觸發後下一根開盤」進場算實際結果。</div>`
+    : ks.map(k => {
+      const r = lv.rules[k], bt = r.backtest_test_avg;
+      return `<div class="bsig" style="padding:6px 0"><div class="l1" style="font-size:12.5px"><span><b>${bearEsc(r.name)}</b> <small style="color:var(--muted)">${r.n} 筆/${r.days} 天</small></span><b class="${r.avg > 0 ? 'up' : 'down'}">${bearPct(r.avg)}</b></div>
+        <div class="l2"><span>勝率 ${r.win}%</span>${r.mdd != null ? `<span>最大回撤 ${r.mdd}%</span>` : ''}${r.slip != null ? `<span>滑價 ${bearPct(r.slip)}</span>` : ''}${bt != null ? `<span>回測預期 ${bearPct(bt)}</span>` : ''}</div></div>`;
+    }).join('');
+  return `<div class="rvsub" style="font-size:12.5px;margin:10px 0 2px"><b>盤中實際成績</b>${lv.n ? `<small style="color:var(--muted)">・${(lv.first || '').slice(5)} ~ ${(lv.last || '').slice(5)},共 ${lv.n} 筆</small>` : ''}</div>
+    <div>${body}</div>
+    <div class="onote">每筆扣 ${dt.cost_pct}% 成本後的平均報酬;滑價=觸發價到實際進場價(下一根開盤)的差,正數代表進場價比觸發價有利。包含沒通過回測的規則,方便對照回測是否可信。${arc}</div>`;
+}
+function renderDaytrade(dt){
+  const top = document.getElementById('dtTopBox'), el = document.getElementById('dtBox');
+  if(!top || !el) return;
+  if(!dt || !dt.rules){ top.style.display = 'none'; el.style.display = 'none'; return; }
+  const keys = Object.keys(dt.rules);
+  const pass = keys.filter(k => dt.rules[k].holds);
+  if(pass.length){
+    top.className = 'sigbox';
+    top.innerHTML = `<div class="sh"><b>當沖規則(扣成本後站得住)</b><small>近 ${dt.days} 個交易日</small></div>` + pass.map(k => {
+      const r = dt.rules[k], te = r.best.test || {};
+      return `<div class="bsig"><div class="l1"><span><b>${bearEsc(r.name)}</b> <span class="bchip ${r.side === 'short' ? 'active' : ''}">${r.side === 'long' ? '做多' : '做空'}</span></span><span class="bst active">站得住</span></div>
+        <div class="onote" style="margin-top:2px">${bearEsc(r.desc)}・${dtExit(r.best)}</div>
+        <div class="l2"><span>驗證段每筆 <b>${bearPct(te.avg)}</b>(已扣成本)</span><span>勝率 ${te.win}%</span><span>損益比 ${te.payoff == null ? '-' : te.payoff}</span><span>${te.n} 筆</span></div></div>`;
+    }).join('') + `<div class="onote">歷史統計,不是預測,不構成買賣建議。實際成交會有滑價。</div>`;
+    top.style.display = '';
+  } else { top.style.display = 'none'; }
+  const rows = keys.map(k => {
+    const r = dt.rules[k], b = r.best || {}, tr = b.train || {}, te = b.test || {};
+    const gross = te.avg == null ? null : te.avg + (dt.cost_pct || 0);
+    const tp = r.top && r.top.test, half = r.holds_watch && !r.holds;
+    return `<div class="bsig"><div class="l1"><span><b>${bearEsc(r.name)}</b> <small style="color:var(--muted)">${r.side === 'long' ? '做多' : '做空'}</small></span><span class="bst ${r.holds ? 'active' : (half ? 'watch' : 'inactive')}">${r.holds ? '站得住' : (half ? '前200大未過' : '沒有優勢')}</span></div>
+      <div class="l2"><span>訓練 ${bearPct(tr.avg)}</span><span>驗證 <b class="${te.avg > 0 ? 'up' : 'down'}">${bearPct(te.avg)}</b></span><span>扣成本前 ${bearPct(gross)}</span><span>勝率 ${te.win == null ? '-' : te.win + '%'}</span><span>損益比 ${te.payoff == null ? '-' : te.payoff}</span><span>最大回撤 ${te.mdd == null ? '-' : te.mdd + '%'}</span><span>${te.n || 0} 筆</span></div>
+      ${tp && tp.n ? `<div class="l2"><span>前200大驗證 <b class="${tp.avg > 0 ? 'up' : 'down'}">${bearPct(tp.avg)}</b></span><span>t ${tp.t == null ? '-' : tp.t}</span><span>勝率 ${tp.win}%</span><span>${tp.n} 筆</span></div>` : ''}
+      <div class="onote" style="margin-top:2px">${bearEsc(r.desc)}。最佳參數:${b.stop ? dtExit(b) : '-'}</div></div>`;
+  }).join('');
+  el.className = 'sigbox';
+  el.innerHTML = `<div class="sh"><b>當沖規則實驗室</b><small>${(dt.first || '').slice(5)} ~ ${(dt.last || '').slice(5)}・${dt.stocks} 檔・${dt.days} 天</small></div>
+    <div class="onote" style="margin:0 0 4px">用 5 分K 回測 ${keys.length} 種常見當沖規則,每種試 12 組停損停利。觸發後下一根開盤價成交,同一根同時碰到停損停利一律算停損,13:20 強制出場,每筆扣 ${dt.cost_pct}% 來回成本(手續費打 2.8 折 + 當沖證交稅)。前 2/3 天挑參數,${(dt.train_until || '').slice(5)} 起只用來驗證。兩段扣成本後都賺錢、t 值都 ≥ 2,${(dt.top_universe || {}).checked ? `同一組參數還要在成交值前 200 大裡、不在自選股的 ${dt.top_universe.stocks} 檔股票上驗證段也賺錢(t ≥ 1),避免只是剛好適合自選股,` : ''}才算站得住。最大回撤=假設每天把資金平均分給當天所有訊號,資金曲線從最高點最多回落幾 %(驗證段)。目前站得住:<b>${pass.length} 條</b>。</div>
+    ${rows}
+    ${dtLive(dt)}
+    <div class="onote">「扣成本前」接近 0 或為負,代表規則本身就沒賺頭;為正但扣成本後變負,代表賺的不夠付手續費和稅。每天收盤後用最新約 60 個交易日重算。${bearEsc(dt.note || '')}</div>`;
+  el.style.display = '';
+}
+
+// ================= 盤後回放(data/bars5m/ 真實 5 分K + data/replay/ 規則進出場,由 daytrade_lab.py 產生) =================
+// 每播一根,只用「到這根為止」的 K 棒畫波段折線與分區方框,不偷看後面;規則進出場也只顯示已經發生的。
+const RP = {idx: null, day: null, bars: null, trades: null, date: null, code: null, rule: 'all', zz: 1.0, cur: 0, timer: null, speed: 1};
+async function rpLoadGz(url){
+  const r = await fetch(url, {cache: 'no-store'});
+  if(!r.ok) throw new Error(url + ' ' + r.status);
+  const buf = await r.arrayBuffer(), b = new Uint8Array(buf);
+  if(b[0] === 0x1f && b[1] === 0x8b){
+    const st = new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'));
+    return JSON.parse(await new Response(st).text());
+  }
+  return JSON.parse(new TextDecoder().decode(buf));   // 伺服器已經自動解壓
+}
+async function rpInit(){
+  if(RP.idx) return;
+  const box = document.getElementById('replayBox');
+  try{
+    const r = await fetch('data/replay/index.json', {cache: 'no-store'});
+    RP.idx = await r.json();
+  }catch(e){ box.innerHTML = '<div class="sh"><b>盤後回放</b></div><div class="onote">還沒有回放資料(每天收盤後產生)。</div>'; return; }
+  if(typeof DecompressionStream === 'undefined'){ box.innerHTML = '<div class="sh"><b>盤後回放</b></div><div class="onote">這個瀏覽器不支援解壓縮,請更新到較新的 Safari / Chrome。</div>'; return; }
+  await rpLoadDay((RP.idx.dates || []).slice(-1)[0]);
+}
+async function rpLoadDay(d, keepCode){
+  if(!d) return;
+  rpStop();
+  const box = document.getElementById('replayBox');
+  box.querySelector('.sh small') && (box.querySelector('.sh small').textContent = '載入 ' + d + '…');
+  try{
+    const [day, tr] = await Promise.all([rpLoadGz(`data/bars5m/${d}.json.gz`), rpLoadGz(`data/replay/${d}.json.gz`)]);
+    RP.date = d; RP.day = day; RP.trades = tr;
+  }catch(e){ box.innerHTML = `<div class="sh"><b>盤後回放</b></div><div class="onote">${d} 的資料讀取失敗。</div>`; return; }
+  const codes = Object.keys(RP.day.stocks || {});
+  const nT = c => ((RP.trades.trades || {})[c] || []).length;
+  if(!(keepCode && codes.includes(RP.code))) RP.code = codes.sort((a, b) => nT(b) - nT(a))[0];
+  rpSetCode(RP.code);
+}
+function rpSetCode(code){
+  rpStop();
+  RP.code = code;
+  RP.bars = ((RP.day.stocks || {})[code] || {}).b || [];
+  RP.bars = RP.bars.map(r => ({t: r[0], o: r[1], h: r[2], l: r[3], c: r[4], v: r[5] || 0}));
+  RP.cur = Math.min(11, RP.bars.length - 1);   // 從 09:55 開始,前面先有一點走勢
+  rpRender();
+}
+function rpStop(){ if(RP.timer){ clearInterval(RP.timer); RP.timer = null; } }
+function rpPlay(){
+  if(RP.timer){ rpStop(); rpRender(); return; }
+  if(RP.cur >= RP.bars.length - 1) RP.cur = 0;
+  RP.timer = setInterval(() => { if(RP.cur >= RP.bars.length - 1){ rpStop(); } else RP.cur++; rpRender(); }, 700 / RP.speed);
+  rpRender();
+}
+function rpStep(n){ rpStop(); RP.cur = Math.max(0, Math.min(RP.bars.length - 1, RP.cur + n)); rpRender(); }
+function rpZigzag(bars, pct){
+  // 波段轉折:從目前極值反向走超過 pct% 才確認上一個轉折;回傳已確認的轉折與目前這段的暫定極值
+  const piv = [];
+  if(bars.length < 2) return {piv, tail: null};
+  let dir = 0, hiI = 0, loI = 0, ext = null;
+  for(let i = 0; i < bars.length; i++){
+    const b = bars[i];
+    if(dir === 0){
+      if(b.h > bars[hiI].h) hiI = i;
+      if(b.l < bars[loI].l) loI = i;
+      if(bars[hiI].h >= bars[loI].l * (1 + pct / 100)){
+        if(loI < hiI){ piv.push({i: loI, p: bars[loI].l, type: 'L'}); dir = 1; ext = {i: hiI, p: bars[hiI].h, type: 'H'}; }
+        else { piv.push({i: hiI, p: bars[hiI].h, type: 'H'}); dir = -1; ext = {i: loI, p: bars[loI].l, type: 'L'}; }
+      }
+      continue;
+    }
+    if(dir === 1){
+      if(b.h > ext.p) ext = {i, p: b.h, type: 'H'};
+      else if(b.l <= ext.p * (1 - pct / 100)){ piv.push(ext); dir = -1; ext = {i, p: b.l, type: 'L'}; }
+    } else {
+      if(b.l < ext.p) ext = {i, p: b.l, type: 'L'};
+      else if(b.h >= ext.p * (1 + pct / 100)){ piv.push(ext); dir = 1; ext = {i, p: b.h, type: 'H'}; }
+    }
+  }
+  return {piv, tail: ext};
+}
+function rpRender(){
+  const box = document.getElementById('replayBox');
+  const idx = RP.idx || {}, rules = idx.rules || {}, bars = RP.bars || [];
+  const names = {};
+  ((INTRADAY && INTRADAY.watchlist_quotes) || []).forEach(q => { names[q.code] = q.name; });
+  const allTr = ((RP.trades && RP.trades.trades) || {})[RP.code] || [];
+  const dateOpts = (idx.dates || []).slice().reverse().map(d => `<option value="${d}"${d === RP.date ? ' selected' : ''}>${d}</option>`).join('');
+  const codeOpts = Object.keys((RP.day && RP.day.stocks) || {}).sort().map(c => {
+    const n = (((RP.trades && RP.trades.trades) || {})[c] || []).length;
+    return `<option value="${c}"${c === RP.code ? ' selected' : ''}>${c} ${bearEsc(names[c] || '')}${n ? `(${n})` : ''}</option>`;
+  }).join('');
+  const ruleOpts = `<option value="all"${RP.rule === 'all' ? ' selected' : ''}>全部規則</option>` + Object.keys(rules).map(k => `<option value="${k}"${k === RP.rule ? ' selected' : ''}>${bearEsc(rules[k].name)}${rules[k].holds ? ' ✓' : ''}</option>`).join('');
+  const zzOpts = [0.5, 1, 1.5, 2].map(v => `<option value="${v}"${v === RP.zz ? ' selected' : ''}>波段 ${v}%</option>`).join('');
+  if(!bars.length){ box.innerHTML = `<div class="sh"><b>盤後回放</b></div><div class="onote">這天沒有這檔的 5 分K。</div>`; return; }
+  const cur = Math.min(RP.cur, bars.length - 1), seen = bars.slice(0, cur + 1), now = seen[seen.length - 1];
+  const tr = allTr.filter(x => (RP.rule === 'all' || x[0] === RP.rule) && x[1] <= now.t);
+
+  // ---- 圖 ----
+  const W = 360, H = 290, axisW = 46, plotW = W - axisW, volH = 34, top = 8, plotH = H - volH - top - 18;
+  const zz = rpZigzag(seen, RP.zz);
+  const pts = zz.piv.concat(zz.tail ? [zz.tail] : []);
+  let box2 = null;
+  if(zz.piv.length >= 2){
+    const a = zz.piv[zz.piv.length - 2], b = zz.piv[zz.piv.length - 1];
+    const hi = Math.max(a.p, b.p), lo = Math.min(a.p, b.p), mid = (hi + lo) / 2, band = (hi - lo) * 0.05;
+    box2 = {x0: Math.min(a.i, b.i), hi, lo, bandHi: mid + band, bandLo: mid - band};
+  }
+  const prices = seen.flatMap(b => [b.h, b.l]).concat(box2 ? [box2.hi, box2.lo] : []).concat(tr.flatMap(x => [x[2]].concat(x[3] <= now.t ? [x[4]] : [])));
+  let mn = Math.min(...prices), mx = Math.max(...prices);
+  const pad = (mx - mn) * 0.08 || mx * 0.005; mn -= pad; mx += pad;
+  const y = v => top + plotH - (v - mn) / (mx - mn) * plotH;
+  const slot = plotW / Math.max(54, bars.length), bw = Math.max(1.5, slot * 0.62), X = i => i * slot + slot / 2;
+  const iOf = t => { const k = bars.findIndex(b => b.t >= t); return k < 0 ? bars.length - 1 : k; };
+  let svg = '';
+  niceTicks(mn, mx, 4).forEach(t => { svg += `<line x1="0" y1="${y(t).toFixed(1)}" x2="${plotW}" y2="${y(t).toFixed(1)}" stroke="var(--grid)"/><text x="${plotW + 4}" y="${(y(t) + 3).toFixed(1)}" font-size="9.5" fill="var(--muted)">${fmtNum(t)}</text>`; });
+  if(box2){
+    const x0 = X(box2.x0) - slot / 2, w = plotW - x0;
+    const rect = (y1, y2, f, st) => `<rect x="${x0.toFixed(1)}" y="${y(y1).toFixed(1)}" width="${w.toFixed(1)}" height="${Math.max(0.5, y(y2) - y(y1)).toFixed(1)}" fill="${f}" stroke="${st}" stroke-width="0.7"/>`;
+    svg += rect(box2.hi, box2.bandHi, 'rgba(209,64,63,0.12)', 'rgba(209,64,63,0.5)') + rect(box2.bandHi, box2.bandLo, 'rgba(138,92,199,0.25)', 'rgba(138,92,199,0.6)') + rect(box2.bandLo, box2.lo, 'rgba(24,143,99,0.12)', 'rgba(24,143,99,0.5)');
+    svg += `<text x="${(x0 + w / 2).toFixed(1)}" y="${(y(box2.hi) + 11).toFixed(1)}" font-size="10" font-weight="700" fill="#d1403f" text-anchor="middle" opacity=".8">做空區</text><text x="${(x0 + w / 2).toFixed(1)}" y="${(y(box2.lo) - 4).toFixed(1)}" font-size="10" font-weight="700" fill="#188f63" text-anchor="middle" opacity=".8">做多區</text>`;
+  }
+  seen.forEach((b, i) => {
+    const c = b.c >= b.o ? 'var(--up)' : 'var(--down)', x = X(i);
+    svg += `<line x1="${x.toFixed(1)}" y1="${y(b.h).toFixed(1)}" x2="${x.toFixed(1)}" y2="${y(b.l).toFixed(1)}" stroke="${c}" stroke-width="1"/><rect x="${(x - bw / 2).toFixed(1)}" y="${y(Math.max(b.o, b.c)).toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(1, y(Math.min(b.o, b.c)) - y(Math.max(b.o, b.c))).toFixed(1)}" fill="${c}"/>`;
+  });
+  if(pts.length >= 2) svg += `<polyline points="${pts.map(p => X(p.i).toFixed(1) + ',' + y(p.p).toFixed(1)).join(' ')}" fill="none" stroke="#c9a227" stroke-width="1.2"/>`;
+  tr.forEach(x => {
+    const lg = (rules[x[0]] || {}).side === 'long', hold = (rules[x[0]] || {}).holds, c = hold ? (lg ? '#d1403f' : '#188f63') : '#8f8d86';
+    const i1 = iOf(x[1]), ye = y(x[2]), cx = X(i1);
+    svg += lg ? `<polygon points="${cx},${ye + 3} ${cx - 5},${ye + 11} ${cx + 5},${ye + 11}" fill="${c}"/>` : `<polygon points="${cx},${ye - 3} ${cx - 5},${ye - 11} ${cx + 5},${ye - 11}" fill="${c}"/>`;
+    if(x[3] <= now.t){
+      const i2 = iOf(x[3]), yx = y(x[4]), cx2 = X(i2), win = x[6] > 0;
+      svg += `<line x1="${cx}" y1="${ye.toFixed(1)}" x2="${cx2}" y2="${yx.toFixed(1)}" stroke="${c}" stroke-dasharray="3,2"/><circle cx="${cx2}" cy="${yx.toFixed(1)}" r="3.5" fill="var(--card)" stroke="${c}" stroke-width="1.5"/>
+        <text x="${cx2}" y="${(yx + (lg ? -7 : 13)).toFixed(1)}" font-size="9" font-weight="700" fill="${win ? 'var(--up)' : 'var(--down)'}" text-anchor="middle">${x[6] > 0 ? '+' : ''}${x[6]}%</text>`;
+    }
+  });
+  const maxV = Math.max(...seen.map(b => b.v), 1), v0 = top + plotH + 6;
+  seen.forEach((b, i) => { const hh = b.v / maxV * (volH - 2); svg += `<rect x="${(X(i) - bw / 2).toFixed(1)}" y="${(v0 + volH - hh).toFixed(1)}" width="${bw.toFixed(1)}" height="${hh.toFixed(1)}" fill="${b.c >= b.o ? 'var(--up)' : 'var(--down)'}" opacity=".5"/>`; });
+  const yc = y(now.c);
+  svg += `<line x1="0" y1="${yc.toFixed(1)}" x2="${plotW}" y2="${yc.toFixed(1)}" stroke="var(--text)" stroke-width="0.6" stroke-dasharray="1,2"/><rect x="${plotW + 1}" y="${(yc - 8).toFixed(1)}" width="${axisW - 1}" height="16" rx="3" fill="var(--text)"/><text x="${plotW + axisW / 2}" y="${(yc + 4).toFixed(1)}" font-size="9.5" fill="var(--card)" text-anchor="middle">${fmtNum(now.c)}</text>`;
+  ['09:00', '10:00', '11:00', '12:00', '13:00'].forEach(t => { const i = bars.findIndex(b => b.t === t); if(i >= 0) svg += `<text x="${X(i).toFixed(1)}" y="${H - 3}" font-size="9" fill="var(--muted)" text-anchor="${X(i) < 14 ? 'start' : 'middle'}">${t}</text>`; });
+
+  let zoneTxt = '波段還在形成(要先有一段漲跌超過 ' + RP.zz + '%)';
+  if(box2){ zoneTxt = now.c > box2.hi ? '突破方框上緣' : now.c < box2.lo ? '跌破方框下緣' : now.c > box2.bandHi ? '在做空區' : now.c < box2.bandLo ? '在做多區' : '在平衡區'; }
+  const pc = RP.day.stocks[RP.code].pc, pct = pc ? (now.c / pc - 1) * 100 : null;
+  const trList = tr.slice().sort((a, b) => a[1] < b[1] ? -1 : 1).map(x => {
+    const r = rules[x[0]] || {}, done = x[3] <= now.t;
+    return `<div class="rptr"><span>${x[1]} ${r.side === 'long' ? '▲做多' : '▼做空'} ${bearEsc(r.name || x[0])}${r.holds ? '' : '<small style="color:var(--muted)">(未通過回測)</small>'}</span><span>@${fmtNum(x[2])} → ${done ? `${x[3]} ${({stop: '停損', target: '停利', close: '收盤'})[x[5]]} <b class="${x[6] > 0 ? 'up' : 'down'}">${x[6] > 0 ? '+' : ''}${x[6]}%</b>` : '持有中'}</span></div>`;
+  }).join('');
+  const playing = !!RP.timer;
+  box.innerHTML = `<div class="sh"><b>盤後回放</b><small>${RP.date}・真實 5 分K</small></div>
+    <div class="rpbar"><select onchange="rpLoadDay(this.value, true)">${dateOpts}</select><select onchange="rpSetCode(this.value)">${codeOpts}</select><select onchange="RP.rule=this.value;rpRender()">${ruleOpts}</select><select onchange="RP.zz=+this.value;rpRender()">${zzOpts}</select></div>
+    <svg width="100%" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">${svg}</svg>
+    <div class="rpctl"><button onclick="rpStep(-1)" aria-label="上一根">◀︎</button><button class="${playing ? 'on' : ''}" onclick="rpPlay()" aria-label="播放或暫停">${playing ? '❚❚' : '▶'}</button><button onclick="rpStep(1)" aria-label="下一根">▶︎|</button>
+      <input type="range" min="0" max="${bars.length - 1}" value="${cur}" oninput="rpStop();RP.cur=+this.value;rpRender()" aria-label="時間">
+      <button class="${RP.speed === 1 ? 'on' : ''}" onclick="RP.speed=RP.speed===1?4:1;if(RP.timer){rpStop();rpPlay();}else rpRender()">${RP.speed}x</button></div>
+    <div class="rpinfo"><span><b style="color:var(--text)">${now.t}</b></span><span>開 ${fmtNum(now.o)}</span><span>高 ${fmtNum(now.h)}</span><span>低 ${fmtNum(now.l)}</span><span>收 ${fmtNum(now.c)}${pct != null ? ` <span class="${pct > 0 ? 'up' : 'down'}">${fmtPct(pct)}</span>` : ''}</span><span>${zoneTxt}</span></div>
+    <div style="margin-top:8px">${trList || `<div class="onote">到 ${now.t} 為止,${RP.rule === 'all' ? '沒有規則' : '這條規則'}在這檔觸發。</div>`}</div>
+    <div class="onote">黃線=波段折線(反向走超過 ${RP.zz}% 才確認轉折);方框=最近一段已確認的漲跌範圍,上半做空區、中間 10% 平衡區、下半做多區,和影片同一種畫法。▲▼=規則進場,○=出場與扣 ${(RP.trades || {}).cost_pct || 0.3}% 成本後報酬;灰色=未通過回測。每播一根只用到這根為止的資料,不偷看後面。股票名稱後面的數字是當天觸發筆數。歷史回放,不是預測,不構成買賣建議。</div>`;
+}
+
+// ================= 當沖工具:交易限制標籤、振幅進度、損益兩平、部位試算 =================
+// 交易限制來自證交所/櫃買 OpenAPI(data/trade_flags.json,intraday.py 每個交易日盤前抓一次)。
+const DT_FEE = 0.1425 * 0.28 / 100, DT_TAX = 0.15 / 100;   // 手續費打 2.8 折(買賣各一次)、當沖證交稅減半
+function flagBadges(q){
+  const f = q && q.flags;
+  if(!f) return '';
+  const md = d => d ? d.slice(5).replace('-', '/') : '';
+  const out = [];
+  if(f.disposal) out.push(`<span class="tflag red" title="${bearEsc(f.disposal.measure || '')}">處置中 到${md(f.disposal.end)}${f.disposal.measure ? '・' + bearEsc(f.disposal.measure.slice(0, 10)) : ''}</span>`);
+  if(f.daytrade === false) out.push('<span class="tflag red">不可現股當沖</span>');
+  if(f.no_sell_first) out.push('<span class="tflag orange">暫停先賣後買</span>');
+  if(f.change_trading) out.push('<span class="tflag red">分盤交易</span>');
+  if(f.notice) out.push(`<span class="tflag orange" title="${bearEsc(f.notice.reason || '')}">注意股</span>`);
+  if(f.near_disposal) out.push(`<span class="tflag orange" title="${bearEsc(f.near_disposal)}">可能被處置</span>`);
+  return out.join('');
+}
+function renderTradeFlags(intraday){
+  const el = document.getElementById('tradeFlagBox');
+  if(!el) return;
+  const tf = intraday && intraday.trade_flags;
+  if(!tf || !tf.date){ el.style.display = 'none'; return; }
+  const qs = (intraday.watchlist_quotes || []).filter(q => q.flags && Object.keys(q.flags).some(k => k !== 'daytrade'));
+  const sev = q => q.flags.disposal || q.flags.daytrade === false || q.flags.change_trading ? 0 : 1;
+  qs.sort((a, b) => sev(a) - sev(b));
+  const fail = Object.entries(tf.status || {}).filter(([, v]) => v !== 'ok').map(([k]) => k);
+  const rows = qs.map(q => `<div class="rvrow" style="font-size:12.5px;cursor:pointer" onclick="searchAndOpen('${q.code}')"><span><b>${bearEsc(q.name)}</b> <small style="color:var(--muted)">${q.code}</small></span><span>${flagBadges(q)}</span></div>`).join('');
+  el.className = 'sigbox';
+  el.innerHTML = `<div class="sh"><b>當沖限制提醒</b><small>官方名單 ${(tf.daytrade_list_date || tf.date).slice(5).replace('-', '/')}</small></div>
+    ${rows ? `<div class="rvbox">${rows}</div>` : `<div class="onote" style="margin:0">自選股今天沒有處置、注意、暫停先賣後買或不可當沖的標的。</div>`}
+    ${fail.length ? `<div class="onote" style="color:var(--up)">有 ${fail.length} 個官方來源暫時抓不到,30 分鐘後自動重試,這段期間標籤可能不完整。</div>` : ''}
+    <div class="onote">處置股會分盤撮合、可能要預收款券;注意股或「可能被處置」代表近期交易異常、明天可能有限制。來源:證交所、櫃買中心,實際以券商下單系統為準。</div>`;
+  el.style.display = '';
+}
+function tickSize(code, p){ return tickOf(code, p) || 0.01; }
+function roundTick(code, p, mode){
+  const t = tickSize(code, p), f = mode === 'up' ? Math.ceil : Math.floor;
+  return Math.round(f(p / t - 1e-9 * (mode === 'up' ? 1 : -1)) * t * 100) / 100;
+}
+function dtGet(k, d){ try { const v = localStorage.getItem(k); return v === null ? d : +v; } catch(e){ return d; } }
+function dtSet(k, v){ try { localStorage.setItem(k, v); } catch(e){ /* 私密模式存不了就算了 */ } if(CURRENT_DETAIL) openDetail(CURRENT_DETAIL.code, false, {silent: true}); }
+function dtTools(q){
+  const p = num(q.last), pc = num(q.prev_close);
+  if(p === null || !p) return '';
+  // 1) 振幅進度:今天已經走了平常一天的幾成
+  let rangeHtml = '';
+  const adr = q.swing && num(q.swing.adr5), hi = num(q.high), lo = num(q.low);
+  if(adr && hi !== null && lo !== null && pc){
+    const today = (hi - lo) / pc * 100, ratio = today / adr;
+    const w = Math.min(100, ratio * 50);   // 平均振幅畫在中間(50%),超過一倍就到底
+    rangeHtml = `<div class="dtrow"><div class="dtlab">今日振幅 <b>${today.toFixed(2)}%</b>・近5日平均 ${adr.toFixed(2)}%・已達 <b class="${ratio >= 1.5 ? 'up' : ''}">${Math.round(ratio * 100)}%</b></div>
+      <div class="dtbar"><i style="width:${w}%;background:${ratio >= 1.5 ? 'var(--up)' : ratio >= 1 ? '#c9a227' : 'var(--accent)'}"></i><em style="left:50%"></em></div>
+      <div class="onote" style="margin-top:2px">${ratio >= 1.5 ? '已超過平常一天波動的 1.5 倍,追價空間通常有限、回檔也容易放大。' : ratio >= 1 ? '已走完平常一天的振幅。' : '還沒走完平常一天的振幅。'}(中線=平均振幅)</div></div>`;
+  }
+  // 2) 當沖損益兩平價(手續費 2.8 折、當沖證交稅 0.15%)
+  const beLong = roundTick(q.code, p * (1 + DT_FEE) / (1 - DT_FEE - DT_TAX), 'up');
+  const beShort = roundTick(q.code, p * (1 - DT_FEE - DT_TAX) / (1 + DT_FEE), 'down');
+  const beHtml = `<div class="dtrow"><div class="dtlab">以現價 ${fmtNum(p)} 進場的損益兩平價</div>
+    <div class="l2" style="display:flex;gap:4px 14px;flex-wrap:wrap;font-size:12.5px"><span>做多要賣在 <b class="up">${fmtNum(beLong)}</b> 以上</span><span>做空要買回在 <b class="down">${fmtNum(beShort)}</b> 以下</span><span style="color:var(--muted)">來回成本約 ${((2 * DT_FEE + DT_TAX) * 100).toFixed(2)}%</span></div></div>`;
+  // 3) 部位試算:停損用卡片上的支撐(做多)/壓力(做空)
+  const cap = dtGet('dt_capital', 100), risk = dtGet('dt_risk', 1);
+  const {resTarget, supTarget} = effectiveLevels(q, false);
+  const size = (stop, side) => {
+    if(num(stop) === null) return '<span style="color:var(--muted)">沒有可用的停損位置</span>';
+    const dist = side === 'long' ? p - stop : stop - p;
+    if(!(dist > 0)) return '<span style="color:var(--muted)">現價已越過停損位置</span>';
+    const budget = Math.min(cap * 10000 * risk / 100, riskState().remain);
+    const sh = Math.floor(Math.max(0, Math.min(budget / dist, cap * 10000 / p)));
+    return `停損 ${fmtNum(stop)}(${(dist / p * 100).toFixed(2)}%)→ 最多 <b>${sh.toLocaleString('en-US')}</b> 股(${(sh / 1000).toFixed(sh >= 10000 ? 0 : 1)} 張),虧到停損約 ${Math.round(sh * dist).toLocaleString('en-US')} 元`;
+  };
+  const posHtml = `<div class="dtrow"><div class="dtlab">部位試算 <span style="color:var(--muted)">本金</span> <input type="number" min="1" step="10" value="${cap}" onchange="dtSet('dt_capital', this.value)" aria-label="本金(萬元)"> 萬,每筆最多虧 <input type="number" min="0.1" step="0.1" value="${risk}" onchange="dtSet('dt_risk', this.value)" aria-label="每筆風險百分比"> %</div>
+    <div style="font-size:12.5px;line-height:1.7"><div>做多:${size(supTarget, 'long')}</div><div>做空:${size(resTarget, 'short')}</div></div>
+    <div class="onote" style="margin-top:2px">只是算術:用停損距離反推最多能買多少,而且每筆最多虧不會超過「今日風控」剩下的額度(今天還能虧 ${riskState().remain.toLocaleString('en-US')} 元)。不含滑價、跳空,也不是建議部位。本金和比例只存在這台裝置。</div></div>`;
+  return `<div class="dttools"><div class="dthead">當沖工具</div>${flagBadges(q) ? `<div style="margin-bottom:6px">${flagBadges(q)}</div>` : ''}${rangeHtml}${beHtml}${posHtml}</div>`;
+}
+
+// ================= 交易小組:機會掃描、新聞、市場情緒、圖表、風險 → 最終決策 =================
+// 六個角色都只用網頁已有的資料(報價、量能、重大訊息、支撐壓力、當沖限制、回測結果),不是預測。
+// 最終決策:任何一項碰到硬限制(處置、不能當沖)就拒絕;沒有回測站得住的規則觸發時,最多只到「僅觀察/紙上交易」。
+const clamp1 = x => Math.max(-1, Math.min(1, x));
+function marketMood(intraday){
+  // 市場情緒員:用客觀市場資料組成 -100~+100(大盤、開盤後走勢、自選股漲跌家數、櫃買、台指期價差),另算爆量熱度
+  if(!intraday || !intraday.indices) return null;
+  const ix = c => intraday.indices.find(x => x.code === c) || {};
+  const tse = ix('TWS:TSE01:INDEX'), otc = ix('TWS:OTC01:INDEX'), txf = ix('TWF:TXF:FUTURES');
+  const qs = (intraday.watchlist_quotes || []).filter(q => !String(q.code).startsWith('00') && num(q.pct) !== null);
+  if(num(tse.pct) === null || !qs.length) return null;
+  const up = qs.filter(q => q.pct > 0).length, dn = qs.filter(q => q.pct < 0).length;
+  const parts = [
+    {k: '加權指數', w: 25, v: clamp1(tse.pct / 1.5), t: fmtPct(tse.pct)},
+    {k: '開盤後走勢', w: 20, v: num(tse.open) ? clamp1((tse.last / tse.open - 1) * 100 / 0.8) : 0, t: num(tse.open) ? `比開盤 ${fmtPct((tse.last / tse.open - 1) * 100)}` : '-'},
+    {k: '自選股漲跌家數', w: 25, v: (up - dn) / qs.length, t: `漲 ${up} / 跌 ${dn}`},
+    {k: '櫃買指數', w: 15, v: num(otc.pct) !== null ? clamp1(otc.pct / 1.5) : 0, t: num(otc.pct) !== null ? fmtPct(otc.pct) : '-'},
+    {k: '台指期價差', w: 15, v: (num(txf.last) !== null && tse.last) ? clamp1((txf.last - tse.last) / tse.last * 100 / 0.5) : 0, t: (num(txf.last) !== null && tse.last) ? `${txf.last - tse.last > 0 ? '+' : ''}${Math.round(txf.last - tse.last)} 點` : '-'},
+  ];
+  const score = Math.round(parts.reduce((a, p) => a + p.w * p.v, 0));
+  const hot = qs.filter(q => num(q.pace) !== null && q.pace >= 3).length / qs.length;
+  const label = score >= 30 ? '偏多' : score <= -30 ? '偏空' : '中性';
+  return {score, label, side: score >= 30 ? 1 : score <= -30 ? -1 : 0, parts, hot, overheated: hot >= 0.15};
+}
+function teamCheck(q, mood){
+  const p = num(q.last);
+  if(p === null) return null;
+  const B = (INTRADAY && INTRADAY.bias && INTRADAY.bias.items) || [];
+  const fresh = B.filter(x => x.code === q.code && x.fresh);
+  // 方向:有剛觸發的多空判斷就用它;同時有方向相反的觸發(例如分數放空和超跌反向做多同一根成立)時,
+  // 只有通過回測的那一邊算數,都沒通過就當成矛盾、改看漲跌幅(±0.5% 以內算觀望)
+  const fSides = new Set(fresh.map(x => x.side)), held = fresh.filter(x => x.holds);
+  const conflict = fSides.size > 1;
+  const pick = !conflict ? fresh : (new Set(held.map(x => x.side)).size === 1 ? held : []);
+  let side = pick.length ? (pick[0].side === 'long' ? 1 : -1) : (num(q.pct) >= 0.5 ? 1 : num(q.pct) <= -0.5 ? -1 : 0);
+  const S = side > 0 ? '做多' : side < 0 ? '做空' : '觀望';
+  const ck = [];
+  // 1 機會掃描員
+  const pace = num(q.pace);
+  ck.push({r: '機會', s: pace >= 2 ? 'ok' : pace >= 1.3 ? 'na' : 'na', t: pace === null ? '量能資料累積中' : pace >= 2 ? `量能 ${pace.toFixed(1)} 倍,有資金在動` : `量能 ${pace.toFixed(1)} 倍,不算突出`});
+  if(conflict && !pick.length) ck[ck.length - 1] = {r: '機會', s: 'warn', t: ck[ck.length - 1].t + ',而且剛觸發的多空訊號互相矛盾'};
+  // 2 新聞分析員
+  const nw = q.news || [];
+  ck.push({r: '消息', s: nw.length ? 'warn' : 'ok', t: nw.length ? `${nw[0].date.slice(5)} ${nw[0].cat}:${nw[0].title.slice(0, 28)}${nw[0].title.length > 28 ? '…' : ''}(事件可能放大波動)` : '近兩天沒有重大訊息'});
+  // 3 市場情緒員
+  if(!mood || !side) ck.push({r: '情緒', s: 'na', t: mood ? `大盤${mood.label}(${mood.score > 0 ? '+' : ''}${mood.score})` : '沒有大盤資料'});
+  else ck.push({r: '情緒', s: mood.side === side ? 'ok' : mood.side === -side ? 'warn' : 'na', t: `大盤${mood.label}(${mood.score > 0 ? '+' : ''}${mood.score})` + (mood.side === -side ? ',方向和個股相反' : mood.side === side ? ',方向一致' : '') + (mood.overheated ? ',爆量家數偏多、市場過熱' : '')});
+  // 4 圖表分析員:用卡片上的支撐壓力算損益比與位置
+  const {resTarget, supTarget} = effectiveLevels(q, false);
+  const zi = zoneInfo(q);
+  if(!side || num(resTarget) === null || num(supTarget) === null) ck.push({r: '圖表', s: 'na', t: '方向不明或沒有支撐壓力'});
+  else {
+    const risk = side > 0 ? p - supTarget : resTarget - p, reward = side > 0 ? resTarget - p : p - supTarget;
+    const rr = risk > 0 ? reward / risk : null;
+    const chase = zi && ((side > 0 && (zi.zone === 'short' || zi.zone === 'over')) || (side < 0 && (zi.zone === 'long' || zi.zone === 'under')));
+    const minRR = riskCfg().minRR;
+    ck.push({r: '圖表', s: rr === null ? 'bad' : (rr >= minRR && !chase ? 'ok' : (rr < 1 || chase ? 'warn' : 'na')), t: rr === null ? '已越過停損位置' : `損益比 ${rr.toFixed(1)}:1` + (rr < minRR ? `(低於你設定的 ${minRR})` : '') + (zi ? `,現價在${zi.label}` : '') + (chase ? '(追價位置)' : '')});
+  }
+  // 5 風險管理員
+  const f = q.flags || {};
+  const adr = q.swing && num(q.swing.adr5), hi = num(q.high), lo = num(q.low), pc = num(q.prev_close);
+  const used = adr && hi !== null && lo !== null && pc ? (hi - lo) / pc * 100 / adr : null;
+  const stopPct = side && num(side > 0 ? supTarget : resTarget) !== null ? Math.abs(p - (side > 0 ? supTarget : resTarget)) / p * 100 : null;
+  const rs = riskState();
+  if(rs.block) ck.push({r: '風險', s: 'bad', t: '今日風控:' + rs.reasons.join('、')});
+  else if(f.disposal || f.daytrade === false || f.change_trading) ck.push({r: '風險', s: 'bad', t: f.disposal ? `處置中(${f.disposal.measure || '分盤撮合'})` : f.daytrade === false ? '不能現股當沖' : '分盤交易'});
+  else if(side < 0 && f.no_sell_first) ck.push({r: '風險', s: 'bad', t: '暫停先賣後買,不能當沖做空'});
+  else {
+    const w = [];
+    const ul = num(q.upper_limit), ll = num(q.lower_limit);
+    if(side > 0 && ul && p >= ul * 0.99) w.push('貼近漲停,很難再往上、也可能買不到');
+    if(side < 0 && ll && p <= ll * 1.01) w.push('貼近跌停,很難再往下、也可能賣不到');
+    if(f.notice || f.near_disposal) w.push(f.near_disposal ? '可能被處置' : '注意股');
+    if(used !== null && used >= 1.5) w.push(`振幅已達平常 ${Math.round(used * 100)}%`);
+    if(stopPct !== null && stopPct > 3) w.push(`停損距離 ${stopPct.toFixed(1)}% 偏遠`);
+    if(stopPct !== null && stopPct < 0.5) w.push(`停損只差 ${stopPct.toFixed(2)}%,很容易被正常波動洗掉`);
+    ck.push({r: '風險', s: w.length ? 'warn' : 'ok', t: w.length ? w.join('、') : '沒有交易限制,振幅與停損距離正常'});
+  }
+  // 6 最終決策員
+  const bad = ck.filter(c => c.s === 'bad').length, warn = ck.filter(c => c.s === 'warn').length, ok = ck.filter(c => c.s === 'ok').length;
+  const validated = pick.some(x => x.holds && (x.side === 'long' ? 1 : -1) === side);
+  let v, vc;
+  if(bad) { v = '拒絕:' + ck.filter(c => c.s === 'bad').map(c => c.t).join('、'); vc = 'bad'; }
+  else if(!side) { v = '觀望:方向不明'; vc = 'na'; }
+  else if(validated && ok >= 3 && warn <= 1) { v = `符合已驗證規則(${pick.find(x => x.holds).rule_name}),可依部位試算執行`; vc = 'ok'; }
+  else if(warn >= 2) { v = '不建議:警示項目太多,就算要做也要縮小部位'; vc = 'warn'; }
+  else { v = validated ? '已驗證規則觸發,但條件不夠完整:縮小部位' : '僅觀察:沒有回測站得住的規則觸發,只適合紙上交易'; vc = validated ? 'warn' : 'na'; }
+  return {side, S, ck, v, vc};
+}
+const TC_ICON = {ok: '✓', warn: '!', bad: '✕', na: '·'};
+function teamIcons(t){ return t.ck.map(c => `<span class="tci ${c.s}" title="${c.r}:${bearEsc(c.t)}">${c.r}${TC_ICON[c.s]}</span>`).join(''); }
+function teamPanel(q){
+  const t = teamCheck(q, marketMood(INTRADAY));
+  if(!t) return '';
+  return `<div class="dttools"><div class="dthead">交易小組檢查 <span class="bchip">${t.S}</span></div>
+    ${t.ck.map(c => `<div class="tcrow"><span class="tci ${c.s}">${c.r}${TC_ICON[c.s]}</span><span>${bearEsc(c.t)}</span></div>`).join('')}
+    <div class="tcv ${t.vc}"><b>決策</b> ${bearEsc(t.v)}</div>
+    <div class="onote" style="margin-top:4px">✓=通過 !=警示 ✕=硬限制 ·=中性。依網頁已有資料機械式檢查,不是預測或買賣建議;方向優先用剛觸發的多空判斷,沒有就看漲跌幅。</div></div>`;
+}
+function renderTeam(intraday){
+  const el = document.getElementById('teamBox');
+  if(!el) return;
+  const mood = marketMood(intraday);
+  if(!mood){ el.style.display = 'none'; return; }
+  const qs = (intraday.watchlist_quotes || []).filter(q => !String(q.code).startsWith('00') && num(q.last) !== null);
+  const B = (intraday.bias && intraday.bias.items) || [];
+  const op = {}; (((intraday.opening_alerts || {}).items) || []).forEach(x => { if(x.hot_now) op[x.code] = 1; });
+  const cands = qs.filter(q => (num(q.pace) || 0) >= 2 || op[q.code] || B.some(x => x.code === q.code && x.fresh) || (q.news || []).some(n => n.date === (intraday.data_as_of || '').slice(0, 10)))
+    .map(q => ({q, t: teamCheck(q, mood)})).filter(x => x.t)
+    .sort((a, b) => ({ok: 0, warn: 1, na: 2, bad: 3}[a.t.vc] - {ok: 0, warn: 1, na: 2, bad: 3}[b.t.vc]) || ((b.q.pace || 0) - (a.q.pace || 0))).slice(0, 8);
+  const gauge = `<div class="mood"><div class="moodbar"><em style="left:${(mood.score + 100) / 2}%"></em></div>
+    <div class="zft"><span class="down">偏空 −100</span><span style="font-weight:700;color:${mood.side > 0 ? 'var(--up)' : mood.side < 0 ? 'var(--down)' : 'var(--sec)'}">大盤${mood.label} ${mood.score > 0 ? '+' : ''}${mood.score}${mood.overheated ? '・過熱' : ''}</span><span class="up">+100 偏多</span></div>
+    <div class="l2" style="display:flex;flex-wrap:wrap;gap:2px 12px;font-size:11.5px;color:var(--muted);margin-top:3px">${mood.parts.map(p => `<span>${p.k} ${p.t}</span>`).join('')}<span>爆量家數 ${Math.round(mood.hot * 100)}%</span></div></div>`;
+  const rows = cands.map(({q, t}) => `<div class="bsig" style="cursor:pointer" onclick="searchAndOpen('${q.code}')"><div class="l1"><span><b>${bearEsc(q.name)}</b> <small style="color:var(--muted)">${q.code}</small> <span class="bchip">${t.S}</span></span><span class="${num(q.pct) > 0 ? 'up' : num(q.pct) < 0 ? 'down' : ''}">${fmtNum(q.last)} ${fmtPct(q.pct)}</span></div>
+    <div style="margin-top:4px">${teamIcons(t)}</div><div class="tcv ${t.vc}" style="margin-top:4px">${bearEsc(t.v)}</div></div>`).join('');
+  const nw = qs.flatMap(q => (q.news || []).map(n => ({...n, name: q.name}))).sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time)).slice(0, 6);
+  const newsHtml = nw.length ? `<details style="margin-top:8px"><summary style="cursor:pointer;font-size:12.5px;color:var(--sec)">自選股重大訊息(近兩天 ${nw.length} 則)</summary><div class="rvbox">${nw.map(n => `<div class="rvrow" style="font-size:12px;cursor:pointer" onclick="searchAndOpen('${n.code}')"><span>${bearEsc(n.date.slice(5))} ${bearEsc(n.time)} <b>${bearEsc(n.name)}</b> <small>${bearEsc(n.cat)}</small> ${bearEsc(n.title.slice(0, 34))}</span></div>`).join('')}</div></details>` : '';
+  el.className = 'sigbox';
+  el.innerHTML = `<div class="sh"><b>交易小組看板</b><small>機會・消息・情緒・圖表・風險 → 決策</small></div>
+    <div class="rvsub" style="font-size:12px;color:var(--muted);margin:2px 0">市場情緒員(客觀市場資料,不是社群輿論)</div>${gauge}
+    <div class="rvsub" style="font-size:12px;color:var(--muted);margin:10px 0 0">機會掃描員挑出的標的(量能 ≥ 2 倍、開盤爆量、剛觸發多空判斷或今天有重大訊息)</div>
+    ${rows || '<div class="onote">目前沒有量能突出或有事件的自選股。</div>'}${newsHtml}
+    <div class="onote">每檔依序由五個角色檢查,最後由決策員整合:碰到處置、不能當沖就拒絕;沒有回測站得住的規則觸發時最多只到「僅觀察」。點任一檔看完整檢查與當沖工具。工具只負責整理,交易規則仍要由你決定,不構成買賣建議。</div>`;
+  el.style.display = '';
+}
+
+// ================= 時光機:用這檔過去約 60 天同一時段的 5 分K,重組今天接下來的走法 1 萬次 =================
+// 每次模擬從現價出發,剩下的每一根都從「過去同一時段 ±2 根」隨機抽一根真實 K 棒的漲跌比例套上去;
+// 同一根同時碰到停損停利算停損(和回測一樣保守),13:20 那根收盤還沒碰到就算「都沒碰到」。
+// 另外把同樣的停損停利比例,套到過去每一天同一時間進場,看實際結果。資料來自 data/bars5m/ 的存檔。
+const TM = {dayCache: {}, res: {}, busy: false};
+const TM_LAST = '13:20', TM_N = 10000, TM_WIN = 2;
+const slotOf = t => { const [h, m] = String(t).split(':').map(Number); return (h - 9) * 12 + Math.floor(m / 5); };
+const slotTime = k => { const m = 9 * 60 + k * 5; return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
+function tmRng(seed){ let a = seed >>> 0; return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+async function tmLoadDays(code){
+  if(!RP.idx){ const r = await fetch('data/replay/index.json', {cache: 'no-store'}); RP.idx = await r.json(); }
+  const dates = (RP.idx.dates || []).slice(-60);
+  await Promise.all(dates.map(async d => { if(!(d in TM.dayCache)){ try { TM.dayCache[d] = await rpLoadGz(`data/bars5m/${d}.json.gz`); } catch(e){ TM.dayCache[d] = null; } } }));
+  const out = [];
+  for(const d of dates){
+    const st = TM.dayCache[d] && TM.dayCache[d].stocks && TM.dayCache[d].stocks[code];
+    if(st && st.b && st.b.length >= 45) out.push({d, pc: st.pc, b: st.b.map(r => ({t: r[0], o: r[1], h: r[2], l: r[3], c: r[4]}))});
+  }
+  return out;
+}
+function tmBarHit(side, bar, stop, target){
+  // 回傳 'stop' / 'target' / null;同一根兩邊都碰到算停損
+  if(side > 0){ if(bar.l <= stop) return 'stop'; if(bar.h >= target) return 'target'; }
+  else { if(bar.h >= stop) return 'stop'; if(bar.l <= target) return 'target'; }
+  return null;
+}
+function tmSimulate(days, startSlot, entry, stop, target, side, n, seed){
+  const last = slotOf(TM_LAST), pools = [];
+  for(let s = 0; s <= last; s++) pools.push([]);
+  days.forEach(day => day.b.forEach((x, k) => {
+    const prev = k ? day.b[k - 1].c : day.pc, s = slotOf(x.t);
+    if(prev && s >= 0 && s <= last) pools[s].push([x.o / prev, x.h / prev, x.l / prev, x.c / prev]);
+  }));
+  const win = pools.map((_, s) => { const a = []; for(let j = Math.max(0, s - TM_WIN); j <= Math.min(last, s + TM_WIN); j++) a.push(...pools[j]); return a; });
+  const rnd = tmRng(seed), risk = Math.abs(entry - stop);
+  let tg = 0, sp = 0, ne = 0, sumR = 0;
+  for(let i = 0; i < n; i++){
+    let p = entry, out = null;
+    for(let s = startSlot; s <= last && !out; s++){
+      const pool = win[s];
+      if(!pool.length) continue;
+      const r = pool[Math.floor(rnd() * pool.length)];
+      const bar = {o: p * r[0], h: p * r[1], l: p * r[2], c: p * r[3]};
+      // 跳空越過停損:用開盤價出場(和回測一樣),但 R 最多算到 -1 以外的實際值
+      if(side > 0 && bar.o <= stop){ out = 'stop'; sumR += (bar.o - entry) / risk; break; }
+      if(side < 0 && bar.o >= stop){ out = 'stop'; sumR += (entry - bar.o) / risk; break; }
+      out = tmBarHit(side, bar, stop, target);
+      if(out === 'stop') sumR -= 1;
+      else if(out === 'target') sumR += Math.abs(target - entry) / risk;
+      p = bar.c;
+    }
+    if(out === 'target') tg++; else if(out === 'stop') sp++; else { ne++; sumR += side * (p - entry) / risk; }
+  }
+  return {n, tg, sp, ne, avgR: sumR / n, pool: days.length};
+}
+function tmHistory(days, startSlot, side, stopPct, targetPct){
+  // 過去每一天:同一時間那根開盤進場,同樣的停損停利比例,實際走一遍
+  const rows = [];
+  for(const day of days){
+    const k = day.b.findIndex(x => slotOf(x.t) >= startSlot);
+    if(k < 0 || slotOf(day.b[k].t) > slotOf(TM_LAST)) continue;
+    const e = day.b[k].o, stop = e * (1 - side * stopPct / 100), target = e * (1 + side * targetPct / 100);
+    let out = null, close = e;
+    for(let j = k; j < day.b.length && slotOf(day.b[j].t) <= slotOf(TM_LAST) && !out; j++){
+      const bar = day.b[j];
+      if(j > k && ((side > 0 && bar.o <= stop) || (side < 0 && bar.o >= stop))){ out = 'stop'; break; }
+      out = tmBarHit(side, bar, stop, target);
+      close = bar.c;
+    }
+    rows.push({d: day.d, out: out || 'none', ret: out === 'target' ? targetPct : out === 'stop' ? -stopPct : side * (close / e - 1) * 100});
+  }
+  return rows;
+}
+function tmVerdict(r, rr, costR){
+  const resolved = r.tg + r.sp, win = resolved ? r.tg / resolved : 0;
+  const need = (1 + costR) / (rr + 1);          // 扣成本後打平需要的「先到停利」比例
+  const gap = (win - need) * 100;
+  const evR = r.avgR - costR;                    // 每筆平均 R(含都沒碰到的),再扣成本
+  let txt = Math.abs(gap) < 5 ? '接近打平,跟擲硬幣差不多' : gap > 0 ? (gap >= 15 ? '明顯偏向停利' : '略偏向停利') : (gap <= -15 ? '明顯偏向停損' : '略偏向停損');
+  return {win, need, gap, evR, txt, cls: Math.abs(gap) < 5 ? 'na' : gap > 0 ? 'ok' : 'bad'};
+}
+function tmDefaults(q){
+  const t = teamCheck(q, marketMood(INTRADAY));
+  const side = (TM.res[q.code] && TM.res[q.code].sideSel) || (t && t.side) || 1;
+  const {resTarget, supTarget} = effectiveLevels(q, false);
+  const p = num(q.last);
+  let stop = side > 0 ? supTarget : resTarget, target = side > 0 ? resTarget : supTarget;
+  // 停損沒有或在錯邊時,用 1% 停損、2% 停利當預設
+  if(num(stop) === null || (side > 0 ? stop >= p : stop <= p)) stop = p * (1 - side * 0.01);
+  if(num(target) === null || (side > 0 ? target <= p : target >= p)) target = p * (1 + side * 0.02);
+  return {side, stop: toTick(stop, q.code), target: toTick(target, q.code)};
+}
+function tmStartSlot(){
+  const t = INTRADAY && INTRADAY.data_as_of ? new Date(INTRADAY.data_as_of).toLocaleTimeString('en-GB', {timeZone: 'Asia/Taipei', hour: '2-digit', minute: '2-digit'}) : '09:30';
+  const s = slotOf(t) + 1;   // 下一根開始(和回測一樣:訊號後下一根進場)
+  return s < 1 ? slotOf('09:30') : s;
+}
+async function tmRun(code){
+  const q = ((INTRADAY && INTRADAY.watchlist_quotes) || []).find(x => x.code === code);
+  if(!q || TM.busy) return;
+  const g = id => document.getElementById(id);
+  const side = +(g('tmSide') || {}).value || 1, stop = num((g('tmStop') || {}).value), target = num((g('tmTarget') || {}).value), entry = num(q.last);
+  const box = g('tmOut');
+  if(!(entry && stop && target) || (side > 0 ? !(stop < entry && target > entry) : !(stop > entry && target < entry))){ box.innerHTML = '<div class="onote" style="color:var(--up)">停損要在現價的反方向、停利在順方向,請檢查數字。</div>'; return; }
+  let start = tmStartSlot();
+  if(start > slotOf(TM_LAST) - 2) start = slotOf('09:30');   // 收盤前或盤後:改從 09:30 模擬,看一般情況
+  TM.busy = true; box.innerHTML = '<div class="onote">載入過去 60 天 5 分K、模擬中…</div>';
+  try{
+    const days = await tmLoadDays(code);
+    if(days.length < 20){ box.innerHTML = `<div class="onote">這檔只有 ${days.length} 天完整的 5 分K,至少 20 天才模擬。</div>`; return; }
+    const r = tmSimulate(days, start, entry, stop, target, side, TM_N, 19);
+    const stopPct = Math.abs(entry - stop) / entry * 100, targetPct = Math.abs(target - entry) / entry * 100;
+    const hist = tmHistory(days, start, side, stopPct, targetPct);
+    const rr = targetPct / stopPct, costR = ((2 * DT_FEE + DT_TAX) * 100) / stopPct;
+    const v = tmVerdict(r, rr, costR);
+    const h = {target: hist.filter(x => x.out === 'target').length, stop: hist.filter(x => x.out === 'stop').length, none: hist.filter(x => x.out === 'none').length};
+    const hAvg = hist.length ? hist.reduce((a, x) => a + x.ret, 0) / hist.length - (2 * DT_FEE + DT_TAX) * 100 : 0;
+    const pc = x => (x / r.n * 100).toFixed(1);
+    TM.res[code] = {sideSel: side};
+    box.innerHTML = `<div class="onote" style="margin:4px 0">從 ${slotTime(start)} 那根開始、${side > 0 ? '做多' : '做空'} 進場 ${fmtNum(entry)}、停損 ${fmtNum(stop)}(${stopPct.toFixed(2)}%)、停利 ${fmtNum(target)}(${targetPct.toFixed(2)}%,${rr.toFixed(1)}R),用過去 ${r.pool} 天同時段的 K 棒模擬 ${r.n.toLocaleString('en-US')} 次:</div>
+      <div class="tmbar"><i style="width:${pc(r.tg)}%;background:var(--up)"></i><i style="width:${pc(r.ne)}%;background:#c9c6bd"></i><i style="width:${pc(r.sp)}%;background:var(--down)"></i></div>
+      <div class="l2" style="display:flex;flex-wrap:wrap;gap:2px 12px;font-size:12px;margin-top:3px"><span class="up">先到停利 ${pc(r.tg)}%</span><span style="color:var(--muted)">13:20 前都沒碰到 ${pc(r.ne)}%</span><span class="down">先到停損 ${pc(r.sp)}%</span></div>
+      <div class="tcv ${v.cls}" style="margin-top:6px"><b>${v.txt}</b>:有碰到其中一邊的模擬裡,先到停利 ${(v.win * 100).toFixed(1)}%;扣 ${((2 * DT_FEE + DT_TAX) * 100).toFixed(2)}% 成本要打平需要 ${(v.need * 100).toFixed(1)}%。平均每筆 ${v.evR >= 0 ? '+' : ''}${v.evR.toFixed(2)}R(已扣成本)。</div>
+      <div class="onote" style="margin-top:6px">實際歷史:過去 ${hist.length} 天在同一時間用同樣比例進場,停利 ${h.target} 次、停損 ${h.stop} 次、都沒碰到 ${h.none} 次,平均每筆 ${hAvg >= 0 ? '+' : ''}${hAvg.toFixed(2)}%(已扣成本)。</div>`;
+  } catch(e){ box.innerHTML = '<div class="onote">5 分K 存檔讀取失敗,稍後再試。</div>'; }
+  finally { TM.busy = false; }
+}
+function tmPanel(q){
+  if(!q || num(q.last) === null) return '';
+  const d = tmDefaults(q);
+  return `<div class="dttools"><div class="dthead">時光機 <small style="color:var(--muted);font-weight:400">這筆交易的勝率模擬</small></div>
+    <div class="dtlab" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+      <select id="tmSide" onchange="TM.res['${q.code}']={sideSel:+this.value};openDetail('${q.code}', false, {silent:true})" aria-label="方向"><option value="1"${d.side > 0 ? ' selected' : ''}>做多</option><option value="-1"${d.side < 0 ? ' selected' : ''}>做空</option></select>
+      停損 <input id="tmStop" type="number" step="any" value="${d.stop}" aria-label="停損價"> 停利 <input id="tmTarget" type="number" step="any" value="${d.target}" aria-label="停利價">
+      <button class="tmgo" onclick="tmRun('${q.code}')">跑 1 萬次</button></div>
+    <div id="tmOut"><div class="onote">預設停損停利是卡片上的支撐/壓力,可以自己改。會載入這檔過去約 60 天的 5 分K(第一次稍慢)。</div></div>
+    <div class="onote">模擬只是「如果今天像過去 60 天」的情況,不是預測;5 分K 隨機重組會忽略連續性與突發消息,實際滑價也可能更差。</div></div>`;
+}
+
+// ================= 每日風控上限(設定與今天的損益只存在這台裝置的 localStorage) =================
+// 每天最多虧多少、最多做幾筆、幾點以後不再新進場、最低損益比。超過就在交易小組檢查裡擋下(出場永遠不擋)。
+const RISK_DEF = {maxLoss: 5000, maxTrades: 5, lastEntry: '12:30', minRR: 1.5};
+const riskToday = () => new Date().toLocaleDateString('en-CA', {timeZone: 'Asia/Taipei'});
+function riskCfg(){ try { return Object.assign({}, RISK_DEF, JSON.parse(localStorage.getItem('dt_risk_cfg') || '{}')); } catch(e){ return Object.assign({}, RISK_DEF); } }
+function riskDay(){ try { const d = JSON.parse(localStorage.getItem('dt_day') || '{}'); return d.date === riskToday() ? d : {date: riskToday(), pnl: 0, trades: 0}; } catch(e){ return {date: riskToday(), pnl: 0, trades: 0}; } }
+function riskSave(cfg, day){
+  try { if(cfg) localStorage.setItem('dt_risk_cfg', JSON.stringify(cfg)); if(day) localStorage.setItem('dt_day', JSON.stringify(day)); } catch(e){ /* 私密模式存不了 */ }
+  renderRisk(); if(CURRENT_DETAIL) openDetail(CURRENT_DETAIL.code, false, {silent: true}); renderTeam(INTRADAY);
+}
+function riskSetCfg(k, v){ const c = riskCfg(); c[k] = k === 'lastEntry' ? v : +v; riskSave(c, null); }
+function riskAdd(dp, dt){ const d = riskDay(); d.pnl = Math.round((d.pnl + dp) * 100) / 100; d.trades = Math.max(0, d.trades + dt); riskSave(null, d); }
+function riskSetPnl(v){ const d = riskDay(); d.pnl = +v || 0; riskSave(null, d); }
+function riskState(){
+  const c = riskCfg(), d = riskDay();
+  const now = new Date().toLocaleTimeString('en-GB', {timeZone: 'Asia/Taipei', hour: '2-digit', minute: '2-digit'});
+  const remain = c.maxLoss + Math.min(0, d.pnl);   // 今天還能虧多少(賺的不加回,避免越做越大)
+  const reasons = [];
+  if(remain <= 0) reasons.push(`今天已虧 ${Math.abs(d.pnl).toLocaleString('en-US')} 元,達到上限 ${c.maxLoss.toLocaleString('en-US')} 元`);
+  if(d.trades >= c.maxTrades) reasons.push(`今天已做 ${d.trades} 筆,達到上限 ${c.maxTrades} 筆`);
+  if(now > c.lastEntry && now < '14:00') reasons.push(`已過最晚進場時間 ${c.lastEntry}`);
+  return {c, d, now, remain: Math.max(0, remain), block: reasons.length > 0, reasons};
+}
+function renderRisk(){
+  const el = document.getElementById('riskBox');
+  if(!el) return;
+  const r = riskState(), c = r.c, d = r.d;
+  const used = c.maxLoss ? Math.min(100, Math.max(0, -d.pnl) / c.maxLoss * 100) : 0;
+  el.className = 'sigbox';
+  el.innerHTML = `<div class="sh"><b>今日風控</b><small>${r.d.date}・只存在這台裝置</small></div>
+    <div class="tcv ${r.block ? 'bad' : 'ok'}" style="margin-top:0"><b>${r.block ? '停止新進場' : '可以進場'}</b> ${r.block ? r.reasons.join('、') : `今天還能虧 ${r.remain.toLocaleString('en-US')} 元、還能做 ${Math.max(0, c.maxTrades - d.trades)} 筆,${c.lastEntry} 前可新進場`}</div>
+    <div class="dtbar" style="margin-top:8px"><i style="width:${used}%;background:${used >= 100 ? 'var(--up)' : used >= 60 ? '#c9a227' : 'var(--down)'}"></i></div>
+    <div class="zft"><span>今日損益 <b class="${d.pnl > 0 ? 'up' : d.pnl < 0 ? 'down' : ''}">${d.pnl > 0 ? '+' : ''}${d.pnl.toLocaleString('en-US')}</b> 元</span><span>已用虧損額度 ${Math.round(used)}%</span><span>已做 ${d.trades}/${c.maxTrades} 筆</span></div>
+    <div class="dtlab" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px">記一筆:<input type="number" id="riskPnlIn" step="any" placeholder="損益(元)" aria-label="這筆損益(元)"><button class="tmgo" onclick="const v=+document.getElementById('riskPnlIn').value||0;riskAdd(v,1)">記錄</button><button class="bmore" style="margin:0" onclick="if(confirm('清空今天的損益與筆數?'))riskSave(null,{date:riskToday(),pnl:0,trades:0})">清空今天</button></div>
+    <details style="margin-top:6px"><summary style="cursor:pointer;font-size:12px;color:var(--muted)">風控設定</summary>
+      <div class="dtlab" style="display:grid;grid-template-columns:auto 1fr;gap:6px 10px;align-items:center;margin-top:6px">
+        <span>每天最多虧</span><span><input type="number" min="0" step="500" value="${c.maxLoss}" onchange="riskSetCfg('maxLoss', this.value)" aria-label="每天最多虧損(元)"> 元</span>
+        <span>每天最多做</span><span><input type="number" min="1" step="1" value="${c.maxTrades}" onchange="riskSetCfg('maxTrades', this.value)" aria-label="每天最多筆數"> 筆</span>
+        <span>最晚新進場</span><span><input type="time" value="${c.lastEntry}" onchange="riskSetCfg('lastEntry', this.value)" aria-label="最晚進場時間"></span>
+        <span>最低損益比</span><span><input type="number" min="0.5" step="0.1" value="${c.minRR}" onchange="riskSetCfg('minRR', this.value)" aria-label="最低損益比"> : 1</span>
+      </div></details>
+    <div class="onote">當沖最重要的紀律是「整天」的上限:虧到上限、做滿筆數或過了時間就停止新進場(出場不受限)。賺的錢不會加回可虧額度,避免越做越大。每天自動歸零。</div>`;
+  el.style.display = '';
+}
+
+// ================= 資金流向(自選股估算) =================
+// 作法:每兩個相鄰時間點之間的「新增成交金額」,依這段期間價格漲跌歸成主動買(漲)或主動賣(跌),
+// 平盤沿用該檔上一次的方向。這是用5分鐘快照推出來的估算,不是逐筆內外盤。
+let FLOW = null, FLOW_IDX = 0, FLOW_SEL = null, FLOW_TIMER = null, FLOW_FOLLOW = true, FLOW_SIG = '';
+const FLOW_ROW_H = 28;
+
+function flowCompute(intraday, history){
+  const groups = intraday && intraday.groups;
+  const pts = history && history.points ? history.points.filter(p => p.wl && p.wlv) : [];
+  if(!groups || pts.length < 2) return null;
+  const qm = {}; ((intraday.watchlist_quotes) || []).forEach(q => { qm[q.code] = q; });
+  const st = {};
+  const gnames = [...new Set(Object.values(groups))];
+  const cum = {}, cumIn = {}, cumOut = {}, stk = {};
+  gnames.forEach(g => { cum[g] = 0; cumIn[g] = 0; cumOut[g] = 0; });
+  const frames = [];
+  for(const p of pts){
+    for(const code in p.wlv){
+      const g = groups[code]; if(!g) continue;
+      const v = num(p.wlv[code]), px = num(p.wl[code]);
+      if(v === null || px === null) continue;
+      const s = st[code] || (st[code] = {v: 0, px: num(qm[code] && qm[code].prev_close) ?? px, sg: 0, a: 0});
+      let dv = v - s.v; if(dv < 0) dv = 0;
+      const d = px - s.px;
+      const sg = d > 0 ? 1 : (d < 0 ? -1 : s.sg);
+      // 有報價API的實際累積成交金額(wla,單位億)就用它,沒有才用「新增量×價格」估
+      const a = p.wla ? num(p.wla[code]) : null;
+      const amt = (a !== null && s.a !== null && a >= s.a) ? (a - s.a) : dv * 1000 * px / 1e8;
+      s.a = a;
+      if(sg !== 0 && amt > 0){
+        const f = sg * amt;
+        cum[g] += f; if(f > 0) cumIn[g] += f; else cumOut[g] -= f;
+        stk[code] = (stk[code] || 0) + f;
+      }
+      s.v = v; s.px = px; if(d !== 0) s.sg = sg;
+    }
+    const gs = {}; gnames.forEach(g => { gs[g] = cum[g]; });
+    frames.push({t: p.t, g: gs, stk: Object.assign({}, stk), tin: gnames.reduce((a, g) => a + cumIn[g], 0), tout: gnames.reduce((a, g) => a + cumOut[g], 0)});
+  }
+  let max = 0.01;
+  frames.forEach(f => gnames.forEach(g => { max = Math.max(max, Math.abs(f.g[g])); }));
+  return {frames, gnames, max, names: Object.fromEntries(Object.keys(groups).map(c => [c, (qm[c] && qm[c].name) || c]))};
+}
+
+function flowFmt(v){ const a = Math.abs(v); return (v > 0 ? '+' : (v < 0 ? '-' : '')) + (a >= 100 ? a.toFixed(0) : a.toFixed(1)) + '億'; }
+
+function renderFlow(intraday, history){
+  const el = document.getElementById('flowBox');
+  if(!el) return;
+  const fl = flowCompute(intraday, history);
+  if(!fl){ el.style.display = 'none'; return; }
+  const sig = fl.gnames.join('|');
+  const wasLast = !FLOW || FLOW_IDX >= FLOW.frames.length - 1;
+  FLOW = fl;
+  if(wasLast || FLOW_FOLLOW) FLOW_IDX = fl.frames.length - 1;
+  FLOW_IDX = Math.min(FLOW_IDX, fl.frames.length - 1);
+  if(!el.querySelector('.fplot') || FLOW_SIG !== sig){
+    FLOW_SIG = sig;
+    el.className = 'flowbox';
+    el.innerHTML = `<div class="fhd"><div><div class="fttl">即時資金流(自選股估算)</div><div class="fsub">各族群「主動買 − 主動賣」累積金額,紅=流入 綠=流出</div></div><div class="fclock" id="flClock">--:--</div></div>
+      <div class="ftiles"><div class="ft"><small>自選股合計</small><b id="flTot">-</b></div><div class="ft"><small>最多流入</small><b id="flTop">-</b></div><div class="ft"><small>最多流出</small><b id="flBot">-</b></div></div>
+      <div class="fcap"><span>流出</span><span>流入</span></div>
+      <div class="fplot" id="flPlot" style="height:${fl.gnames.length * FLOW_ROW_H}px">${fl.gnames.map(g => `<div class="frow" data-g="${g}" onclick="flowPick('${g}')"><span class="fnm">${g}</span><span class="ftrack"><i class="ffill"></i></span><span class="fval">-</span></div>`).join('')}</div>
+      <div class="fctl"><button class="fbtn" id="flBtn" onclick="flowToggle()">▶</button><input type="range" id="flRange" min="0" max="${fl.frames.length - 1}" value="${FLOW_IDX}" oninput="flowScrub(this.value)"></div>
+      <div class="fcap" style="margin-top:2px"><span>09:00</span><span>13:30</span></div>
+      <div class="fstk" id="flStk" style="display:none"></div>
+      <div class="fnote">這是用盤中每輪(約 2~3 分鐘)的報價推算:每段新增成交金額(有實際成交金額就用,沒有才用量×價估),價格上漲歸為買、下跌歸為賣、平盤沿用上一次方向。只含自選股、不含ETF,不是全市場也不是逐筆內外盤,只看「資金偏向哪一邊」,不要當精確金額。點族群可看裡面的個股。</div>`;
+  }
+  el.style.display = '';
+  const rng = document.getElementById('flRange');
+  if(rng){ rng.max = fl.frames.length - 1; rng.value = FLOW_IDX; }
+  flowDraw();
+}
+
+function flowDraw(){
+  if(!FLOW) return;
+  const f = FLOW.frames[FLOW_IDX];
+  const clock = document.getElementById('flClock');
+  if(!clock || !f) return;
+  clock.textContent = new Date(f.t).toLocaleTimeString('zh-TW', {timeZone:'Asia/Taipei', hour:'2-digit', minute:'2-digit', hour12:false});
+  const order = [...FLOW.gnames].sort((a, b) => f.g[b] - f.g[a]);
+  const net = f.tin - f.tout;
+  const tot = document.getElementById('flTot');
+  tot.textContent = flowFmt(net); tot.className = net >= 0 ? 'fup' : 'fdn';
+  const top = order[0], bot = order[order.length - 1];
+  const t1 = document.getElementById('flTop'), t2 = document.getElementById('flBot');
+  t1.innerHTML = f.g[top] > 0 ? `${top}<i>${flowFmt(f.g[top])}</i>` : '-'; t1.className = 'fup';
+  t2.innerHTML = f.g[bot] < 0 ? `${bot}<i>${flowFmt(f.g[bot])}</i>` : '-'; t2.className = 'fdn';
+  document.querySelectorAll('#flPlot .frow').forEach(row => {
+    const g = row.dataset.g, v = f.g[g];
+    row.style.transform = `translateY(${order.indexOf(g) * FLOW_ROW_H}px)`;
+    row.classList.toggle('sel', g === FLOW_SEL);
+    const fill = row.querySelector('.ffill');
+    fill.className = 'ffill ' + (v >= 0 ? 'up' : 'dn');
+    fill.style.width = Math.min(50, Math.abs(v) / FLOW.max * 50) + '%';
+    const val = row.querySelector('.fval');
+    val.textContent = flowFmt(v); val.className = 'fval ' + (v > 0 ? 'fup' : (v < 0 ? 'fdn' : ''));
+  });
+  const sp = document.getElementById('flStk');
+  if(FLOW_SEL && sp){
+    const list = Object.keys(f.stk).filter(c => INTRADAY.groups[c] === FLOW_SEL).map(c => [c, f.stk[c]]).sort((a, b) => b[1] - a[1]);
+    sp.style.display = '';
+    sp.innerHTML = `<div style="color:#8b8d96;margin-bottom:2px">${FLOW_SEL} 個股(估算累積)</div>` + (list.length ? list.map(([c, v]) => `<div class="r" onclick="searchAndOpen('${c}')" style="cursor:pointer"><span>${FLOW.names[c]} <small style="color:#8b8d96">${c}</small></span><b class="${v >= 0 ? 'fup' : 'fdn'}">${flowFmt(v)}</b></div>`).join('') : '<div>這個族群還沒有成交資料</div>');
+  } else if(sp){ sp.style.display = 'none'; }
+}
+
+function flowPick(g){ FLOW_SEL = FLOW_SEL === g ? null : g; flowDraw(); }
+function flowScrub(v){
+  flowStop(); FLOW_IDX = Number(v); FLOW_FOLLOW = FLOW_IDX >= FLOW.frames.length - 1; flowDraw();
+}
+function flowStop(){ if(FLOW_TIMER){ clearInterval(FLOW_TIMER); FLOW_TIMER = null; } const b = document.getElementById('flBtn'); if(b) b.textContent = '▶'; }
+function flowToggle(){
+  if(FLOW_TIMER){ flowStop(); return; }
+  if(!FLOW) return;
+  FLOW_FOLLOW = false;
+  if(FLOW_IDX >= FLOW.frames.length - 1) FLOW_IDX = 0;
+  document.getElementById('flBtn').textContent = '❚❚';
+  FLOW_TIMER = setInterval(() => {
+    FLOW_IDX++;
+    const rng = document.getElementById('flRange'); if(rng) rng.value = FLOW_IDX;
+    flowDraw();
+    if(FLOW_IDX >= FLOW.frames.length - 1){ flowStop(); FLOW_FOLLOW = true; }
+  }, 450);
+}
+
+function renderOpening(intraday){
+  const el = document.getElementById('openingBox');
+  if(!el) return;
+  const oa = intraday && intraday.opening_alerts;
+  const items = (oa && Array.isArray(oa.items)) ? oa.items : [];
+  if(!oa || (!oa.active && !items.length)){ el.style.display = 'none'; return; }
+  const tagTxt = {in:'進場', out:'出場', flat:'震盪'};
+  const QM = {}; ((intraday && intraday.watchlist_quotes) || []).forEach(q => { QM[q.code] = q; });
+  const FF = (intraday && intraday.focus_first) || {};
+  const row = (x, i) => {
+    const ai = QM[x.code] ? afterInfo(QM[x.code], x.side, FF[x.code]) : {tag:'', txt:''};
+    const sgt = QM[x.code] ? sigTags(QM[x.code]) : '';
+    const pc = (x.pct == null) ? '-' : fmtPct(x.pct);
+    const cool = (oa.active && !x.hot_now) ? ' cool' : '';
+    const peakTxt = x.peak_pace > x.pace ? `<br>最高 ${x.peak_pace}倍(${x.peak_t})` : '';
+    return `<div class="orow${cool}" onclick="searchAndOpen('${x.code}')">
+      <span class="orank">${i + 1}</span>
+      <span class="tag ${x.side}">${tagTxt[x.side] || ''}</span>
+      <span class="nm">${x.strong ? '🔥' : ''}${x.name}<small>${x.code}</small> ${newsLink(x.name, x.code)}</span>
+      <span class="rt"><b>${fmtNum(QM[x.code] && num(QM[x.code].last) !== null ? QM[x.code].last : x.last)}</b> ${QM[x.code] && num(QM[x.code].pct) !== null ? fmtPct(QM[x.code].pct) : pc}<br>量能 ${x.pace}倍${peakTxt}</span>
+    </div>` + ((ai.tag || ai.txt || sgt) ? `<div class="found" style="padding:0 0 6px 26px">${ai.tag} ${ai.txt} ${sgt}</div>` : '');
+  };
+  const top = items.slice(0, 10), rest = items.slice(10);
+  const title = oa.active ? '開盤爆量排行(即時)' : '今日開盤爆量排行';
+  const sub = oa.active ? `09:00~09:30,${oa.as_of} 更新,依最高量能排序` : '09:00~09:30 已結束,依最高量能排序';
+  el.className = 'openbox';
+  el.innerHTML = `<div class="ohd"><b>${title}</b><small>${sub}</small></div>`
+    + (top.length ? top.map(row).join('') : '<div style="color:var(--muted)">目前沒有明顯爆量的標的。</div>')
+    + (rest.length ? `<details><summary style="padding:6px 0;color:var(--muted);cursor:pointer">其餘 ${rest.length} 檔</summary>${rest.map((x, k) => row(x, k + 10)).join('')}</details>` : '')
+    + `<div class="onote">量能倍數是估計值。進場=量大且上漲,出場=量大且下跌,是推測。顏色淡的代表現在已經降溫。</div>`;
+  el.style.display = '';
+}
+
+function renderTouchNote(intraday){
+  const el = document.getElementById('touchNote');
+  const rg = document.getElementById('regimeNote');
+  const mr = intraday && intraday.market_regime;
+  if(rg){
+    if(mr && mr.label === 'weak'){
+      rg.style.display = ''; rg.className = 'regimebox weak';
+      rg.textContent = `今日自選股漲跌幅中位數 ${fmtPct(mr.median_pct)}:大盤偏弱,支撐線容易被擊穿,下方的支撐請打折看待。`;
+    } else if(mr && mr.label === 'strong'){
+      rg.style.display = ''; rg.className = 'regimebox strong';
+      rg.textContent = `今日自選股漲跌幅中位數 ${fmtPct(mr.median_pct)}:大盤偏強,壓力線容易被突破,上方的壓力請打折看待。`;
+    } else { rg.style.display = 'none'; }
+  }
+  if(!el) return;
+  const s = intraday && intraday.touch_summary;
+  if(!s || !s.cdp){ el.style.display = 'none'; return; }
+  const pct = r => (r && r.n > 0) ? `${Math.round(r.rev / r.n * 100)}%(${r.n}次)` : '-';
+  const pc2 = (a, b) => (a && a.n > 0) ? Math.round(a.rev / a.n * 100) + '%' : '-';
+  el.style.display = '';
+  let h = `<b>回測統計</b>(自選${s.stocks}檔、近${s.days}個交易日,全部加總)<br>`
+    + `壓力線碰到後明確回落:CDP ${pct(s.cdp.res)}、5日高 ${pct(s.sw5.res)}、20日高 ${pct(s.sw20.res)}。`
+    + `支撐線碰到後明確彈開:CDP ${pct(s.cdp.sup)}、5日低 ${pct(s.sw5.sup)}、20日低 ${pct(s.sw20.sup)}。`;
+  if(s.base && s.base.res && s.base.sup && s.base.res.n > 0){
+    const d = (a, b) => (a && a.n > 0 && b && b.n > 0) ? Math.round((a.rev / a.n - b.rev / b.n) * 100) : null;
+    const sg = v => v === null ? '-' : (v > 0 ? '+' + v : String(v));
+    const items = [['CDP', s.cdp], ['5日', s.sw5], ['20日', s.sw20]];
+    const rs = items.map(([n, x]) => `${n} ${sg(d(x && x.res, s.base.res))}`).join('、');
+    const ss = items.map(([n, x]) => `${n} ${sg(d(x && x.sup, s.base.sup))}`).join('、');
+    const all = items.flatMap(([n, x]) => [d(x && x.res, s.base.res), d(x && x.sup, s.base.sup)]).filter(v => v !== null);
+    const off = [];
+    items.forEach(([n, x]) => {
+      const a1 = d(x && x.res, s.base.res), a2 = d(x && x.sup, s.base.sup);
+      if(a1 !== null && Math.abs(a1) >= 4) off.push(`壓力${n} ${sg(a1)}`);
+      if(a2 !== null && Math.abs(a2) >= 4) off.push(`支撐${n} ${sg(a2)}`);
+    });
+    h += `<br><b>對照組(隨機價位)</b>:壓力回落 ${pct(s.base.res)}、支撐彈開 ${pct(s.base.sup)}。與對照組的差(百分點,正=比隨機好):壓力 ${rs};支撐 ${ss}。`
+      + (off.length ? `<br>明顯偏離隨機的只有:${off.join('、')}(負=比隨機還差,例如跌到近20日低點後,反而更容易繼續跌破)。其餘和隨機價位差不多。` : `<br>差距都在4個百分點內,和隨機價位差不多。`)
+      + `<br>所以碰線後回彈主要是股價本來就會來回震盪,這些線請當「風險參考線」用(跌破就認錯、看損益比),不要當成預測回彈的依據。`;
+  }
+  if(s.c2 && s.c1){
+    h += `<br><b>線疊加</b>:多類線疊在一起的區域,壓力回落 ${pct(s.c2.res)}、支撐彈開 ${pct(s.c2.sup)};單一線則是 ${pct(s.c1.res)}、${pct(s.c1.sup)}。`;
+  }
+  if(s.vol){
+    h += `<br><b>放量</b>(碰線當天量≥前5日均量1.2倍):壓力回落 ${pct2(s.vol.res.hi)} vs 沒放量 ${pct2(s.vol.res.lo)};支撐彈開 ${pct2(s.vol.sup.hi)} vs ${pct2(s.vol.sup.lo)}。`;
+  }
+  if(s.reg){
+    h += `<br><b>大盤強弱</b>(當天自選股中位數漲跌):弱日(≤-1%)支撐彈開 ${pct2(s.reg.weak.sup)}、平常 ${pct2(s.reg.normal.sup)};強日(≥+1%)壓力回落 ${pct2(s.reg.strong.res)}、平常 ${pct2(s.reg.normal.res)}。`;
+  }
+  if(s.fol && s.fol.res && s.fol.sup){
+    const a = (n, k) => n > 0 ? Math.round(k / n * 100) + '%' : '-';
+    h += `<br><b>後續</b>(碰線當天守住的那些次):壓力線守住後,隔天仍在線下 ${a(s.fol.res.n1, s.fol.res.ok1)}、第3天 ${a(s.fol.res.n3, s.fol.res.ok3)};支撐線守住後,隔天仍在線上 ${a(s.fol.sup.n1, s.fol.sup.ok1)}、第3天 ${a(s.fol.sup.n3, s.fol.sup.ok3)}。`;
+  }
+  h += `<br>這是過去的結果。碰到線本來就容易收在線的同一側,所以請拿不同線、不同條件互相比較,不要把比例當成勝率;弱日、強日的樣本通常很少。`;
+  el.innerHTML = h;
+}
+
+function confRows(q){
+  const c = q && q.conf;
+  if(!c || typeof c !== 'object') return '';
+  const one = (arr, label) => {
+    if(!Array.isArray(arr) || !arr.length) return '';
+    const items = arr.filter(x => x && num(x.price) != null).map(x => {
+      const stars = x.n >= 2 ? '★'.repeat(Math.min(x.n, 4)) : '';
+      return `<span class="${x.n >= 2 ? 'confstrong' : 'dim2'}">${fmtNum(toTick(x.price, q.code))} ${stars} ${(x.srcs || []).join('+')}</span>`;
+    });
+    return items.length ? `<div class="lvextra confrow"><span><b>${label}</b></span>${items.join('')}</div>` : '';
+  };
+  return one(c.res, '上方線區') + one(c.sup, '下方線區');
+}
+
+function lvBasisNote(q, lv){
+  const kl = keyLevels(q);
+  if(kl.basis === 'today') return `<div class="lvhint">歷史資料不足,暫用今日高低點</div>`;
+  if(kl.basis === 'cdp'){
+    const warn = kl.cdpLow ? `${reasonText(q)},僅供參考,請對照下方波段高低。` : '';
+    return `<div class="lvhint">${warn}<span class="lvsrc">依據:CDP樞紐點(昨日高低收,${srcText(q)})${kl.forced ? ',手動選擇' : ''}</span></div>`;
+  }
+  const why = kl.forced ? '手動選擇依據。' : (reasonText(q) ? reasonText(q) + ',改用波段高低。' : '');
+  return `<div class="lvhint">${why}<span class="lvsrc">依據:近${kl.swDays}日最高/最低</span></div>`;
+}
+
+function lvCard(q, lv){
+  const head = `
+    <div class="lvtop">
+      <div class="lvname">${q.name}<small>${q.code}</small></div>
+      <div class="lvprice"><div class="p ${PCT_CLASS(q.change)}">${fmtNum(q.last)}</div>
+      <div class="c ${PCT_CLASS(q.change)}">${ARROW(q.change)} ${fmtPct(q.pct)}</div></div>
+    </div>`;
+  if(!lv){
+    const msg = (num(q.last) === null) ? '暫無報價' : '尚無支撐壓力資料';
+    return `<div class="lvcard" onclick="searchAndOpen('${q.code}')">${head}<div class="lvnodata">${msg}</div></div>`;
+  }
+  const pos = Math.max(0, Math.min(100, (q.last - lv.sup) / (lv.res - lv.sup) * 100));
+  const outside = lv.state === 'breakout' || lv.state === 'breakdown';
+  const dotColor = (q.change ?? 0) >= 0 ? 'var(--up)' : 'var(--down)';
+  let cls = 'lvcard', status = '<span class="lvstatus mid">區間內</span>';
+  if(lv.state === 'nearRes'){ cls += ' near-res'; status = `<span class="lvstatus res">接近壓力,差 ${lv.dRes.toFixed(1)}%</span>`; }
+  else if(lv.state === 'nearSup'){ cls += ' near-sup'; status = `<span class="lvstatus sup">接近支撐,差 ${lv.dSup.toFixed(1)}%</span>`; }
+  else if(lv.state === 'breakout'){ cls += ' near-res out'; status = `<span class="lvstatus res">已突破壓力 ${Math.abs(lv.dRes).toFixed(1)}%</span>`; }
+  else if(lv.state === 'breakdown'){ cls += ' near-sup out'; status = `<span class="lvstatus sup">已跌破支撐 ${Math.abs(lv.dSup).toFixed(1)}%</span>`; }
+  return `<div class="${cls}" onclick="searchAndOpen('${q.code}')">
+    ${head}
+    ${status}
+    <div class="lvbar"><div class="lvdot ${outside?'hollow':''}" style="left:${pos}%;background:${dotColor};color:${dotColor}"></div></div>
+    <div class="lvnums">
+      <div class="lvnum s"><div class="t">支撐</div><div class="v">${fmtNum(lv.sup)}</div><div class="d">${lv.dSup>=0?'下方 '+lv.dSup.toFixed(1)+'%':'已跌破'}</div></div>
+      <div class="lvnum r"><div class="t">壓力</div><div class="v">${fmtNum(lv.res)}</div><div class="d">${lv.dRes>=0?'上方 '+lv.dRes.toFixed(1)+'%':'已突破'}</div></div>
+    </div>
+    ${lvBasisNote(q, lv)}
+    ${lvExtra(q)}
+  </div>`;
+}
+
+function renderBasisChips(){
+  const el = document.getElementById('basisChips');
+  if(!el) return;
+  const defs = [['auto','自動'],['cdp','CDP'],['5','5日高低'],['10','10日高低'],['20','20日高低']];
+  el.innerHTML = '<span class="blabel">依據</span>' + defs.map(([k,l]) => `<span class="fchip ${BASIS===k?'on':''}" onclick="setBasis('${k}')">${l}</span>`).join('');
+}
+function setBasis(k){
+  BASIS = k;
+  try { localStorage.setItem('lvBasis', k); } catch(e) {}
+  renderLevels(INTRADAY);
+  if(CURRENT_DETAIL) openDetail(CURRENT_DETAIL.code, CURRENT_DETAIL.isIndex, {silent: true});
+}
+
+function setLvFilter(k){ LV_FILTER = k; renderLevels(INTRADAY); }
+
+setupSearch();
+initTab();
+loadAll();
+setInterval(() => loadAll({silent: true}), 60000);
+// 盤中迴圈每輪會寫 data/stamp.json(幾十個字的更新時間),每 15 秒看一次,有新的一輪就馬上整包重抓,不用等滿 60 秒
+setInterval(async () => {
+  if(document.hidden || !INTRADAY) return;
+  try{
+    const s = await (await fetch('data/stamp.json', {cache:'no-store'})).json();
+    if(s.checked_at && s.checked_at !== INTRADAY.checked_at) loadAll({silent: true});
+  }catch(e){ /* 沒有 stamp 就等 60 秒那個 */ }
+}, 15000);
+</script>
+</body>
+</html>
