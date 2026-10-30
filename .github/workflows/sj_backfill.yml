@@ -40,7 +40,10 @@ jobs:
         run: |
           git config user.name "tw-signal-scanner-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add data/bars5m data/bars5m_top data/backfill_status.json data/backfill_tried.json
+          # 只 add 存在的(backfill_tried.json 沒有缺資料的股票時不會產生;10/29 晚上因此整批沒存到)
+          for f in data/bars5m data/bars5m_top data/backfill_status.json data/backfill_tried.json; do
+            [ -e "$f" ] && git add "$f"
+          done
           git diff --quiet --cached && exit 0
           git commit -m "永豐 1 分K 回補 $(TZ=Asia/Taipei date +'%Y-%m-%d %H:%M')"
           for i in 1 2 3; do

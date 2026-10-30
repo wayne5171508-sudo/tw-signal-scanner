@@ -92,7 +92,9 @@ jobs:
           set -o pipefail
           if [ "$(TZ=Asia/Taipei date +%H%M)" -lt 1335 ]; then echo "還沒收盤(迴圈提早結束),不補,免得浪費額度"; exit 0; fi
           timeout -s INT 600 python -u sj_backfill.py --days 10 --max-seconds 480 2>&1 | sed -E -e 's/[A-Z][12][0-9]{8}/[已遮蔽]/g' -e "s/(account_id|person_id|broker_id)([\\\"' :=]+)[0-9A-Za-z]+/\1\2[已遮蔽]/g"
-          git add data/bars5m data/bars5m_top data/backfill_status.json data/backfill_tried.json
+          for f in data/bars5m data/bars5m_top data/backfill_status.json data/backfill_tried.json; do
+            [ -e "$f" ] && git add "$f"
+          done
           git diff --quiet --cached || git commit -m "永豐 5 分K 存檔 $(TZ=Asia/Taipei date +'%Y-%m-%d')"
           for i in 1 2 3; do
             git pull --rebase origin main && git push && exit 0
