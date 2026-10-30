@@ -9,8 +9,8 @@
    "entry": 484.0,
    "exit": 479.0,
    "shares": 1000,
-   "time_in": null,
-   "time_out": null,
+   "time_in": "09:43",
+   "time_out": "10:02",
    "gross": 5000,
    "fee": 384,
    "tax": 726,
@@ -27,7 +27,7 @@
     "best_vc": "warn",
     "close_net": null
    },
-   "added_at": "2026-10-30T10:03:23",
+   "added_at": "2026-10-30T10:04:48",
    "net_src": "對帳單",
    "side_known": true
   }
