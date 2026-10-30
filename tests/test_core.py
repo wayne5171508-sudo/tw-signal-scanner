@@ -976,7 +976,7 @@ def test_tick_flow_incremental_and_metrics(monkeypatch):
 def test_query_many_budget_and_serial_fallback(monkeypatch):
     monkeypatch.setattr(sjquote, "_contract", lambda api, c: c)
     monkeypatch.setattr(sjquote.time, "sleep", lambda s: None)
-    monkeypatch.setattr(sjquote, "_serial", False)
+    monkeypatch.setattr(sjquote, "_serial_until", 0.0)
 
     def call(code, k):
         if code in ("B", "C"):
@@ -984,7 +984,11 @@ def test_query_many_budget_and_serial_fallback(monkeypatch):
         return code * 2
     got, cut = sjquote._query_many(object(), ["A", "B", "C", "D"], call, 30, 0)
     assert [(c, r) for c, r, e in got] == [("A", "AA"), ("B", None), ("C", None), ("D", "DD")] and not cut
-    assert sjquote._serial                                              # 同時查出錯兩次 → 今天改回一檔一檔
+    assert sjquote._serial_until > sjquote.time.time()                  # 同時查出錯兩次 → 先改回一檔一檔
+    monkeypatch.setattr(sjquote, "_serial_until", 0.0)
+    to = lambda code, k: (_ for _ in ()).throw(TimeoutError("Timeout: 8000ms"))
+    sjquote._query_many(object(), ["A", "B"], to, 30, 0)
+    assert sjquote._serial_until == 0.0                                 # 逾時只是伺服器忙,不退回單條
     got, cut = sjquote._query_many(object(), ["A", "D"], call, -1, 0)    # 預算用完:一檔都不送
     assert got == [] and cut
 
@@ -1141,3 +1145,25 @@ def test_trade_plan_ticks_structure_stop_and_target(monkeypatch):
     near = team.trade_plan({"code": "3105", "last": 487.5}, 1, {"均價線": 486})  # 均價線只差 0.3%,太近不拿來當停損
     assert near["stop_src"] == "固定 1%" and near["stop"] == 483
     assert team.trade_plan(q, 0, {}) is None
+
+
+def test_plan_exit_stop_first_and_time_exit():
+    fs = {"t": "09:10", "price": 100.0, "side": -1, "plan": {"stop": 101.0, "target": 98.0}}
+    bars = [{"t": "09:05", "o": 100, "h": 105, "l": 99, "c": 100},          # 推薦前那根不算
+            {"t": "09:10", "o": 100, "h": 100.5, "l": 99.5, "c": 100},
+            {"t": "09:15", "o": 100, "h": 101.5, "l": 97.5, "c": 98}]       # 同一根停損停利都碰到 → 算停損
+    pe = market.plan_exit(fs, bars)
+    assert pe["exit"] == "stop" and pe["price"] == 101.0 and pe["net"] == pytest.approx(-1.0 - market.team.COST_PCT, abs=1e-3)
+    quiet = [{"t": "09:10", "o": 100, "h": 100.5, "l": 99.5, "c": 100}]
+    assert market.plan_exit(fs, quiet) is None                              # 還沒結束
+    pe = market.plan_exit(fs, quiet + [{"t": "13:20", "o": 99, "h": 99, "l": 99, "c": 99}])
+    assert pe["exit"] == "time" and pe["price"] == 99
+
+
+def test_trade_plan_target_capped_at_limit_and_pick_filters():
+    q = {"code": "2330", "last": 100.0, "lower_limit": 99.0, "upper_limit": 110.0}
+    pl = market.team.trade_plan(q, -1, {})
+    assert pl["target"] > 99.0 and pl["target_src"] == "跌停上一檔" and pl["room_pct"] == pytest.approx(1.0)
+    assert not market.pick_ok({"last": 100.0, "lower_limit": 98.0, "parts": {"mkt": -20}}, -1)   # 離跌停 2% 不推空
+    assert not market.pick_ok({"last": 100.0, "upper_limit": 110.0, "parts": {"mkt": -20}}, 1)   # 大盤偏空不推多
+    assert market.pick_ok({"last": 100.0, "lower_limit": 90.0, "parts": {"mkt": -20}}, -1)

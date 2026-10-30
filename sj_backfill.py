@@ -35,7 +35,7 @@ BARS_DIR_TOP = os.path.join(DATA_DIR, "bars5m_top")
 TOP_FILE = os.path.join(DATA_DIR, "top_universe.json")
 STATUS_FILE = os.path.join(DATA_DIR, "backfill_status.json")
 TRIED_FILE = os.path.join(DATA_DIR, "backfill_tried.json")   # {代號: [試過但永豐沒有完整資料的日子]}:停牌、還沒上市、冷門股根數不足,不再每晚重抓
-RUN_FROM, RUN_TO = 14 * 60, 23 * 60 + 30   # 只在 14:00~23:30 跑:額度午夜重算,不能吃到隔天盤中要用的
+RUN_FROM, RUN_TO = 13 * 60 + 35, 23 * 60 + 30   # 只在 13:35~23:30 跑(收盤後 intraday.yml 直接叫醒):額度午夜重算,不能吃到隔天盤中要用的
 LAST_BAR = "13:20"          # 和 daytrade_lab.LAST_BAR 一樣:要有 13:20 那根才算完整的一天
 MIN_BARS_DAY = 45           # 和 daytrade_lab.MIN_BARS_DAY 一樣
 SOURCE = "Shioaji 1m→5m"
@@ -140,7 +140,7 @@ def main(argv=None):
     t0 = time.time()
     hm = datetime.now(TAIPEI).hour * 60 + datetime.now(TAIPEI).minute
     if not a.any_time and not RUN_FROM <= hm <= RUN_TO:
-        print("只在 14:00~23:30 回補(資料額度午夜重算,不能用掉隔天盤中的額度),這次不跑")
+        print("只在 13:35~23:30 回補(資料額度午夜重算,不能用掉隔天盤中的額度),這次不跑")
         return 0
     api = sjquote._login()
     if api is None:

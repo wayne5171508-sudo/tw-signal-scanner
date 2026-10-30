@@ -123,6 +123,12 @@ def trade_plan(q, side, levels):
     wall = _n((levels or {}).get("壓力" if side > 0 else "支撐"))
     if wall is not None and STRUCT_MIN <= side * (wall - p) / p * 100 and (target is None or side * (target - wall) > 0):
         target, target_src = wall, ("前面的壓力" if side > 0 else "下方的支撐")
+    # 停利不能超過漲跌停(10/30 有 8 筆空單停利設在跌停價以下,根本成交不到):最多到漲停前一檔/跌停上一檔
+    lim = _n(q.get("upper_limit" if side > 0 else "lower_limit"))
+    if target is not None and lim:
+        edge = lim - side * tick_of(code, lim)
+        if side * (target - edge) > 0:
+            target, target_src = edge, ("漲停前一檔" if side > 0 else "跌停上一檔")
     # 取檔位:停損往現價那邊取(虧損不會比算出來的大),停利往保守那邊取(比較容易成交)
     stop = tick_ceil(stop, code) if side > 0 else tick_floor(stop, code)
     target = (tick_floor(target, code) if side > 0 else tick_ceil(target, code)) if target is not None else None
@@ -131,9 +137,11 @@ def trade_plan(q, side, levels):
     chase = round(chase, 2)
     risk = side * (p - stop)
     rr = round(side * (target - p) / risk, 2) if target is not None and risk > 0 else None
+    room = side * (lim - p) / p * 100 if lim else None       # 離漲停(做空是跌停)還有幾 %
     return {"side": side, "entry": p, "chase": chase, "stop": stop, "stop_src": stop_src, "stop_pct": round(risk / p * 100, 2),
             "target": target, "target_src": target_src,
-            "target_pct": round(side * (target - p) / p * 100, 2) if target is not None else None, "rr": rr}
+            "target_pct": round(side * (target - p) / p * 100, 2) if target is not None else None, "rr": rr,
+            "room_pct": round(room, 2) if room is not None else None}
 
 
 def _sw_ok(sw, n):
@@ -285,25 +293,28 @@ def team_check(q, mood, bias_items, vwap=None, side=None):
         s = "ok" if mood["side"] == side else "warn" if mood["side"] == -side else "na"
         ck.append({"r": "情緒", "s": s, "t": f"大盤{mood['label']}({mood['score']:+d})" + (",方向和個股相反" if s == "warn" else ",方向一致" if s == "ok" else "")
                    + (",爆量家數偏多、市場過熱" if mood["overheated"] else "")})
-    # 4 圖表分析員
+    # 4 圖表分析員:損益比用卡片上的交易計畫(停損/停利和卡片同一組數字,10/30 以前用 CDP 支撐壓力另算,兩邊對不起來)
     res, sup, _mid = effective_levels(q)
     zi = zone_info(q, vwap)
-    stop = (sup if side > 0 else res) if side else None
-    if not side or res is None or sup is None:
-        ck.append({"r": "圖表", "s": "na", "t": "方向不明或沒有支撐壓力"})
-        rr = None
+    plan = trade_plan(q, side, {"均價線": vwap, "開盤區間": (q.get("orb") or [None, None])[1 if side > 0 else 0],
+                                "支撐": sup, "壓力": res}) if side else None
+    stop = plan["stop"] if plan else None
+    rr = plan["rr"] if plan else None
+    if not plan:
+        ck.append({"r": "圖表", "s": "na", "t": "方向不明或沒有價格"})
     else:
-        risk, reward = (p - sup, res - p) if side > 0 else (res - p, p - sup)
-        rr = reward / risk if risk > 0 else None
         chase = bool(zi) and ((side > 0 and zi[0] in ("short", "over")) or (side < 0 and zi[0] in ("long", "under")))
-        s = "bad" if rr is None else ("ok" if rr >= MIN_RR and not chase else ("warn" if rr < 1 or chase else "na"))
-        ck.append({"r": "圖表", "s": s, "t": "已越過停損位置" if rr is None else f"損益比 {rr:.1f}:1" + (f"(低於 {MIN_RR})" if rr < MIN_RR else "")
-                   + (f",現價在{zi[1]}" if zi else "") + ("(追價位置)" if chase else "")})
+        zt = (f",現價在{zi[1]}" if zi else "") + ("(追價位置)" if chase else "")
+        if rr is None:
+            ck.append({"r": "圖表", "s": "warn" if chase else "na", "t": "不設停利(13:20 出場),沒有損益比" + zt})
+        else:
+            s = "ok" if rr >= MIN_RR and not chase else ("warn" if rr < 1 or chase else "na")
+            ck.append({"r": "圖表", "s": s, "t": f"損益比 {rr:.1f}:1" + (f"(低於 {MIN_RR})" if rr < MIN_RR else "") + zt})
     # 5 風險管理員
     f = q.get("flags") or {}
     adr, hi, lo, pc = _n((q.get("swing") or {}).get("adr5")), _n(q.get("high")), _n(q.get("low")), _n(q.get("prev_close"))
     used = (hi - lo) / pc * 100 / adr if adr and hi is not None and lo is not None and pc else None
-    stop_pct = abs(p - stop) / p * 100 if _n(stop) is not None else None
+    stop_pct = plan["stop_pct"] if plan else None
     if f.get("disposal") or f.get("daytrade") is False or f.get("change_trading"):
         ck.append({"r": "風險", "s": "bad", "t": f"處置中({(f.get('disposal') or {}).get('measure') or '分盤撮合'})" if f.get("disposal")
                    else "不能現股當沖" if f.get("daytrade") is False else "分盤交易"})
@@ -340,8 +351,6 @@ def team_check(q, mood, bias_items, vwap=None, side=None):
         v, vc = "已驗證規則觸發,但條件不夠完整:縮小部位", "warn"
     else:
         v, vc = "僅觀察:沒有回測站得住的規則觸發,只適合紙上交易", "na"
-    plan = trade_plan(q, side, {"均價線": vwap, "開盤區間": (q.get("orb") or [None, None])[1 if side > 0 else 0],
-                                "支撐": sup, "壓力": res}) if side else None
     return {"side": side, "S": "做多" if side > 0 else "做空" if side < 0 else "觀望", "ck": ck, "v": v, "vc": vc,
             "rule": (pick[0].get("rule_name") if pick else None), "rr": round(rr, 2) if rr is not None else None,
             "stop": _n(stop), "res": res, "sup": sup, "plan": plan}

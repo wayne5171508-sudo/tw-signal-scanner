@@ -22,7 +22,7 @@ concurrency:
 
 permissions:
   contents: write
-  actions: write          # 接力:用 GITHUB_TOKEN 觸發自己(workflow_dispatch 允許這樣做)
+  actions: write          # 接力:用 GITHUB_TOKEN 觸發自己和回補(workflow_dispatch 允許這樣做)
 
 jobs:
   intraday:
@@ -82,25 +82,12 @@ jobs:
           git config user.email "actions@users.noreply.github.com"
           # repo 是公開的,執行記錄大家看得到:輸出先遮掉身分證字號、帳號格式的字串
           python -u loop.py 2>&1 | sed -u -E -e 's/[A-Z][12][0-9]{8}/[已遮蔽]/g' -e "s/(account_id|person_id|broker_id)([\\\"' :=]+)[0-9A-Za-z]+/\\1\\2[已遮蔽]/g"
-      - name: 收盤後存今天的永豐 5 分K(當沖回測樣本,同一個連線額度)
-        if: steps.relay.outputs.run == 'yes'
-        continue-on-error: true
-        env:
-          SJ_API_KEY: ${{ secrets.SJ_API_KEY }}
-          SJ_SECRET_KEY: ${{ secrets.SJ_SECRET_KEY }}
-        run: |
-          set -o pipefail
-          if [ "$(TZ=Asia/Taipei date +%H%M)" -lt 1335 ]; then echo "還沒收盤(迴圈提早結束),不補,免得浪費額度"; exit 0; fi
-          timeout -s INT 600 python -u sj_backfill.py --days 10 --max-seconds 480 2>&1 | sed -E -e 's/[A-Z][12][0-9]{8}/[已遮蔽]/g' -e "s/(account_id|person_id|broker_id)([\\\"' :=]+)[0-9A-Za-z]+/\1\2[已遮蔽]/g"
-          for f in data/bars5m data/bars5m_top data/backfill_status.json data/backfill_tried.json; do
-            [ -e "$f" ] && git add "$f"
-          done
-          git diff --quiet --cached || git commit -m "永豐 5 分K 存檔 $(TZ=Asia/Taipei date +'%Y-%m-%d')"
-          for i in 1 2 3; do
-            git pull --rebase origin main && git push && exit 0
-            git rebase --abort 2>/dev/null; sleep 5
-          done
-          echo "push 失敗(今天的 5 分K 存檔沒推上去,今晚的回補會補)"; exit 1
       - name: 收盤後叫醒下一棒(睡到下一個開盤日)
         if: always() && steps.relay.outputs.run == 'yes'
-        run: gh workflow run intraday.yml -R "$GITHUB_REPOSITORY" --ref main || echo "叫醒失敗,明天靠 cron 備援"
+        run: |
+          gh workflow run intraday.yml -R "$GITHUB_REPOSITORY" --ref main || echo "叫醒失敗,明天靠 cron 備援"
+          # 收盤後直接叫永豐回補(存今天的 5 分K + 補歷史)。GitHub cron 常晚 4~6 小時,過了 23:30 回補就不跑(10/29、10/30 都這樣沒存到),
+          # 用 dispatch 不會延遲;回補和回測在同一條 bars5m-writers 佇列,不會同時寫 .gz。晚上 19:15 的 cron 留著當備援
+          if [ "$(TZ=Asia/Taipei date +%H%M)" -ge 1335 ]; then
+            gh workflow run sj_backfill.yml -R "$GITHUB_REPOSITORY" --ref main || echo "叫回補失敗,晚上靠 cron 備援"
+          fi

@@ -120,14 +120,22 @@ def _contract(api, code):
 
 
 QUERY_WORKERS = 3         # 1 分K / 逐筆同時查幾檔(一檔一檔查,74 檔要 27 秒;3 條約 3 倍快,仍在每 5 秒 50 次內)
-_serial = False           # 同時查出過錯就改回一檔一檔查到今天結束
+SERIAL_SEC = 900          # 同時查出錯(不是逾時)就先改回一檔一檔查這麼久
+QUERY_TIMEOUT_MS = 8000   # 單檔 1 分K / 逐筆最多等幾毫秒(永豐預設 30 秒,10/30 開盤一檔就卡 30 秒)
+_serial_until = 0.0
+_qkw = {"timeout": QUERY_TIMEOUT_MS}   # 舊版套件不收 timeout 就拿掉
+
+
+def is_timeout(e):
+    """伺服器忙的逾時:只略過這檔,不當成斷線(10/30 09:06 兩檔逾時就被當斷線重登,少了兩輪永豐資料)。"""
+    return "timeout" in type(e).__name__.lower() or "timeout" in str(e).lower()[:200]
 
 
 def _query_many(api, codes, call, budget, gap):
     """每檔 call(代號, contract) 一次,最多 QUERY_WORKERS 條同時查;超過 budget 秒就不再送新的。
     依完成順序回傳 [(代號, 結果, 例外)],結果的處理(改 state、算失敗次數)留給呼叫端在主執行緒做。"""
     from concurrent.futures import ThreadPoolExecutor
-    global _serial
+    global _serial_until
     t0 = time.time()
     jobs = [(c, k) for c in codes if (k := _contract(api, c)) is not None]
 
@@ -136,18 +144,27 @@ def _query_many(api, codes, call, budget, gap):
             return job[0], None, None, True
         try:
             res, err = call(*job), None
+        except TypeError as e:
+            if "timeout" not in str(e) or not _qkw:
+                res, err = None, e
+            else:                                         # 這版套件沒有 timeout 參數:拿掉再查一次
+                _qkw.clear()
+                try:
+                    res, err = call(*job), None
+                except Exception as e2:  # noqa: BLE001
+                    res, err = None, e2
         except Exception as e:  # noqa: BLE001  單檔失敗不影響其他檔
             res, err = None, e
         time.sleep(gap)
         return job[0], res, err, False
 
-    workers = 1 if _serial else QUERY_WORKERS
+    workers = 1 if time.time() < _serial_until else QUERY_WORKERS
     with ThreadPoolExecutor(max_workers=workers) as ex:
         done = list(ex.map(one, jobs))
     out = [(c, r, e) for c, r, e, skipped in done if not skipped]
-    if workers > 1 and sum(e is not None for _, _, e in out) >= 2:
-        _serial = True
-        _log("同時查詢出錯,今天剩下改回一檔一檔查")
+    if workers > 1 and sum(e is not None and not is_timeout(e) for _, _, e in out) >= 2:
+        _serial_until = time.time() + SERIAL_SEC
+        _log(f"同時查詢出錯,先改回一檔一檔查 {SERIAL_SEC // 60} 分鐘")
     return out, len(out) < len(jobs)
 
 
@@ -319,13 +336,15 @@ def tick_flow(codes, day, state, now_hms, budget=20.0):
 
     def call(code, k):
         return api.ticks(contract=k, date=day, query_type=sj.constant.TicksQueryType.RangeTime,
-                         time_start=starts[code], time_end=now_hms)
+                         time_start=starts[code], time_end=now_hms, **_qkw)
 
     got, _ = _query_many(api, codes, call, budget, TICK_GAP)
     for code, tk, err in got:
         st = state[code]
         if err is not None:
             _log(f"{code} 逐筆失敗: {type(err).__name__}: {str(err)[:100]}")
+            if is_timeout(err):
+                continue
             _broken()
             if _api is None:
                 break
@@ -438,10 +457,12 @@ def kbars_1m(codes, day, budget=40.0):
     if api is None or not codes:
         return {}
     t0, out = time.time(), {}
-    got, cut = _query_many(api, codes, lambda code, k: api.kbars(contract=k, start=day, end=day), budget, KBAR_GAP)
+    got, cut = _query_many(api, codes, lambda code, k: api.kbars(contract=k, start=day, end=day, **_qkw), budget, KBAR_GAP)
     for code, kb, err in got:
         if err is not None:
             _log(f"{code} 1 分K 失敗: {type(err).__name__}: {str(err)[:100]}")
+            if is_timeout(err):
+                continue
             _broken()
             if _api is None:
                 break

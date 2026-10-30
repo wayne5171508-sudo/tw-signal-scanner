@@ -27,6 +27,7 @@ INDEX_FILE = os.path.join(DAY_DIR, "index.json")
 STATE_FILE = os.path.join(DATA_DIR, "mkt_state_today.json")   # 均價線歷史、開盤區間(只放盤中迴圈那台機器,不進 repo)
 TOP_N = 15                 # 做多、做空各挑幾檔
 PICK_MIN = 40              # 分數至少 ±40 才列入(門檻 60 以上會標「達門檻」)
+ROOM_MIN_PCT = 3.0         # 離漲停(做空是跌停)至少要有幾 % 才推
 EARLY_MIN_VOL, MIN_VOL = 300, 1000   # 09:30 前累積量 >= 300 張、之後 >= 1000 張才列入推薦
 VWAP_LAG = 14              # 均價線方向:和約 15 分鐘前比(和 intraday.BIAS_VWAP_LAG 一樣)
 ORB_FROM, ORB_TO = 15, 25  # 09:15~09:25 第一輪記下當時的今日高低當開盤區間(挑出來的會再用真實 5 分K 校正)
@@ -150,12 +151,38 @@ def stats(qs, by_cat, mood):
             "bands": bands, "mood": mood, "cats": cats}
 
 
+def _limit_room(q, sg):
+    """離漲停(做多)/跌停(做空)還有幾 %;沒有漲跌停價回傳 None。"""
+    last, lim = _n(q.get("last")), _n(q.get("upper_limit" if sg > 0 else "lower_limit"))
+    return sg * (lim - last) / last * 100 if last and lim else None
+
+
+def pick_ok(q, sg):
+    """推薦的硬條件(bias.score 的否決只在分數過 60 才算,推薦門檻是 40,所以這裡對所有推薦再檢查一次):
+    - 大盤分項和方向相反就不推(10/30 大盤 -76 還推了 29 筆做多,照計畫勝率 22%)
+    - 離漲跌停不到 ROOM_MIN_PCT 不推(停利空間不夠,10/30 這組空單照計畫平均 -1.5%)"""
+    if (q.get("parts") or {}).get("mkt", 0) * sg < 0:
+        return False
+    room = _limit_room(q, sg)
+    return room is None or room >= ROOM_MIN_PCT
+
+
 def shortlist(qs, m):
     min_vol = EARLY_MIN_VOL if m < 30 else MIN_VOL
     ok = [q for q in qs if q["volume"] >= min_vol and not q["veto"] and q["dt"] != "No"]
-    longs = sorted([q for q in ok if q["score"] >= PICK_MIN], key=lambda q: (-q["score"], -(q["pace"] or 0)))[:TOP_N]
-    shorts = sorted([q for q in ok if q["score"] <= -PICK_MIN], key=lambda q: (q["score"], -(q["pace"] or 0)))[:TOP_N]
+    longs = sorted([q for q in ok if q["score"] >= PICK_MIN and pick_ok(q, 1)], key=lambda q: (-q["score"], -(q["pace"] or 0)))[:TOP_N]
+    shorts = sorted([q for q in ok if q["score"] <= -PICK_MIN and pick_ok(q, -1)], key=lambda q: (q["score"], -(q["pace"] or 0)))[:TOP_N]
     return longs, shorts
+
+
+def plan_ok(p):
+    """細查後還站得住才推:用真實開盤區間重算的分數仍過門檻、方向沒變;
+    停損是「固定 %」(附近沒有關鍵價位,多半是在追跌深/漲多的)又損益比 < 1 的不推(10/30 這組平均 -1.6%)。"""
+    sg = 1 if p["side"] == "long" else -1
+    if p["score"] * sg < PICK_MIN:
+        return False
+    pl = p.get("plan") or {}
+    return not ((pl.get("stop_src") or "").startswith("固定") and pl.get("rr") is not None and pl["rr"] < 1)
 
 
 def counter_trend(qs, m, longs, shorts):
@@ -251,6 +278,10 @@ def record(run_time, m, picks, qs, st, k5):
             continue
         pk["now"] = {"t": hm, "price": q["last"], "move": team._move(fs["side"], fs["price"], q["last"])}
         bars = (k5.get(code) or (None,))[0]
+        if bars and not pk.get("plan_exit"):
+            pe = plan_exit(fs, bars)
+            if pe:
+                pk["plan_exit"] = pe
         if bars:
             after = [b for b in bars if b["t"] >= fs["t"]]
             if after:
@@ -267,13 +298,43 @@ def record(run_time, m, picks, qs, st, k5):
     ps = [p for k, p in day["picks"].items()]
     def summ(side):
         xs = [p["close"]["net"] for p in ps if p["first"]["side"] == side and (p.get("close") or {}).get("net") is not None]
+        ys = [p["plan_exit"]["net"] for p in ps if p["first"]["side"] == side and (p.get("plan_exit") or {}).get("net") is not None]
         return {"n": sum(p["first"]["side"] == side for p in ps), "n_close": len(xs),
-                "avg_net": round(sum(xs) / len(xs), 3) if xs else None, "win": round(sum(x > 0 for x in xs) / len(xs) * 100, 1) if xs else None}
+                "avg_net": round(sum(xs) / len(xs), 3) if xs else None, "win": round(sum(x > 0 for x in xs) / len(xs) * 100, 1) if xs else None,
+                # 照卡片停損/停利/13:20 出場的成績(收盤後才完整)
+                "n_plan": len(ys), "plan_avg": round(sum(ys) / len(ys), 3) if ys else None,
+                "plan_win": round(sum(y > 0 for y in ys) / len(ys) * 100, 1) if ys else None}
     idx["cost_pct"] = team.COST_PCT
     idx.setdefault("days", {})[today] = {"closed": bool(day.get("closed")), "long": summ(1), "short": summ(-1),
                                          "up": st["up"], "down": st["down"], "avg_pct": st["avg_pct"], "mood": (st["mood"] or {}).get("score")}
     team._write(INDEX_FILE, idx)
     return day
+
+
+PLAN_OUT = "13:20"          # 交易計畫沒碰到停損停利時的出場時間
+
+
+def plan_exit(fs, bars):
+    """照卡片上的交易計畫做的結果:第一次推薦當下的價格進場,之後的 5 分K 先碰停損還是停利(同一根都碰到算停損,保守),
+    都沒碰到就 13:20 那根開盤出場。還沒結束回傳 None。翻向不影響(停損就是停損)。"""
+    pl, sg, e = fs.get("plan") or {}, fs["side"], fs["price"]
+    stop, tgt = _n(pl.get("stop")), _n(pl.get("target"))
+    if not e or stop is None:
+        return None
+    for b in bars:
+        if b["t"] < fs["t"]:
+            continue
+        if b["t"] >= PLAN_OUT:
+            px, how, t = b["o"], "time", b["t"]
+        elif (b["l"] <= stop) if sg > 0 else (b["h"] >= stop):
+            px, how, t = stop, "stop", b["t"]
+        elif tgt is not None and ((b["h"] >= tgt) if sg > 0 else (b["l"] <= tgt)):
+            px, how, t = tgt, "target", b["t"]
+        else:
+            continue
+        mv = team._move(sg, e, px)
+        return {"t": t, "price": px, "exit": how, "move": mv, "net": round(mv - team.COST_PCT, 3) if mv is not None else None}
+    return None
 
 
 def _day_codes(today):
@@ -301,7 +362,9 @@ def run(run_time, live, indices, watch, k5_loader, flags_loader, flow_loader=Non
     longs, shorts = shortlist(qs, m)
     c_up, c_dn = counter_trend(qs, m, longs, shorts)
     codes = [q["code"] for q in longs + shorts + c_up + c_dn]
-    k5 = k5_loader(sorted(set(codes) | set(_day_codes(today)))) or {}
+    # 已經掉出名單的(只用來更新最大順向/逆向和照計畫出場)每 15 分鐘才補抓一次 1 分K:10/30 這些代號讓重輪的 1 分K 從 129 檔長到 200 檔
+    gone = set(_day_codes(today)) - set(codes) if int(m) % 15 < 3 or m >= 268 else set()
+    k5 = k5_loader(sorted(set(codes) | gone)) or {}
     flags = flags_loader(list((live.get("uni") or {}).keys())) or {}
     flow = (flow_loader(codes) if flow_loader else None) or {}
     for q in longs + shorts + c_up + c_dn:
@@ -310,6 +373,7 @@ def run(run_time, live, indices, watch, k5_loader, flags_loader, flow_loader=Non
     hlc = live.get("hlc") or {}
     picks = [deep_check(q, "long", k5, flags, hlc, mood, state) for q in longs] + \
             [deep_check(q, "short", k5, flags, hlc, mood, state) for q in shorts]
+    picks = [p for p in picks if plan_ok(p)]
     counter = [dict(deep_check(q, "long", k5, flags, hlc, mood, state), counter=True) for q in c_up] + \
               [dict(deep_check(q, "short", k5, flags, hlc, mood, state), counter=True) for q in c_dn]
     team._write(STATE_FILE, state)

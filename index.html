@@ -76,7 +76,7 @@ h1{font-size:24px;margin:2px 0 4px;letter-spacing:.01em}
 .kpi .lb{font-size:10.5px;color:var(--muted);letter-spacing:.06em;white-space:nowrap}
 .kpi .v{font-size:20px;font-weight:650;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .kpi .v.sm{font-size:15px}
-.kpi .s{font-size:11px;color:var(--muted);white-space:nowrap}
+.kpi .s{font-size:12px;color:var(--muted);white-space:normal}
 .up{color:var(--up)} .down{color:var(--down)} .mut{color:var(--muted)}
 .scroll{overflow-x:auto}
 table{width:100%;border-collapse:collapse;font-size:13px}
@@ -143,17 +143,29 @@ td.why{color:var(--muted);font-size:12.5px;min-width:240px;max-width:520px;white
 .ps{font-size:16px;font-weight:700;text-align:center}
 .pn{min-width:0} .pn b{font-weight:650} .pn div{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pv{grid-column:2 / 4;display:flex;gap:3px}
-.om.sm{width:17px;height:17px;font-size:10px;border-radius:5px}
+.om.sm{width:20px;height:20px;font-size:11px;border-radius:5px}
 .pd{padding:8px 16px 14px;font-size:12.5px}
 .warnc{color:var(--gold)}
 .msys{display:none}
 .stale{border-color:var(--gold);background:var(--gold-bg)}
+.stale.bad{border-color:var(--gold);border-width:2px}
+.pn .age{font-size:12px;color:var(--muted);margin-top:2px;white-space:normal;overflow:visible}
+.pn .age.mid{color:var(--gold)} .pn .age.old{color:var(--gold);font-weight:650}
+.tlist{padding:4px 10px 10px}
+.trow{display:grid;grid-template-columns:22px minmax(0,1.6fr) repeat(3,minmax(0,1fr)) 34px;gap:6px;align-items:center;padding:9px 8px;border-radius:8px;color:inherit;text-decoration:none;font-size:13px}
+.trow:hover,.trow:active{background:var(--chip)}
+.trow>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.trow>span:last-child{text-align:right;font-weight:700}
+@media (max-width:560px){
+  .trow{grid-template-columns:22px repeat(3,minmax(0,1fr)) 34px;grid-template-areas:"s n n n r" ". e l t .";row-gap:2px}
+  .trow .ts{grid-area:s} .trow .tn{grid-area:n} .trow .te{grid-area:e} .trow .tl{grid-area:l} .trow .tt{grid-area:t} .trow .tr{grid-area:r}
+}
 .pp{grid-column:1 / 4}
 .plan{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:4px}
 .plan span{background:var(--chip);border-radius:8px;padding:6px 8px;min-width:0}
 .plan em{display:block;font-style:normal;font-size:10.5px;color:var(--muted)}
 .plan b{display:block;font-size:14px;line-height:1.3}
-.plan small{display:block;font-size:10.5px;color:var(--muted);line-height:1.35}
+.plan small{display:block;font-size:12px;color:var(--muted);line-height:1.35}
 .goodc{color:var(--accent-ink)}
 .plan .down-ish{color:var(--gold)}
 @media (max-width:760px){ .plan{grid-template-columns:repeat(2,minmax(0,1fr))} }
@@ -212,7 +224,7 @@ td.why{color:var(--muted);font-size:12.5px;min-width:240px;max-width:520px;white
 </div>
 <script>
 // ---------- 資料 ----------
-let BACKFILL = null, INTRA = null, LOG = null, DT = null, OVN = null, TIDX = null, TDAY = {}, PDATE = null, RADAR = null, MIDX = null, MDAY = {}, JOURNAL = null, TSRC = null, VIEW = 'radar', PDATE_MANUAL = false, LOADING = false, HIST_LOADING = false, HIST_TRIES = {}, TAB = 'card', FILTER = 'all', SHOW = 30;
+let BACKFILL = null, INTRA = null, LOG = null, DT = null, TIDX = null, TDAY = {}, PDATE = null, RADAR = null, MIDX = null, MDAY = {}, JOURNAL = null, TSRC = null, VIEW = 'radar', PDATE_MANUAL = false, LOADING = false, HIST_LOADING = false, HIST_TRIES = {}, TAB = 'card', FILTER = 'all', SHOW = 30;
 const RULE_TYPE = { score: '多空分數', pb: '拉回均價線', fade: '超漲超跌反向' };
 const EXIT = { stop: '停損', target: '停利', close: '收盤出場' };
 const AMT_KEY = 'aitrader.amount', TH_KEY = 'aitrader.theme';
@@ -226,18 +238,23 @@ async function loadAll(opts = {}){
   try{ await loadAllInner(opts); } finally { LOADING = false; }
 }
 async function loadAllInner(opts){
-  const [a, b, c, d] = await Promise.allSettled([getJson('data/intraday_latest.json'), getJson('data/bias_log.json'),
-    getJson('data/daytrade.json'), getJson('data/overnight.json')]);
-  if(a.status === 'fulfilled') INTRA = a.value;
-  if(b.status === 'fulfilled') LOG = b.value;
-  if(c.status === 'fulfilled') DT = c.value;
-  if(d.status === 'fulfilled') OVN = d.value;
-  try{ TIDX = await getJson('data/team/index.json'); }catch(e){ TIDX = TIDX || {days: {}}; }
-  try{ RADAR = await getJson('data/market_radar.json'); }catch(e){ /* 還沒有全市場資料 */ }
-  try{ MIDX = await getJson('data/market/index.json'); }catch(e){ MIDX = MIDX || {days: {}}; }
-  try{ JOURNAL = await getJson('data/journal.json'); }catch(e){ JOURNAL = JOURNAL || {trades: []}; }
-  try{ BACKFILL = await getJson('data/backfill_status.json'); }catch(e){ /* 還沒回補過 */ }
-  if(RADAR && RADAR.date){ try{ MDAY[RADAR.date] = await getJson(`data/market/${RADAR.date}.json`); }catch(e){} }
+  // 全部同時抓(以前 7 個檔一個接一個,手機 4G 要多 1~2 秒);當天全市場紀錄要先知道日期,用今天猜,猜錯再補
+  const guess = (RADAR && RADAR.date) || tpeToday();
+  const want = { INTRA: 'data/intraday_latest.json', LOG: 'data/bias_log.json', DT: 'data/daytrade.json', TIDX: 'data/team/index.json',
+    RADAR: 'data/market_radar.json', MIDX: 'data/market/index.json', JOURNAL: 'data/journal.json', BACKFILL: 'data/backfill_status.json',
+    MDAY_G: `data/market/${guess}.json` };
+  const keys = Object.keys(want), got = await Promise.allSettled(keys.map(k => getJson(want[k])));
+  const v = Object.fromEntries(keys.map((k, i) => [k, got[i].status === 'fulfilled' ? got[i].value : undefined]));
+  if(v.INTRA) INTRA = v.INTRA;
+  if(v.LOG) LOG = v.LOG;
+  if(v.DT) DT = v.DT;
+  if(v.RADAR) RADAR = v.RADAR;
+  if(v.BACKFILL) BACKFILL = v.BACKFILL;
+  TIDX = v.TIDX || TIDX || {days: {}};
+  MIDX = v.MIDX || MIDX || {days: {}};
+  JOURNAL = v.JOURNAL || JOURNAL || {trades: []};
+  if(v.MDAY_G) MDAY[guess] = v.MDAY_G;
+  if(RADAR && RADAR.date && RADAR.date !== guess){ try{ MDAY[RADAR.date] = await getJson(`data/market/${RADAR.date}.json`); }catch(e){} }
   const ds = Object.keys(TIDX.days || {}).sort();
   if(!PDATE_MANUAL || !ds.includes(PDATE)) PDATE = ds[ds.length - 1] || null;   // 沒手動選過就一直跟最新的一天
   if(PDATE) await loadTeamDay(PDATE, true);
@@ -246,6 +263,7 @@ async function loadAllInner(opts){
   render();
 }
 const tpeToday = () => new Date(Date.now() + 8 * 3600e3).toISOString().slice(0, 10);
+function marketOpen(){ const t = new Date(Date.now() + 8 * 3600e3), hm = t.getUTCHours() * 60 + t.getUTCMinutes(), wd = t.getUTCDay(); return wd >= 1 && wd <= 5 && hm >= 525 && hm <= 830; }   // 08:45~13:50
 const mmdd = d => (d || '').slice(5).replace('-', '/');
 function staleNote(d){
   return d && d !== tpeToday() ? `<div class="card stale"><div style="padding:10px 18px;font-size:13px">以下是 <b>${esc(mmdd(d))}</b> 的資料。今天還沒有新的一輪(開盤前、休市日,或盤中程式還沒開始)。</div></div>` : '';
@@ -334,12 +352,20 @@ function renderSys(){
   if(ms) ms.innerHTML = `${el.innerHTML}<span class="mut" style="margin-left:8px">${esc(tm.textContent)}</span><a href="classic.html">經典版(細部分析)</a>`;
 }
 
+// 雷達幾分鐘沒更新(只在盤中、而且是今天的資料才算)
+function radarAge(){
+  if(!RADAR || RADAR.date !== tpeToday() || !marketOpen()) return null;
+  const t = new Date(Date.now() + 8 * 3600e3), now = t.getUTCHours() * 60 + t.getUTCMinutes(), a = hmMin(RADAR.as_of);
+  return a === null || a >= 810 ? null : now - a;        // 13:30 收盤後就不算延遲
+}
+const radarAgeText = () => { const a = radarAge(); return a === null ? '' : `(${a <= 0 ? '剛剛' : a + ' 分前'})`; };
 function viewRadar(){
   const R = RADAR, head = `<div class="head"><div><div class="eyebrow">MARKET RADAR</div><h1>盤中雷達</h1>
-    <p class="sub">全市場約 650 檔(前一天量 ≥ 500 張)每輪用多空分數打分,列出做多、做空推薦,六個觀測員逐檔檢查。${R ? esc(mmdd(R.date)) + ' ' + esc(R.as_of) + ' 更新' : ''}</p></div>
+    <p class="sub">全市場約 650 檔(前一天量 ≥ 500 張)每輪用多空分數打分,列出做多、做空推薦,六個觀測員逐檔檢查。${R ? esc(mmdd(R.date)) + ' ' + esc(R.as_of) + ' 更新' + radarAgeText() : ''}</p></div>
     <button class="btn" data-act="reload">刷新</button></div>`;
   if(!R || !R.stats) return head + `<div class="card"><div class="empty">今天還沒有全市場資料(盤中迴圈 09:01 開始,每輪寫進 data/market_radar.json)</div></div>`;
-  const st = R.stats, md = st.mood, day = MDAY[R.date], stale = staleNote(R.date);
+  const st = R.stats, md = st.mood, day = MDAY[R.date], age = radarAge();
+  const stale = staleNote(R.date) + (age !== null && age > 6 ? `<div class="card stale bad"><div style="padding:10px 18px;font-size:13px"><b>雷達已經 ${age} 分鐘沒更新</b>,下面的價位可能已經失效,下單前先看即時報價。</div></div>` : '');
   const tot = Math.max(1, st.up + st.down + st.flat);
   const breadth = `<div class="breadth"><i class="bu" style="width:${st.up / tot * 100}%"></i><i class="bf" style="width:${st.flat / tot * 100}%"></i><i class="bd" style="width:${st.down / tot * 100}%"></i></div>`;
   const cats = st.cats || [], strong = cats.slice(0, 5), weak = cats.slice(-5).reverse();
@@ -350,8 +376,18 @@ function viewRadar(){
   const rank = p => (p.vc === 'bad' ? 2 : 0) + (isNum((p.plan || {}).rr) && p.plan.rr < 1 ? 1 : 0);
   const order = arr => arr.slice().sort((a, b) => rank(a) - rank(b) || Math.abs(b.score) - Math.abs(a.score));
   const list = (arr, empty) => arr.length ? order(arr).map(pickRow).join('') : `<div class="empty">${empty}</div>`;
-  const good = arr => arr.filter(p => p.vc !== 'bad' && isNum((p.plan || {}).rr) && p.plan.rr >= 1.5).length;
-  return head + stale + `
+  const isGood = p => p.vc !== 'bad' && isNum((p.plan || {}).rr) && p.plan.rr >= 1.5;
+  const good = arr => arr.filter(isGood).length;
+  // 現在可看:兩邊能做、損益比 >= 1.5 的合起來,依損益比取前 5,一眼看完
+  const top = (R.longs || []).concat(R.shorts || []).filter(isGood).sort((a, b) => b.plan.rr - a.plan.rr).slice(0, 5);
+  const topRow = p => { const pl = p.plan; return `<a class="trow" href="#" data-jump="${esc(p.side + p.code)}">
+      <b class="ts ${p.side === 'long' ? 'up' : 'down'}">${p.side === 'long' ? '多' : '空'}</b><span class="tn"><b>${esc(p.code)}</b> ${esc(p.name)}</span>
+      <span class="num te">進 ${fmt(pl.entry)}</span><span class="num tl warnc">損 ${fmt(pl.stop)}</span><span class="num tt">${isNum(pl.target) ? '利 ' + fmt(pl.target) : '13:20 出'}</span><span class="num tr goodc">${pl.rr.toFixed(1)}</span></a>`; };
+  const nowCard = top.length ? `<div class="card"><h3>現在可看 <small>做多、做空裡沒有硬限制、損益比 ≥ 1.5 的前 ${top.length} 檔,點一下跳到卡片</small></h3><div class="tlist">${top.map(topRow).join('')}</div></div>` : '';
+  const longCol = `<div class="card"><h3><span class="up">做多推薦</span> <small>能做的在前,再依分數</small></h3>${list(R.longs || [], '目前沒有分數夠高的做多標的' + (st.mood && st.mood.side < 0 ? '(大盤偏空,多方本來就少)' : ''))}</div>`;
+  const shortCol = `<div class="card"><h3><span class="down">做空推薦</span> <small>能做的在前,再依分數</small></h3>${list(R.shorts || [], '目前沒有分數夠低的做空標的' + (st.mood && st.mood.side > 0 ? '(大盤偏多,空方本來就少)' : ''))}</div>`;
+  const cols = md && md.side < 0 ? shortCol + longCol : longCol + shortCol;     // 大盤偏空時做空欄先出(手機是上下排)
+  return head + stale + nowCard + `
   <div class="card"><div class="kpis">
     ${kpi('split', '上漲 / 下跌', `<span class="up">${st.up}</span> / <span class="down">${st.down}</span>`, `平盤 ${st.flat}・共 ${st.n} 檔`)}
     ${kpi('target', '平均漲跌', `<span class="${cls(st.avg_pct)}">${pct(st.avg_pct)}</span>`, `中位數 ${pct(st.median_pct)}`)}
@@ -359,10 +395,7 @@ function viewRadar(){
     ${kpi('bolt', '爆量家數', st.hot, `漲停 ${st.limit_up}・跌停 ${st.limit_down}`)}
     ${kpi('shield', '損益比 ≥ 1.5', `<span class="up">${good(R.longs || [])}</span> / <span class="down">${good(R.shorts || [])}</span>`, '做多 / 做空推薦裡值得看的', {gold: true})}
   </div><div style="padding:0 18px 16px">${breadth}</div></div>
-  <div class="grid2 eq">
-    <div class="card"><h3><span class="up">做多推薦</span> <small>能做的在前,再依分數</small></h3>${list(R.longs || [], '目前沒有分數夠高的做多標的' + (st.mood && st.mood.side < 0 ? '(大盤偏空,多方本來就少)' : ''))}</div>
-    <div class="card"><h3><span class="down">做空推薦</span> <small>能做的在前,再依分數</small></h3>${list(R.shorts || [], '目前沒有分數夠低的做空標的' + (st.mood && st.mood.side > 0 ? '(大盤偏多,空方本來就少)' : ''))}</div>
-  </div>
+  <div class="grid2 eq">${cols}</div>
   ${(R.counter || []).length ? `<div class="card"><h3>逆勢觀察 <small>分數沒到門檻,但走勢和大盤相反、量能夠:看誰比較抗跌/抗漲,不算推薦</small></h3>${R.counter.map(pickRow).join('')}</div>` : ''}
   ${md ? `<div class="card"><h3>市場情緒員 <small>全市場版:加權、開盤後走勢、全市場漲跌家數、櫃買、台指期價差</small></h3><div style="padding:14px 18px">
     <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px"><span class="mut" style="font-size:12px">偏空 −100</span>
@@ -386,23 +419,37 @@ function flowTag(p){
 function lsNum(k, d){ const v = Number(store.get(k)); return v > 0 ? v : d; }
 function planBox(pl){
   if(!pl || !isNum(pl.entry) || !isNum(pl.stop)) return '';
-  const long = pl.side > 0, risk = Math.abs(pl.entry - pl.stop) * 1000;
+  const cost = (MIDX && MIDX.cost_pct) ?? (DT && DT.cost_pct) ?? 0.23;
+  const long = pl.side > 0, risk = (Math.abs(pl.entry - pl.stop) + pl.entry * cost / 100) * 1000;   // 停損虧損要加上來回手續費與稅
   const cap = lsNum('dt_capital', 100) * 10000, budget = cap * lsNum('dt_risk', 1) / 100;
   const lots = risk > 0 ? Math.max(0, Math.min(Math.floor(budget / risk), Math.floor(cap / (pl.entry * 1000)))) : 0;
   const rrCls = !isNum(pl.rr) ? '' : pl.rr >= 1.5 ? 'goodc' : pl.rr < 1 ? 'warnc' : '';   // 不用紅綠(台股紅綠是漲跌)
   return `<div class="plan">
     <span><em>進場</em><b class="num">${fmt(pl.entry)}</b><small>${long ? '最高追' : '最低追'} ${fmt(pl.chase)}</small></span>
     <span><em>停損</em><b class="num down-ish">${fmt(pl.stop)}</b><small>${pl.stop_pct}%・${esc(pl.stop_src)}</small></span>
-    <span><em>停利</em><b class="num">${isNum(pl.target) ? fmt(pl.target) : '13:20 出場'}</b><small>${isNum(pl.target_pct) ? pl.target_pct + '%・' : ''}${esc(pl.target_src)}</small></span>
-    <span><em>損益比</em><b class="num ${rrCls}">${isNum(pl.rr) ? pl.rr.toFixed(1) : '—'}</b><small>${lots ? `最多 ${lots} 張・停損約虧 ${Math.round(lots * risk).toLocaleString()} 元` : '停損太遠,1 張就超過每筆風險'}</small></span>
+    <span><em>停利</em><b class="num">${isNum(pl.target) ? fmt(pl.target) : '13:20 出場'}</b><small>${isNum(pl.target) ? (isNum(pl.target_pct) ? pl.target_pct + '%・' : '') + esc(pl.target_src) : '不設停利'}</small></span>
+    <span><em>損益比</em><b class="num ${rrCls}">${isNum(pl.rr) ? pl.rr.toFixed(1) : '—'}</b><small>${lots ? `最多 ${lots} 張・停損約虧 ${Math.round(lots * risk).toLocaleString()} 元(含費稅)` : '停損太遠,1 張就超過每筆風險'}</small></span>
   </div>`;
+}
+// 這檔今天第一次被推薦(同方向)是幾點、什麼價:翻向過的會存成 代號#n,取同方向最新那段
+function firstSeen(p){
+  const day = RADAR && MDAY[RADAR.date], picks = (day && day.picks) || {}, sg = p.side === 'long' ? 1 : -1;
+  const segs = Object.entries(picks).filter(([k, v]) => k.split('#')[0] === p.code && v.first && v.first.side === sg);
+  return segs.length ? segs[segs.length - 1][1].first : null;
+}
+const hmMin = t => { const m = /^(\d\d):(\d\d)/.exec(t || ''); return m ? +m[1] * 60 + +m[2] : null; };
+function ageTag(p){
+  const f = firstSeen(p), a = f && hmMin(f.t), b = hmMin(RADAR && RADAR.as_of);
+  if(a === null || b === null) return '';
+  const age = b - a, mv = isNum(f.price) && f.price > 0 && isNum(p.last) ? (p.last / f.price - 1) * 100 * (p.side === 'long' ? 1 : -1) : null;
+  return `<div class="age ${age >= 60 ? 'old' : age >= 30 ? 'mid' : ''}">${esc(f.t)} 起推薦・${age < 1 ? '剛出現' : age + ' 分前'}${isNum(mv) ? `・之後${mv >= 0 ? '順向' : '逆向'} ${Math.abs(mv).toFixed(1)}%` : ''}</div>`;
 }
 function pickRow(p){
   const parts = Object.entries(p.parts || {}).filter(([, v]) => v).map(([k, v]) => `${({mkt: '大盤', vwap: '均價線', orb: '開盤區間', vol: '量能', pos: '位置', grp: '產業'})[k] || k} ${v > 0 ? '+' : ''}${v}`).join('・');
   return `<details class="prow" data-k="${esc(p.side + p.code + (p.counter ? 'c' : ''))}"><summary>
       <span class="ps ${p.side === 'long' ? 'up' : 'down'} num">${p.score > 0 ? '+' : ''}${p.score}</span>
       <span class="pn"><b>${esc(p.code)} ${esc(p.name)}</b>${p.in_watch ? ' <span class="chip">自選</span>' : ''}<small class="mut"> ${esc(p.cat)}</small>
-        <div class="mut">${(p.reasons || []).map(esc).join('、') || '—'}・量能 ${fmt(p.pace, 1)} 倍${flowTag(p)}</div></span>
+        <div class="mut">${(p.reasons || []).map(esc).join('、') || '—'}・量能 ${fmt(p.pace, 1)} 倍${flowTag(p)}</div>${p.counter ? '' : ageTag(p)}</span>
       <span class="r"><span class="num">${fmt(p.last)}</span><div class="num ${cls(p.pct)}" style="font-size:12px">${pct(p.pct)}</div></span>
       <span class="pv">${(p.ck || []).map(c => `<span class="om sm ${c.s}" title="${esc(ROLE_FULL[c.r] || c.r)}:${esc(c.t)}">${MARK[c.s]}</span>`).join('')}</span>
       <span class="pp">${planBox(p.plan)}</span>
@@ -430,7 +477,7 @@ function tabLog(){
   const f = (k, l) => `<button data-f="${k}" class="${FILTER === k ? 'on' : ''}">${l} ${cnt[k]}</button>`;
   return `
   <div class="head"><div><div class="eyebrow">DECISION LOG</div><h1>決策日誌</h1>
-    <p class="sub">每條規則當天第一次觸發的時間、價格與理由(${esc(mmdd((INTRA && INTRA.data_as_of) || ''))} ${esc(b.as_of || '')} 更新)。</p></div>
+    <p class="sub">每條規則當天第一次觸發的時間、價格與理由(${esc(mmdd(((INTRA && INTRA.data_as_of) || '').slice(0, 10)))} ${esc(b.as_of || '')} 更新)。</p></div>
     <button class="btn" data-act="reload">刷新</button></div>${staleNote(((INTRA && INTRA.data_as_of) || '').slice(0, 10))}
   <div class="card"><div class="filters">${f('all', '全部')}${f('fresh', '剛觸發')}${f('holds', '回測站得住')}</div>
   ${items.length ? `<div class="scroll"><table><thead><tr><th>時間</th><th>標的</th><th>方向</th><th>規則・理由</th><th class="r">分數</th><th class="r">觸發價</th><th class="r">停損 / 停利</th><th class="r">之後</th><th>狀態</th></tr></thead><tbody>
@@ -603,8 +650,8 @@ function viewTeam(){
   const days = ds.map(d => ({d, ...(IDX.days[d] || {})}));
   const dayRow = x => mk
     ? `<tr><td class="mono">${x.d}</td><td class="r num">${(x.long || {}).n ?? 0} / ${(x.short || {}).n ?? 0}</td>
-        <td class="r num ${cls((x.long || {}).avg_net)}">${x.closed ? pct((x.long || {}).avg_net) : '<span class="mut">盤中</span>'}</td>
-        <td class="r num ${cls((x.short || {}).avg_net)}">${x.closed ? pct((x.short || {}).avg_net) : '<span class="mut">盤中</span>'}</td>
+        <td class="r num ${cls((x.long || {}).avg_net)}">${x.closed ? pct((x.long || {}).avg_net) : '<span class="mut">盤中</span>'}${isNum((x.long || {}).plan_avg) ? `<div class="mut ${cls(x.long.plan_avg)}" style="font-size:11px">照計畫 ${pct(x.long.plan_avg)}</div>` : ''}</td>
+        <td class="r num ${cls((x.short || {}).avg_net)}">${x.closed ? pct((x.short || {}).avg_net) : '<span class="mut">盤中</span>'}${isNum((x.short || {}).plan_avg) ? `<div class="mut ${cls(x.short.plan_avg)}" style="font-size:11px">照計畫 ${pct(x.short.plan_avg)}</div>` : ''}</td>
         <td class="r num"><span class="up">${x.up ?? '—'}</span> / <span class="down">${x.down ?? '—'}</span></td><td class="r num ${cls(x.mood)}">${x.mood ?? '—'}</td></tr>`
     : `<tr style="cursor:pointer" data-gopd="${x.d}"><td class="mono">${x.d}</td><td class="r num">${x.picks ?? '—'}</td><td class="r num">${x.ok ?? 0}</td><td class="r num">${x.warn ?? 0}</td>
         <td class="r num ${cls(x.mood_close)}">${x.mood_close ?? '—'}</td><td class="r num ${cls(x.avg_net)}">${x.closed ? pct(x.avg_net) : '<span class="mut">盤中</span>'}</td><td class="r num">${isNum(x.win) ? x.win.toFixed(0) + '%' : '—'}</td></tr>`;
@@ -624,6 +671,7 @@ function viewTeam(){
   <p class="note">「通過 − 警示」是正的,代表這個觀測員說通過的,事後平均比說警示的好;接近 0 或負的,代表它的警示目前沒有分辨力。樣本少的時候數字變動很大,累積 20 個交易日以上比較有意義。</p>`;
 }
 
+const netPct = t => isNum(t.net) && t.entry > 0 && t.shares > 0 ? t.net / (t.entry * t.shares) * 100 : t.pct;   // 扣完費稅的報酬(以進場金額為分母)
 function viewJournal(){
   const T = ((JOURNAL && JOURNAL.trades) || []).slice().sort((a, b) => (b.date + (b.time_in || '')).localeCompare(a.date + (a.time_in || '')) || b.id - a.id);
   const head = `<div class="head"><div><div class="eyebrow">MY TRADES</div><h1>我的交易</h1>
@@ -642,6 +690,7 @@ function viewJournal(){
     <td class="r num ${cls(s.avg)}">${money(s.avg)}</td><td class="r num">${isNum(s.payoff) ? s.payoff.toFixed(2) : '—'}</td><td class="r num ${cls(s.net)}">${money(s.net)}</td></tr>`;
   const byDay = days.map(d => ({d, ...st(T.filter(t => t.date === d))}));
   const tm = t => t.time_in || '';
+  const recOk = t => t.rec && t.rec.same_side && t.rec.vc === 'ok';
   return head + `
   <div class="card"><div class="kpis">
     ${kpi('clock', '交易天數', days.length, `${days[days.length - 1]} 起`)}
@@ -652,7 +701,7 @@ function viewJournal(){
   </div></div>
   <div class="grid2">
     <div class="card"><h3>照推薦做 vs 自己判斷</h3><div class="scroll"><table><thead><tr><th>分組</th><th class="r">筆數</th><th class="r">勝率</th><th class="r">平均每筆</th><th class="r">賺賠比</th><th class="r">淨損益</th></tr></thead><tbody>
-      ${row('照推薦方向做', follow)}${row('雷達沒推薦(自己判斷)', own)}${row('跟推薦反方向', against)}
+      ${row('照推薦方向做', follow)}${row('　其中推薦是「可執行」', st(T.filter(recOk)))}${row('　其中推薦是「警示/不建議」', st(T.filter(t => t.rec && t.rec.same_side && !recOk(t))))}${row('雷達沒推薦(自己判斷)', own)}${row('跟推薦反方向', against)}
       ${row('做多', st(T.filter(t => t.side === 'long' && t.side_known !== false)))}${row('做空', st(T.filter(t => t.side === 'short' && t.side_known !== false)))}
       ${T.some(t => t.side_known === false) ? row('方向不明(對帳單補記)', st(T.filter(t => t.side_known === false))) : ''}
       ${row('09:30 前進場', st(T.filter(t => tm(t) && tm(t) < '09:30')))}${row('09:30 後進場', st(T.filter(t => tm(t) >= '09:30')))}
@@ -661,11 +710,11 @@ function viewJournal(){
       ${byDay.map(x => `<tr><td class="mono">${esc(x.d)}</td><td class="r num">${x.n}</td><td class="r num">${x.win.toFixed(0)}%</td><td class="r num ${cls(x.net)}">${money(x.net)}</td></tr>`).join('')}
     </tbody></table></div></div>
   </div>
-  <div class="card"><h3>每一筆</h3><div class="scroll"><table><thead><tr><th>日期</th><th>標的</th><th>方向</th><th class="r">進 → 出</th><th class="r">股數</th><th class="r">報酬%</th><th class="r">淨損益</th><th>推薦對照</th><th>備註</th></tr></thead><tbody>
+  <div class="card"><h3>每一筆</h3><div class="scroll"><table><thead><tr><th>日期</th><th>標的</th><th>方向</th><th class="r">進 → 出</th><th class="r">股數</th><th class="r">淨報酬%</th><th class="r">淨損益</th><th>推薦對照</th><th>備註</th></tr></thead><tbody>
     ${T.map(t => `<tr><td class="mono mut">${esc(t.date)}${t.time_in ? '<br>' + esc(t.time_in) + (t.time_out ? '→' + esc(t.time_out) : '') : ''}</td><td class="code">${esc(t.code)}<span>${esc(t.name)}</span></td>
       <td>${t.side_known === false ? '<span class="chip">方向不明</span>' : sideChip(t.side)}</td><td class="r num">${t.side_known === false ? `買 ${fmt(t.entry)} / 賣 ${fmt(t.exit)}` : `${fmt(t.entry)} → ${fmt(t.exit)}`}</td><td class="r num">${t.shares.toLocaleString()}</td>
-      <td class="r num ${cls(t.pct)}">${pct(t.pct)}</td><td class="r num ${cls(t.net)}">${money(t.net)}<div class="mut" style="font-size:11px">費 ${esc(t.fee)}・稅 ${esc(t.tax)}</div></td>
-      <td class="why">${t.rec ? `${t.rec.src === 'market' ? '雷達' : '自選'} ${esc(t.rec.first_t)} ${t.rec.same_side ? '同方向' : '<b class="down">反方向</b>'} @${fmt(t.rec.first_price)}${isNum(t.rec.score) ? `・分數 ${t.rec.score}` : ''}` : '<span class="mut">沒推薦</span>'}</td>
+      <td class="r num ${cls(t.net)}">${pct(netPct(t))}</td><td class="r num ${cls(t.net)}">${money(t.net)}<div class="mut" style="font-size:11px">費 ${esc(t.fee)}・稅 ${esc(t.tax)}</div></td>
+      <td class="why">${t.rec ? `${t.rec.src === 'market' ? '雷達' : '自選'} ${esc(t.rec.first_t)} ${t.rec.same_side ? '同方向' : '<b class="down">反方向</b>'} @${fmt(t.rec.first_price)}${isNum(t.rec.score) ? `・分數 ${t.rec.score}` : ''}${t.rec.vc ? `・<span class="${t.rec.vc === 'ok' ? 'goodc' : 'warnc'}">${({ok: '可執行', warn: '警示', bad: '不建議'})[t.rec.vc] || esc(t.rec.vc)}</span>` : ''}` : '<span class="mut">沒推薦</span>'}</td>
       <td class="why">${esc(t.note || '')}</td></tr>`).join('')}
   </tbody></table></div></div>` + how;
 }
@@ -696,7 +745,16 @@ function viewRules(){
 function bind(){
   document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { TAB = b.dataset.tab; SHOW = 30; render(); });
   document.querySelectorAll('[data-f]').forEach(b => b.onclick = () => { FILTER = b.dataset.f; SHOW = 30; render(); });
-  document.querySelectorAll('[data-act="reload"]').forEach(b => b.onclick = () => loadAll());
+  document.querySelectorAll('[data-act="reload"]').forEach(b => b.onclick = async () => {
+    if(LOADING) return; b.disabled = true; b.textContent = '更新中…';
+    await loadAll();
+    const nb = document.querySelector('[data-act="reload"]'); if(nb){ nb.textContent = '已更新 ' + new Date(Date.now() + 8 * 3600e3).toISOString().slice(11, 19); }
+  });
+  document.querySelectorAll('[data-jump]').forEach(a => a.onclick = e => {
+    e.preventDefault();
+    const d = document.querySelector(`details.prow[data-k="${a.dataset.jump}"]`);
+    if(d){ d.open = true; d.scrollIntoView({behavior: 'smooth', block: 'start'}); }
+  });
   document.querySelectorAll('[data-act="more"]').forEach(b => b.onclick = () => { SHOW += 30; render(); });
   document.querySelectorAll('[data-tsrc]').forEach(b => b.onclick = () => { TSRC = b.dataset.tsrc; render(); });
   document.querySelectorAll('[data-pd]').forEach(b => b.onclick = async () => { PDATE = b.dataset.pd; PDATE_MANUAL = PDATE !== Object.keys((TIDX && TIDX.days) || {}).sort().pop(); await loadTeamDay(PDATE, false); render(); });
@@ -712,7 +770,9 @@ document.getElementById('themeBtn').onclick = () => {
   document.documentElement.dataset.theme = dark ? 'light' : 'dark'; store.set(TH_KEY, document.documentElement.dataset.theme);
 };
 loadAll();
-setInterval(() => { if(!document.hidden) loadAll({auto: true}); }, 60000);
+let LAST_LOAD = Date.now();
+// 盤中每 60 秒重抓;休市時(週末、收盤後)10 分鐘才抓一次,網頁開著放也不會一直吃流量
+setInterval(() => { if(document.hidden || (!marketOpen() && Date.now() - LAST_LOAD < 600000)) return; LAST_LOAD = Date.now(); loadAll({auto: true}); }, 60000);
 // 盤中迴圈每輪寫 data/stamp.json,每 15 秒看一次,有新的一輪就馬上重抓
 setInterval(async () => {
   if(document.hidden || !INTRA) return;
