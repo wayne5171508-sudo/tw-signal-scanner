@@ -973,6 +973,22 @@ def test_tick_flow_incremental_and_metrics(monkeypatch):
     assert f["out"] == pytest.approx(610 / 630 * 100, abs=0.1) and f["big"] == 100
 
 
+def test_query_many_budget_and_serial_fallback(monkeypatch):
+    monkeypatch.setattr(sjquote, "_contract", lambda api, c: c)
+    monkeypatch.setattr(sjquote.time, "sleep", lambda s: None)
+    monkeypatch.setattr(sjquote, "_serial", False)
+
+    def call(code, k):
+        if code in ("B", "C"):
+            raise RuntimeError("boom")
+        return code * 2
+    got, cut = sjquote._query_many(object(), ["A", "B", "C", "D"], call, 30, 0)
+    assert [(c, r) for c, r, e in got] == [("A", "AA"), ("B", None), ("C", None), ("D", "DD")] and not cut
+    assert sjquote._serial                                              # 同時查出錯兩次 → 今天改回一檔一檔
+    got, cut = sjquote._query_many(object(), ["A", "D"], call, -1, 0)    # 預算用完:一檔都不送
+    assert got == [] and cut
+
+
 def test_flow_check_warns_only_against_direction():
     base = {"r": "機會", "s": "ok", "t": "量能 3.0 倍"}
     q = {"flow": {"out": 70, "out15": 30, "n15": 500, "big": -40, "big_vol": 100}, "book": {"imb": -55}}

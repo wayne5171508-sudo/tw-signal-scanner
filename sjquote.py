@@ -119,6 +119,38 @@ def _contract(api, code):
         return None
 
 
+QUERY_WORKERS = 3         # 1 分K / 逐筆同時查幾檔(一檔一檔查,74 檔要 27 秒;3 條約 3 倍快,仍在每 5 秒 50 次內)
+_serial = False           # 同時查出過錯就改回一檔一檔查到今天結束
+
+
+def _query_many(api, codes, call, budget, gap):
+    """每檔 call(代號, contract) 一次,最多 QUERY_WORKERS 條同時查;超過 budget 秒就不再送新的。
+    依完成順序回傳 [(代號, 結果, 例外)],結果的處理(改 state、算失敗次數)留給呼叫端在主執行緒做。"""
+    from concurrent.futures import ThreadPoolExecutor
+    global _serial
+    t0 = time.time()
+    jobs = [(c, k) for c in codes if (k := _contract(api, c)) is not None]
+
+    def one(job):
+        if time.time() - t0 > budget:
+            return job[0], None, None, True
+        try:
+            res, err = call(*job), None
+        except Exception as e:  # noqa: BLE001  單檔失敗不影響其他檔
+            res, err = None, e
+        time.sleep(gap)
+        return job[0], res, err, False
+
+    workers = 1 if _serial else QUERY_WORKERS
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        done = list(ex.map(one, jobs))
+    out = [(c, r, e) for c, r, e, skipped in done if not skipped]
+    if workers > 1 and sum(e is not None for _, _, e in out) >= 2:
+        _serial = True
+        _log("同時查詢出錯,今天剩下改回一檔一檔查")
+    return out, len(out) < len(jobs)
+
+
 def _num(x):
     return isinstance(x, (int, float)) and x == x and x not in (float("inf"), float("-inf"))
 
@@ -282,22 +314,23 @@ def tick_flow(codes, day, state, now_hms, budget=20.0):
     import shioaji as sj
     t0 = time.time()
     for code in codes:
-        if time.time() - t0 > budget:
-            break
-        k = _contract(api, code)
-        if k is None:
-            continue
-        st = state.setdefault(code, {"ts": 0, "out": 0, "in": 0, "bo": 0, "bi": 0, "m": {}})
-        start = _wall_hms(st["ts"]) if st["ts"] else "09:00:00"
-        try:
-            tk = api.ticks(contract=k, date=day, query_type=sj.constant.TicksQueryType.RangeTime, time_start=start, time_end=now_hms)
-            _ok_call()
-        except Exception as e:  # noqa: BLE001
-            _log(f"{code} 逐筆失敗: {type(e).__name__}: {str(e)[:100]}")
+        state.setdefault(code, {"ts": 0, "out": 0, "in": 0, "bo": 0, "bi": 0, "m": {}})
+    starts = {c: (_wall_hms(state[c]["ts"]) if state[c]["ts"] else "09:00:00") for c in codes}
+
+    def call(code, k):
+        return api.ticks(contract=k, date=day, query_type=sj.constant.TicksQueryType.RangeTime,
+                         time_start=starts[code], time_end=now_hms)
+
+    got, _ = _query_many(api, codes, call, budget, TICK_GAP)
+    for code, tk, err in got:
+        st = state[code]
+        if err is not None:
+            _log(f"{code} 逐筆失敗: {type(err).__name__}: {str(err)[:100]}")
             _broken()
             if _api is None:
                 break
             continue
+        _ok_call()
         for ts, px, v, tt in zip(tk.ts, tk.close, tk.volume, tk.tick_type):
             if ts <= st["ts"] or tt not in (1, 2):
                 st["ts"] = max(st["ts"], ts)
@@ -312,7 +345,6 @@ def tick_flow(codes, day, state, now_hms, budget=20.0):
                 b5 = hm[1] // 5 * 5
                 b = st["m"].setdefault(f"{b5 // 60:02d}:{b5 % 60:02d}", [0, 0])
                 b[0 if tt == 1 else 1] += v
-        time.sleep(TICK_GAP)
     STATS["seconds"] += round(time.time() - t0, 1)
     return state
 
@@ -401,28 +433,20 @@ def _wall_minute(ts_ns):
 
 def kbars_1m(codes, day, budget=40.0):
     """今天(day="YYYY-MM-DD")的 1 分K:{代號: [[第幾分鐘, 開, 高, 低, 收, 量], ...]}。
-    一檔一次查詢;超過 budget 秒就停,剩下的下一輪再抓。抓不到的不放。"""
+    一檔一次查詢(QUERY_WORKERS 條同時查);超過 budget 秒就停,剩下的下一輪再抓。抓不到的不放。"""
     api = _login()
     if api is None or not codes:
         return {}
     t0, out = time.time(), {}
-    for code in codes:
-        if time.time() - t0 > budget:
-            _log(f"1 分K 超過 {budget:.0f} 秒預算,抓了 {len(out)}/{len(codes)} 檔,其餘下一輪")
-            break
-        k = _contract(api, code)
-        if k is None:
-            continue
-        try:
-            kb = api.kbars(contract=k, start=day, end=day)
-            _ok_call()
-        except Exception as e:  # noqa: BLE001  單檔失敗不影響其他檔
-            _log(f"{code} 1 分K 失敗: {type(e).__name__}: {str(e)[:100]}")
+    got, cut = _query_many(api, codes, lambda code, k: api.kbars(contract=k, start=day, end=day), budget, KBAR_GAP)
+    for code, kb, err in got:
+        if err is not None:
+            _log(f"{code} 1 分K 失敗: {type(err).__name__}: {str(err)[:100]}")
             _broken()
             if _api is None:
                 break
-            time.sleep(KBAR_GAP)
             continue
+        _ok_call()
         rows = []
         for ts, o, h, l, c, v in zip(*(getattr(kb, f, None) or [] for f in ("ts", "Open", "High", "Low", "Close", "Volume"))):
             wm = _wall_minute(ts)
@@ -430,7 +454,8 @@ def kbars_1m(codes, day, budget=40.0):
                 rows.append([wm[1], float(o), float(h), float(l), float(c), float(v)])
         if rows:
             out[code] = sorted(rows)
-        time.sleep(KBAR_GAP)
+    if cut:
+        _log(f"1 分K 超過 {budget:.0f} 秒預算,抓了 {len(out)}/{len(codes)} 檔,其餘下一輪")
     STATS["kbars"] = STATS.get("kbars", 0) + len(out)
     STATS["seconds"] += round(time.time() - t0, 1)
     return out
