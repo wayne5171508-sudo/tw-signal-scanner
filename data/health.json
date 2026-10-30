@@ -1,13 +1,13 @@
 {
-  "checked_at": "2026-10-30T01:00:45+08:00",
-  "trade_date": "2026-10-29",
+  "checked_at": "2026-10-30T09:00:35+08:00",
+  "trade_date": "2026-10-30",
   "ok": true,
   "items": [
     {
       "key": "quotes",
       "name": "盤中報價",
       "ok": true,
-      "detail": "2026-10-29 最後一輪 13:39,有報價 79/79 檔"
+      "detail": "2026-10-30 最後一輪 09:00,有報價 79/79 檔"
     },
     {
       "key": "bars",
@@ -19,7 +19,7 @@
       "key": "market",
       "name": "全市場爆量榜",
       "ok": true,
-      "detail": "2026-10-29 3 次都有"
+      "detail": "2026-10-30 0 次都有"
     },
     {
       "key": "amount",
@@ -28,46 +28,10 @@
       "detail": "單位 1"
     },
     {
-      "key": "review",
-      "name": "收盤復盤",
-      "ok": true,
-      "detail": "最新一份是 2026-10-29"
-    },
-    {
-      "key": "archive",
-      "name": "盤中走勢存檔",
-      "ok": true,
-      "detail": "2026-10-29.json 有"
-    },
-    {
-      "key": "mkt",
-      "name": "全市場快照",
-      "ok": true,
-      "detail": "快照 3/3 次,收盤價有"
-    },
-    {
-      "key": "lab",
-      "name": "策略驗證室",
-      "ok": true,
-      "detail": "最後更新 2026-10-29 13:40"
-    },
-    {
-      "key": "bear",
-      "name": "利空回測",
-      "ok": true,
-      "detail": "成績單最新 K 線 2026-10-29"
-    },
-    {
-      "key": "daytrade",
-      "name": "當沖回測與存檔",
-      "ok": true,
-      "detail": "5分K存到 2026-10-29,2026-10-29 存檔有、回放有"
-    },
-    {
       "key": "scan",
       "name": "盤後掃描存檔",
       "ok": true,
-      "detail": "19 個交易日都有"
+      "detail": "20 個交易日都有"
     },
     {
       "key": "track",
