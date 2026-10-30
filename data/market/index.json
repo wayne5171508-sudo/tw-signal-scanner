@@ -1,1 +1,1 @@
-{"days":{"2026-10-30":{"closed":false,"long":{"n":29,"n_close":2,"avg_net":-5.886,"win":0.0},"short":{"n":110,"n_close":5,"avg_net":-7.098,"win":0.0},"up":63,"down":584,"avg_pct":-3.3,"mood":-72}},"cost_pct":0.23}
+{"days":{"2026-10-30":{"closed":true,"long":{"n":29,"n_close":29,"avg_net":-1.925,"win":31.0},"short":{"n":110,"n_close":110,"avg_net":-0.476,"win":36.4},"up":65,"down":579,"avg_pct":-3.41,"mood":-73}},"cost_pct":0.23}
