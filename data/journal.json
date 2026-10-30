@@ -1,3 +1,35 @@
 {
- "trades": []
+ "trades": [
+  {
+   "id": 1,
+   "date": "2026-10-30",
+   "code": "3374",
+   "name": "精材",
+   "side": "short",
+   "entry": 484.0,
+   "exit": 479.0,
+   "shares": 1000,
+   "time_in": null,
+   "time_out": null,
+   "gross": 5000,
+   "fee": 384,
+   "tax": 726,
+   "net": 3890,
+   "pct": 1.033,
+   "note": "",
+   "rec": {
+    "src": "watch",
+    "same_side": true,
+    "first_t": "09:03",
+    "first_price": 482.0,
+    "vc": "warn",
+    "score": null,
+    "best_vc": "warn",
+    "close_net": null
+   },
+   "added_at": "2026-10-30T10:03:23",
+   "net_src": "對帳單",
+   "side_known": true
+  }
+ ]
 }
