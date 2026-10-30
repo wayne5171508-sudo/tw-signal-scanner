@@ -138,9 +138,11 @@ def main(argv=None):
     ap.add_argument("--any-time", action="store_true", help="不管時間限制(手動測試用)")
     a = ap.parse_args(argv)
     t0 = time.time()
-    hm = datetime.now(TAIPEI).hour * 60 + datetime.now(TAIPEI).minute
-    if not a.any_time and not RUN_FROM <= hm <= RUN_TO:
-        print("只在 13:35~23:30 回補(資料額度午夜重算,不能用掉隔天盤中的額度),這次不跑")
+    now = datetime.now(TAIPEI)
+    hm = now.hour * 60 + now.minute
+    weekend = now.weekday() >= 5                 # 週六日不開盤,當天額度沒人用,整天都能補
+    if not a.any_time and not weekend and not RUN_FROM <= hm <= RUN_TO:
+        print("平日只在 13:35~23:30 回補(資料額度午夜重算,不能用掉隔天盤中的額度),這次不跑")
         return 0
     api = sjquote._login()
     if api is None:

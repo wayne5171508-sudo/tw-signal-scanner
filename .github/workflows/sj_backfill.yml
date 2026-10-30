@@ -3,6 +3,7 @@ name: 永豐歷史 1 分K 回補
 on:
   schedule:
     - cron: "15 11 * * 1-5"   # 19:15 台北(每天資料額度 500MB,補不完的隔天晚上繼續)
+    - cron: "0 2 * * 6,0"     # 週六日 10:00 台北(不開盤,整天額度都能用)
   workflow_dispatch:
     inputs:
       days:
