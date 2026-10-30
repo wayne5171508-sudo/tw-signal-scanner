@@ -25,7 +25,7 @@
   每天的推薦與收盤成績在 `data/market/日期.json`。
 - `team.py`(交易小組六個觀測員):機會、新聞、情緒、圖表、風險、決策,和網頁同一套判斷,自選股每輪記進 `data/team/日期.json`。
 - `journal.py`(我的交易):`python journal.py add --code 2330 --side long --entry 1050 --exit 1062 --qty 1`,記進 `data/journal.json`,
-  自動算手續費(2.8 折、最低 20 元)與當沖稅,並對照當天雷達有沒有推薦。
+  自動算手續費(2.8 折、沒有 20 元下限、小數無條件捨去)與當沖稅,並對照當天雷達有沒有推薦。
 - `.github/workflows/scan.yml`:排程設定,告訴GitHub「每個交易日台北時間18:20自動跑一次」。
 - 跑完會自動把結果存成 `data/latest.json`(最新一次)跟 `data/2026-09-30.json`(當天存檔)兩個檔案,存回你自己的repo裡。
 
