@@ -356,6 +356,76 @@ def team_check(q, mood, bias_items, vwap=None, side=None):
             "stop": _n(stop), "res": res, "sup": sup, "plan": plan}
 
 
+PART_TEXT = {  # 多空分數各項(bias.WEIGHTS)在多方/空方眼中的說法
+    "mkt": ("大盤偏多", "大盤偏空"), "vwap": ("站上均價線", "跌破均價線"), "orb": ("突破開盤區間高點", "跌破開盤區間低點"),
+    "vol": ("帶量上漲", "帶量下跌"), "pos": ("在今天高檔區", "在今天低檔區"), "grp": ("同族群一起漲", "同族群一起跌")}
+NEAR_LEVEL_PCT = 1.0       # 離支撐/壓力多近算「頂到」
+EXTREME_PCT = 7.0          # 漲跌幅超過這麼多:追高/殺低的反向風險
+PART_W = 0.4               # 多空分數各項打 4 折:推薦本來就是分數挑出來的,不打折反方證據永遠比不過
+
+
+def debate(q, side, parts, plan, res=None, sup=None, mood=None):
+    """看多研究員、看空研究員各自從同一份資料找證據(每條帶強度),研究經理比較雙方給一句結論。
+    純規則、不打 AI 模型(盤中每輪幾十檔,要快)。強度只是排序用,還沒有回測驗證。
+    回傳 {"bull": [{"t", "w"}], "bear": [...], "bull_w", "bear_w", "for_w", "against_w", "top_against", "v", "vc"}。"""
+    p = _n(q.get("last"))
+    bull, bear = [], []
+    add = lambda sg, t, w: (bull if sg > 0 else bear).append({"t": t, "w": int(round(w))})
+    for k, v in (parts or {}).items():
+        if v:
+            txt = PART_TEXT.get(k, (k, k))[0 if v > 0 else 1]
+            if k == "mkt" and mood:
+                txt += f"({mood.get('score', 0):+d})"
+            if k == "vol" and _n(q.get("pace")):
+                txt += f"(量能 {q['pace']:.1f} 倍)"
+            add(1 if v > 0 else -1, txt, abs(v) * PART_W)
+    o, f, b = flow_pct(q), q.get("flow") or {}, q.get("book") or {}
+    if o is not None:
+        if o >= 55:
+            add(1, f"外盤 {o:.0f}%,買方主動", min(18, 10 + (o - 55) / 3))      # 最多 18:一兩筆大單就能把比例推到 100%
+        elif o <= 45:
+            add(-1, f"內盤 {100 - o:.0f}%,賣方主動", min(18, 10 + (45 - o) / 3))
+    big = _n(f.get("big"))
+    if big is not None and (f.get("big_vol") or 0) >= 50 and abs(big) >= 30:
+        add(1 if big > 0 else -1, f"大單淨{'買' if big > 0 else '賣'} {abs(big):.0f}%", 8)
+    imb = _n(b.get("imb"))
+    if imb is not None and abs(imb) >= 30:
+        add(1 if imb > 0 else -1, f"五檔委{'買' if imb > 0 else '賣'}多 {abs(imb):.0f}%", 5)
+    if p:
+        if _n(res) is not None and res > p and (res / p - 1) * 100 <= NEAR_LEVEL_PCT:
+            add(-1, f"上方壓力 {res:g} 只差 {(res / p - 1) * 100:.1f}%", 10)
+        if _n(sup) is not None and sup < p and (1 - sup / p) * 100 <= NEAR_LEVEL_PCT:
+            add(1, f"下方支撐 {sup:g} 只差 {(1 - sup / p) * 100:.1f}%", 10)
+        ul, ll = _n(q.get("upper_limit")), _n(q.get("lower_limit"))
+        if ul and (ul / p - 1) * 100 < 3:
+            add(-1, f"離漲停只剩 {(ul / p - 1) * 100:.1f}%,上方空間小", 10)
+        if ll and (1 - ll / p) * 100 < 3:
+            add(1, f"離跌停只剩 {(1 - ll / p) * 100:.1f}%,下方空間小", 10)
+    pct = _n(q.get("pct"))
+    if pct is not None and pct >= EXTREME_PCT:
+        add(-1, f"已漲 {pct:.1f}%,漲多容易拉回", 8)
+    if pct is not None and pct <= -EXTREME_PCT:
+        add(1, f"已跌 {abs(pct):.1f}%,跌深容易反彈", 8)
+    if plan and plan.get("rr") is not None and plan["rr"] < 1:
+        add(-side, f"損益比只有 {plan['rr']:.1f}(停損比停利遠)", 8)
+    bull.sort(key=lambda x: -x["w"])
+    bear.sort(key=lambda x: -x["w"])
+    bw, sw = sum(x["w"] for x in bull), sum(x["w"] for x in bear)
+    fw, aw = (bw, sw) if side > 0 else (sw, bw)
+    against = bear if side > 0 else bull
+    top = against[0]["t"] if against else None
+    name, other = ("多方", "空方") if side > 0 else ("空方", "多方")
+    if not against:
+        v, vc = f"{name}一面倒,{other}找不到理由", "ok"
+    elif fw >= aw * 2:
+        v, vc = f"{name}明顯佔優,{other}最強的理由是「{top}」", "ok"
+    elif fw > aw:
+        v, vc = f"偏{name}但有爭議,留意「{top}」", "warn"
+    else:
+        v, vc = f"{other}理由較強(「{top}」),先觀望", "bad"
+    return {"bull": bull, "bear": bear, "bull_w": bw, "bear_w": sw, "for_w": fw, "against_w": aw, "top_against": top, "v": v, "vc": vc}
+
+
 def candidates(result, vwaps=None):
     """機會掃描員挑標的(和 classic.html renderTeam 一樣):量能 >= 2 倍、開盤爆量、剛觸發多空判斷、今天有重大訊息。
     回傳 [(q, check)],依結論(可執行 > 警示 > 觀察 > 拒絕)、量能排序。"""

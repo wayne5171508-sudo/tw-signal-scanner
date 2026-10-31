@@ -1167,3 +1167,14 @@ def test_trade_plan_target_capped_at_limit_and_pick_filters():
     assert not market.pick_ok({"last": 100.0, "lower_limit": 98.0, "parts": {"mkt": -20}}, -1)   # 離跌停 2% 不推空
     assert not market.pick_ok({"last": 100.0, "upper_limit": 110.0, "parts": {"mkt": -20}}, 1)   # 大盤偏空不推多
     assert market.pick_ok({"last": 100.0, "lower_limit": 90.0, "parts": {"mkt": -20}}, -1)
+
+
+def test_debate_sides_and_verdict():
+    q = {"last": 100.0, "pct": -3.0, "pace": 2.5, "flow": {"out15": 30, "n15": 500, "big": -50, "big_vol": 100}, "book": {"imb": -40},
+         "lower_limit": 90.0, "upper_limit": 110.0}
+    parts = {"mkt": -20, "vwap": -25, "orb": -20, "vol": -15, "pos": -10, "grp": 0}
+    d = market.team.debate(q, -1, parts, {"rr": 1.8}, res=None, sup=99.5, mood={"score": -70})
+    assert d["bear_w"] > d["bull_w"] and d["vc"] == "ok" and d["top_against"].startswith("下方支撐")
+    assert d["bear"][0]["t"].startswith("內盤 70%") and any("大盤偏空(-70)" == x["t"] for x in d["bear"])
+    flip = market.team.debate(q, 1, parts, {"rr": 0.5}, sup=99.5)            # 同樣資料拿去做多:反方較強
+    assert flip["vc"] == "bad" and flip["for_w"] < flip["against_w"]

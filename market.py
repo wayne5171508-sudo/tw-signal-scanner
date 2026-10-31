@@ -218,13 +218,14 @@ def deep_check(q, side, k5, flags, hlc, mood, state):
                  orb=[f.get("orb_hi"), f.get("orb_lo")])
     t = team.team_check(obs_q, mood, [], q["vwap"], side=sg)
     plan = (t or {}).get("plan") or team.trade_plan(q, sg, {"均價線": q["vwap"]})
+    db = team.debate(dict(q, pct=q["pct"]), sg, r["parts"], plan, (t or {}).get("res"), (t or {}).get("sup"), mood)
     return {"code": q["code"], "name": q["name"], "cat": cat_name(q["cat"]), "side": side, "score": r["score"], "parts": r["parts"],
             "reasons": bias.reasons(r["parts"], side), "strong": abs(r["score"]) >= bias.THRESHOLD,
             "last": q["last"], "pct": q["pct"], "pace": q["pace"], "vol": q["volume"], "vwap": round(q["vwap"], 2) if q["vwap"] else None,
             "orb": [f["orb_hi"], f["orb_lo"]] if f.get("orb_hi") else None, "in_watch": q["in_watch"], "bars": bool(bars),
             "plan": plan, "stop": plan["stop"], "target": plan["target"], "stop_pct": plan["stop_pct"], "target_pct": plan["target_pct"],
             "ck": t["ck"] if t else [], "v": t["v"] if t else "", "vc": t["vc"] if t else "na", "rr": t["rr"] if t else None,
-            "flags": fl, "flow": q.get("flow"), "book": q.get("book")}
+            "flags": fl, "flow": q.get("flow"), "book": q.get("book"), "debate": db}
 
 
 def record(run_time, m, picks, qs, st, k5):
@@ -246,7 +247,8 @@ def record(run_time, m, picks, qs, st, k5):
         sg = 1 if p["side"] == "long" else -1
         sides[p["code"]] = sg
         row = {"t": hm, "price": p["last"], "side": sg, "score": p["score"], "vc": p["vc"], "s": [c["s"] for c in p["ck"]],
-               "out15": team.flow_pct(p), "imb": (p.get("book") or {}).get("imb"), "plan": p.get("plan")}
+               "out15": team.flow_pct(p), "imb": (p.get("book") or {}).get("imb"), "plan": p.get("plan"),
+               "db": {k: (p.get("debate") or {}).get(k) for k in ("vc", "for_w", "against_w", "top_against")}}
         pk = day["picks"].get(p["code"])
         if (pk is None or pk["first"]["side"] != sg) and m >= NO_NEW_AFTER:
             continue
