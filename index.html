@@ -96,6 +96,11 @@ td.why{color:var(--muted);font-size:12.5px;min-width:240px;max-width:520px;white
 .filters button{all:unset;cursor:pointer;padding:4px 12px;border-radius:999px;font-size:12.5px;background:var(--chip);color:var(--muted)}
 .filters button.on{background:var(--accent);color:#fff}
 .empty{padding:28px 18px;text-align:center;color:var(--muted);font-size:13px}
+.fold>summary{cursor:pointer;padding:12px 18px;font-size:13px;color:var(--accent-ink);border-top:1px solid var(--line2);list-style:none}
+.fold>summary::-webkit-details-marker{display:none}
+.fold>summary::before{content:'▸ '}
+.fold[open]>summary::before{content:'▾ '}
+.fold>.picks{margin-top:12px}
 .note{font-size:12px;color:var(--muted);margin:8px 2px 0;line-height:1.7}
 .grid2{display:grid;grid-template-columns:1.3fr 1fr;gap:16px}
 .grid2>*{min-width:0}
@@ -273,6 +278,17 @@ async function loadAllInner(opts){
 const tpeToday = () => new Date(Date.now() + 8 * 3600e3).toISOString().slice(0, 10);
 function marketOpen(){ const t = new Date(Date.now() + 8 * 3600e3), hm = t.getUTCHours() * 60 + t.getUTCMinutes(), wd = t.getUTCDay(); return wd >= 1 && wd <= 5 && hm >= 525 && hm <= 830; }   // 08:45~13:50
 const mmdd = d => (d || '').slice(5).replace('-', '/');
+// 回測現況一句話(data/daytrade.json):沒有規則站得住時,雷達和推薦都只是觀察名單
+function ruleNote(){
+  const rs = Object.values((DT && DT.rules) || {});
+  if(!rs.length) return '';
+  const ok = rs.filter(r => r.holds), watch = rs.filter(r => !r.holds && r.since);
+  const txt = ok.length ? `回測站得住的規則 <b>${ok.length} 條</b>(${ok.map(r => esc(r.name)).join('、')}),只有決策員標「可執行」的符合。`
+    : `目前<b>沒有</b>規則通過回測${watch.length ? `(${watch.length} 條觀察中)` : ''},下面是觀察名單,不是有優勢的訊號。`;
+  return `<div class="card stale"><div style="padding:10px 18px;font-size:13px">${txt}</div></div>`;
+}
+// 次要的卡片收進一個可展開的區塊,畫面只留該先看的
+const fold = (k, label, html) => html ? `<details class="fold" data-k="${k}"><summary>${label}</summary>${html}</details>` : '';
 function staleNote(d){
   return d && d !== tpeToday() ? `<div class="card stale"><div style="padding:10px 18px;font-size:13px">以下是 <b>${esc(mmdd(d))}</b> 的資料。今天還沒有新的一輪(開盤前、休市日,或盤中程式還沒開始)。</div></div>` : '';
 }
@@ -383,7 +399,13 @@ function viewRadar(){
   // 排序:能做的在前(沒有硬限制、損益比 >= 1),同一組再依分數;碰到處置/不能當沖的放最後
   const rank = p => (p.vc === 'bad' ? 2 : 0) + (isNum((p.plan || {}).rr) && p.plan.rr < 1 ? 1 : 0);
   const order = arr => arr.slice().sort((a, b) => rank(a) - rank(b) || Math.abs(b.score) - Math.abs(a.score));
-  const list = (arr, empty) => arr.length ? order(arr).map(pickRow).join('') : `<div class="empty">${empty}</div>`;
+  // 能做的直接列出;有硬限制或損益比 < 1 的收起來
+  const list = (arr, empty, k) => {
+    if(!arr.length) return `<div class="empty">${empty}</div>`;
+    const o = order(arr), main = o.filter(p => !rank(p)), rest = o.filter(p => rank(p));
+    return (main.length ? main.map(pickRow).join('') : `<div class="empty">沒有能做的(都有硬限制或損益比 < 1)</div>`)
+      + fold(k, `其他 ${rest.length} 檔:損益比 < 1 或不能當沖`, rest.map(pickRow).join(''));
+  };
   const isGood = p => p.vc !== 'bad' && isNum((p.plan || {}).rr) && p.plan.rr >= 1.5;
   const good = arr => arr.filter(isGood).length;
   // 現在可看:兩邊能做、損益比 >= 1.5 的合起來,依損益比取前 5,一眼看完
@@ -392,10 +414,10 @@ function viewRadar(){
       <b class="ts ${p.side === 'long' ? 'up' : 'down'}">${p.side === 'long' ? '多' : '空'}</b><span class="tn"><b>${esc(p.code)}</b> ${esc(p.name)}</span>
       <span class="num te">進 ${fmt(pl.entry)}</span><span class="num tl warnc">損 ${fmt(pl.stop)}</span><span class="num tt">${isNum(pl.target) ? '利 ' + fmt(pl.target) : '13:20 出'}</span><span class="num tr goodc">${pl.rr.toFixed(1)}</span></a>`; };
   const nowCard = top.length ? `<div class="card"><h3>現在可看 <small>做多、做空裡沒有硬限制、損益比 ≥ 1.5 的前 ${top.length} 檔,點一下跳到卡片</small></h3><div class="tlist">${top.map(topRow).join('')}</div></div>` : '';
-  const longCol = `<div class="card"><h3><span class="up">做多推薦</span> <small>能做的在前,再依分數</small></h3>${list(R.longs || [], '目前沒有分數夠高的做多標的' + (st.mood && st.mood.side < 0 ? '(大盤偏空,多方本來就少)' : ''))}</div>`;
-  const shortCol = `<div class="card"><h3><span class="down">做空推薦</span> <small>能做的在前,再依分數</small></h3>${list(R.shorts || [], '目前沒有分數夠低的做空標的' + (st.mood && st.mood.side > 0 ? '(大盤偏多,空方本來就少)' : ''))}</div>`;
+  const longCol = `<div class="card"><h3><span class="up">做多推薦</span> <small>能做的在前,再依分數</small></h3>${list(R.longs || [], '目前沒有分數夠高的做多標的' + (st.mood && st.mood.side < 0 ? '(大盤偏空,多方本來就少)' : ''), 'fold-long')}</div>`;
+  const shortCol = `<div class="card"><h3><span class="down">做空推薦</span> <small>能做的在前,再依分數</small></h3>${list(R.shorts || [], '目前沒有分數夠低的做空標的' + (st.mood && st.mood.side > 0 ? '(大盤偏多,空方本來就少)' : ''), 'fold-short')}</div>`;
   const cols = md && md.side < 0 ? shortCol + longCol : longCol + shortCol;     // 大盤偏空時做空欄先出(手機是上下排)
-  return head + stale + nowCard + `
+  return head + stale + ruleNote() + nowCard + `
   <div class="card"><div class="kpis">
     ${kpi('split', '上漲 / 下跌', `<span class="up">${st.up}</span> / <span class="down">${st.down}</span>`, `平盤 ${st.flat}・共 ${st.n} 檔`)}
     ${kpi('target', '平均漲跌', `<span class="${cls(st.avg_pct)}">${pct(st.avg_pct)}</span>`, `中位數 ${pct(st.median_pct)}`)}
@@ -603,7 +625,8 @@ function viewPicks(){
         ${p.hist.length > 1 ? `<div class="hist">${p.hist.map(h => `<span><span class="mono">${esc(h.t)}</span> ${vcShort(h.vc, h.side)}</span>`).join('<i>→</i>')}</div>` : ''}</div>
     </div>`;
   };
-  return head + dateChips + dayStale + gauge + `
+  const on = picks.filter(p => p.active), off = picks.filter(p => !p.active);
+  return head + dateChips + dayStale + ruleNote() + gauge + `
   <div class="card"><div class="kpis">
     ${kpi('target', '今天挑出', picks.length, `目前還在名單 ${picks.filter(p => p.active).length} 檔`)}
     ${kpi('shield', '可執行', picks.filter(p => p.best_vc === 'ok').length, '已驗證規則觸發、最多 1 項警示')}
@@ -611,7 +634,8 @@ function viewPicks(){
     ${kpi('split', day.closed ? '收盤平均(扣成本)' : '目前平均(未扣成本)', `<span class="${cls(avg)}">${pct(avg)}</span>`, '照第一次推薦方向、用當時價格')}
     ${kpi('clock', '紀錄輪數', day.rounds, `最後更新 ${esc(day.as_of)}`, {gold: true})}
   </div></div>
-  <div class="picks">${picks.map(card).join('')}</div>
+  ${on.length ? `<div class="picks">${on.map(card).join('')}</div>` : `<div class="card"><div class="empty">目前沒有還在名單上的標的</div></div>`}
+  ${fold('fold-off', `已不在名單 ${off.length} 檔:之前推薦過,保留紀錄看準不準`, off.length ? `<div class="picks">${off.map(card).join('')}</div>` : '')}
   <p class="note">觀測員只用報價、量能、重大訊息、支撐壓力、當沖限制、回測結果機械式檢查;沒有回測站得住的規則觸發時,決策員最多只到「僅觀察」。「之後漲跌」是事後統計,不代表有成交,也不構成買賣建議。網頁「今日風控」是你自己裝置上的設定,這裡沒有算進去。</p>`;
 }
 const vcRank = vc => ({ok: 0, warn: 1, na: 2, bad: 3})[vc] ?? 4;

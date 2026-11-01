@@ -280,35 +280,6 @@ def market_rank(today, n_each=6, min_lots=1000, min_price=10.0, max_lookback=12)
     }
 
 
-# ---------- wantgoo 排行頁(候選名單來源二,best-effort)----------
-
-def fetch_wantgoo_codes(path):
-    """
-    抓 wantgoo 排行頁(例如 volume-shocker、top-gainer),
-    用 pandas.read_html 解析表格,回傳一組 4碼股票代號。
-    這段是全程式最容易因為對方網頁改版而壞掉的部分,失敗就回傳空集合,
-    不要讓整支程式因為這裡出錯而中斷 —— T86 的候選名單(來源一)才是主力,
-    這裡只是加分項目。
-    """
-    import pandas as pd
-
-    url = f"https://www.wantgoo.com/stock/ranking/{path}"
-    codes = set()
-    try:
-        r = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
-        r.raise_for_status()
-        tables = pd.read_html(io.StringIO(r.text))
-        for table in tables:
-            for row in table.astype(str).values.tolist():
-                for cell in row:
-                    m = re.match(r"^\s*(\d{4})\b", cell)
-                    if m and is_plain_stock_code(m.group(1)):
-                        codes.add(m.group(1))
-    except Exception as e:  # noqa: BLE001 - 這裡刻意吃掉所有例外,不讓爬蟲失敗拖垮全部
-        print(f"[warn] wantgoo {path} 抓取失敗,略過: {e}", file=sys.stderr)
-    return codes
-
-
 def fetch_industry_map(codes):
     """
     上市公司產業別對照(族群效應用)。抓不到某檔就跳過,不編造。
