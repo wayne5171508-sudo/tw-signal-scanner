@@ -34,9 +34,10 @@ jobs:
         env:
           SJ_API_KEY: ${{ secrets.SJ_API_KEY }}
           SJ_SECRET_KEY: ${{ secrets.SJ_SECRET_KEY }}
+          DAYS: ${{ github.event.inputs.days || '380' }}
         run: |
           set -o pipefail
-          python -u sj_backfill.py --days "${{ github.event.inputs.days || '380' }}" --max-seconds 4200 2>&1 | sed -E -e 's/[A-Z][12][0-9]{8}/[已遮蔽]/g' -e "s/(account_id|person_id|broker_id)([\\\"' :=]+)[0-9A-Za-z]+/\1\2[已遮蔽]/g"
+          python -u sj_backfill.py --days "$DAYS" --max-seconds 4200 2>&1 | sed -E -e 's/[A-Z][12][0-9]{8}/[已遮蔽]/g' -e "s/(account_id|person_id|broker_id)([\\\"' :=]+)[0-9A-Za-z]+/\1\2[已遮蔽]/g"
       - name: 存回 repo
         run: |
           git config user.name "tw-signal-scanner-bot"
