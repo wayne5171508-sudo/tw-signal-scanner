@@ -742,8 +742,8 @@ function viewJournal(){
 function viewRules(){
   const rules = Object.entries((DT && DT.rules) || {});
   const live = (DT && DT.live && DT.live.rules) || {};
-  const rows = rules.map(([k, r]) => ({ k, r, t: (r.best || {}).test || {}, lv: live[k] })).filter(x => isNum(x.t.avg))
-    .sort((a, b) => (b.r.holds - a.r.holds) || (b.t.avg - a.t.avg));
+  const rows = rules.map(([k, r]) => ({ k, r, t: (r.best || {}).test || {}, lv: live[k] })).filter(x => isNum(x.t.avg) || x.r.since)
+    .sort((a, b) => (b.r.holds - a.r.holds) || (!!b.r.since - !!a.r.since) || ((b.t.avg ?? -99) - (a.t.avg ?? -99)));
   return `
   <div class="head"><div><div class="eyebrow">VALIDATION</div><h1>規則驗證</h1>
     <p class="sub">每條當沖規則的樣本外回測(用沒拿來調參數的日子測)和盤中實際成績。兩邊都賺錢才算站得住。</p></div></div>
@@ -755,9 +755,9 @@ function viewRules(){
   <div class="card"><h3>當沖規則 <small>${DT ? `回測 ${DT.first || ''} ~ ${DT.last || ''}(${DT.days} 天),成本 ${DT.cost_pct}%` : ''}</small></h3>
   ${rows.length ? `<div class="scroll"><table><thead><tr><th>規則</th><th>條件</th><th class="r">樣本外筆數</th><th class="r">勝率</th><th class="r">平均報酬</th><th class="r">盤中實際</th><th>判定</th></tr></thead><tbody>
     ${rows.map(({k, r, t, lv}) => `<tr><td style="font-weight:600;white-space:nowrap">${esc(r.name)} ${sideChip(r.side)}</td><td class="why">${esc(r.desc)}</td>
-      <td class="r num">${t.n}</td><td class="r num">${isNum(t.win) ? t.win.toFixed(0) + '%' : '—'}</td><td class="r num ${cls(t.avg)}">${pct(t.avg, 3)}</td>
+      <td class="r num">${t.n || 0}</td><td class="r num">${isNum(t.win) ? t.win.toFixed(0) + '%' : '—'}</td><td class="r num ${cls(t.avg)}">${pct(t.avg, 3)}</td>
       <td class="r num ${cls(lv && lv.avg)}">${lv ? `${pct(lv.avg, 3)}<div class="mut" style="font-size:11px">${lv.n} 筆</div>` : '—'}</td>
-      <td>${r.holds ? '<span class="chip green">站得住</span>' : '<span class="chip">不採用</span>'}</td></tr>`).join('')}
+      <td>${r.holds ? '<span class="chip green">站得住</span>' : r.since ? `<span class="chip gold">觀察中</span><div class="mut" style="font-size:11px">${esc(r.since.slice(5).replace('-', '/'))} 起累積</div>` : '<span class="chip">不採用</span>'}</td></tr>`).join('')}
   </tbody></table></div>` : `<div class="empty">還沒有回測結果</div>`}</div>
   <p class="note">平均報酬是每筆扣成本後的百分比。樣本外平均是負的規則,盤中觸發一律只當作觀察。</p>`;
 }

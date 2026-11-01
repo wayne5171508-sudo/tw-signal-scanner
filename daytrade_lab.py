@@ -24,12 +24,15 @@
   fade_long / fade_short 偏離反向:分數 <= -80 且現價低於均價線 2% 以上做多;分數 >= 80 且高於均價線 2% 以上放空
     (這四條是 2026-10-23 追價版回測沒過後,事先寫死條件的第二版,不再依回測結果調整)
     分數用到的大盤是加權指數 5 分K(永豐回補的日子用永豐 IX0001,其餘 Yahoo ^TWII);量能倍數 = 累積量 ÷ 前 20 天同一時間累積量的中位數(至少 5 天)。
+  gap5_short 大跳空放空:開盤比昨收高 5% 以上,09:05 放空。2026-11-01 診斷時從 gap_fade_s 依跳空幅度拆出來的觀察規則,
+    門檻是看過資料才挑的,所以參數寫死在 FIXED_RULES(停損 1.5%、不設停利),只用登記日之後的新交易日驗證。
 出場:停損 1% / 1.5% / 2.5%,停利 1% / 2% / 3% / 不設(抱到 13:20 那根收盤出場),12 種組合。
   同一根 K 同時碰到停損和停利,一律當作先停損(保守);跳空越過停損,用該根開盤價出。
 成本:來回 COST_PCT(手續費買賣各 0.1425% 打 2.8 折 + 當沖證交稅 0.15%,約 0.23%,不含滑價)。
 判斷:前 TRAIN_FRAC 交易日挑參數(訓練),之後只用來驗證。
   「有優勢」= 訓練段和驗證段扣成本後平均都 > 0,而且以「天」為單位的 t 值都 >= 2,驗證段至少 30 筆;
   而且同一組參數拿到「成交值前 200 大裡不在自選股的股票」驗證段也要賺錢(t >= 1、至少 30 筆),避免只是剛好適合自選股。
+  FIXED_RULES 裡的觀察規則例外:不挑參數,登記日之前只當參考,登記日起的新資料要自己滿足上面驗證段的條件(含前 200 大)。
   另外算最大回撤(每天資金平均分給當天訊號、依日期累加的資金曲線從高點回落多少 %)、最差一天、最長連虧天數。
 
 產出:data/daytrade.json。這是歷史統計,不是預測,也不是買賣建議。
@@ -63,6 +66,7 @@ MIN_BARS_DAY = 45
 STOPS = (1.0, 1.5, 2.5)
 TARGETS = (1.0, 2.0, 3.0, None)
 GAP_PCT = 2.0
+GAP5_PCT = 5.0
 MOM_PCT = 3.0
 RSI_N, RSI_LO = 14, 30          # 影片規則:5 分K RSI(14) 低於 30
 VOL_AVG_N, VOL_MULT = 20, 2.0   # 這根量 >= 前 20 根平均的 2 倍
@@ -93,6 +97,12 @@ RULES = {
     "fade_short": ("超漲反向放空", "short", f"分數 >= {bias.STRONG} 且高於均價線 {FADE_PCT:g}% 以上"),
     "rsi_vol_now": ("RSI超賣爆量立刻買", "long", f"09:15-12:30 第一次 5 分K RSI({RSI_N}) < {RSI_LO} 且量 >= 前 {VOL_AVG_N} 根平均 {VOL_MULT:g} 倍,下一根買"),
     "rsi_vol_reclaim": ("RSI超賣爆量站回才買", "long", f"同上的訊號 K 之後 {RECLAIM_BARS} 根內收盤站上訊號 K 最高價才買;先跌破訊號 K 最低價就放棄"),
+    "gap5_short": ("大跳空放空", "short", f"開盤比昨收高 {GAP5_PCT:g}% 以上,09:05 放空(觀察規則,參數寫死)"),
+}
+
+# 事先寫死參數的觀察規則:{規則: (停損%, 停利% 或 None, 登記日)}。登記日起的交易日才算驗證段,永遠不依回測結果調整。
+FIXED_RULES = {
+    "gap5_short": (1.5, None, "2026-11-02"),
 }
 
 
@@ -368,7 +378,8 @@ def cross_check(res, trades_top, split):
             r["top"] = None
             continue
         rows = trades_top.get((rule, b["stop"], b["target"])) or []
-        te = _stats([x for x in rows if split and x[0] >= split])
+        cut = r.get("since") or split
+        te = _stats([x for x in rows if cut and x[0] >= cut])
         r["top"] = {"all": _stats(rows), "test": te}
         ok = te.get("n", 0) >= TOP_MIN_TEST_N and te.get("avg", 0) > 0 and (te.get("t") or 0) >= TOP_T_MIN
         r["holds"] = bool(r["holds_watch"] and ok)
@@ -553,9 +564,10 @@ def entry_index(rule, bars, prev_close, bear_prev, series=None):
             if rule == "orb_short" and b["c"] < lo:
                 return i + 1
         return None
-    if rule in ("gap_fade_s", "gap_fade_l"):
+    if rule in ("gap_fade_s", "gap_fade_l", "gap5_short"):
         g = (bars[0]["o"] / prev_close - 1) * 100
-        if (rule == "gap_fade_s" and g >= GAP_PCT) or (rule == "gap_fade_l" and g <= -GAP_PCT):
+        if ((rule == "gap_fade_s" and g >= GAP_PCT) or (rule == "gap_fade_l" and g <= -GAP_PCT)
+                or (rule == "gap5_short" and g >= GAP5_PCT)):
             return 1 if len(bars) > 1 else None
         return None
     if rule in ("vwap_long", "vwap_short"):
@@ -639,11 +651,17 @@ def trades_for(data, prev_closes, bear_prev, ctx=None):
                 i = entry_index(rule, bars, prev_close, prev_d in bear_prev.get(code, ()), series)
                 if i is None:
                     continue
-                for stop in STOPS:
-                    for target in TARGETS:
-                        r, why = simulate(bars, i, side, stop, target)
-                        out.setdefault((rule, stop, target), []).append((d, r - COST_PCT, why, code))
+                for stop, target in _combos(rule):
+                    r, why = simulate(bars, i, side, stop, target)
+                    out.setdefault((rule, stop, target), []).append((d, r - COST_PCT, why, code))
     return out
+
+
+def _combos(rule):
+    """這條規則要試的 (停損, 停利):觀察規則只有寫死的那一組,其他 12 組全試。"""
+    if rule in FIXED_RULES:
+        return [FIXED_RULES[rule][:2]]
+    return [(s, t) for s in STOPS for t in TARGETS]
 
 
 def _stats(rows):
@@ -695,22 +713,30 @@ def evaluate(trades):
     split = all_days[int(len(all_days) * TRAIN_FRAC)]
     res = {}
     for rule, (name, side, desc) in RULES.items():
+        fixed = FIXED_RULES.get(rule)
+        cut = fixed[2] if fixed else split
         combos = []
-        for stop in STOPS:
-            for target in TARGETS:
-                rows = trades.get((rule, stop, target)) or []
-                tr = _stats([r for r in rows if r[0] < split])
-                te = _stats([r for r in rows if r[0] >= split])
-                combos.append({"stop": stop, "target": target, "train": tr, "test": te, "all": _stats(rows)})
+        for stop, target in _combos(rule):
+            rows = trades.get((rule, stop, target)) or []
+            tr = _stats([r for r in rows if r[0] < cut])
+            te = _stats([r for r in rows if r[0] >= cut])
+            combos.append({"stop": stop, "target": target, "train": tr, "test": te, "all": _stats(rows)})
+        test_ok = lambda c: c["test"].get("n", 0) >= MIN_TEST_N and c["test"]["avg"] > 0 and (c["test"]["t"] or 0) >= T_MIN
         ok = [c for c in combos if c["train"].get("n", 0) >= 30]
-        best = max(ok, key=lambda c: c["train"]["avg"]) if ok else None
-        holds = bool(best and best["train"]["avg"] > 0 and (best["train"]["t"] or 0) >= T_MIN
-                     and best["test"].get("n", 0) >= MIN_TEST_N and best["test"]["avg"] > 0 and (best["test"]["t"] or 0) >= T_MIN)
+        if fixed:
+            # 觀察規則:參數早就寫死,登記日之前的成績只當參考,只看登記日之後的新資料
+            best = combos[0]
+            holds = test_ok(best)
+        else:
+            best = max(ok, key=lambda c: c["train"]["avg"]) if ok else None
+            holds = bool(best and best["train"]["avg"] > 0 and (best["train"]["t"] or 0) >= T_MIN and test_ok(best))
         lookahead = rule in LOOKAHEAD_RULES
         if lookahead:
             holds = False
         res[rule] = {"name": name, "side": side, "desc": desc, "best": best, "holds": holds, "lookahead": lookahead,
                      "tested": len(combos), "n_positive_train": sum(1 for c in ok if c["train"]["avg"] > 0)}
+        if fixed:
+            res[rule]["since"] = cut
     return res, all_days, split
 
 

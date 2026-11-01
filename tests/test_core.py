@@ -194,6 +194,20 @@ def test_daytrade_orb_entry_uses_next_bar_and_no_lookahead():
     assert daytrade_lab.entry_index("orb_long", bars[:7], 99.0, False) is None
 
 
+def test_daytrade_fixed_rule_only_validates_after_since():
+    bars = _5m_day([105.5] * 55)
+    assert daytrade_lab.entry_index("gap5_short", bars, 100.0, False) == 1        # 開高 5.5%
+    assert daytrade_lab.entry_index("gap5_short", bars, 101.0, False) is None     # 開高 4.5% 不觸發
+    stop, target, since = daytrade_lab.FIXED_RULES["gap5_short"]
+    before = [(f"2026-10-{d:02d}", -0.5, "stop", "1101") for d in range(1, 31)]
+    after = [(f"2026-12-{d:02d}", 0.8 + d % 3 * 0.1, "close", c) for d in range(1, 21) for c in ("1101", "1102")]
+    res, _, _ = daytrade_lab.evaluate({("gap5_short", stop, target): before + after})
+    r = res["gap5_short"]
+    assert r["since"] == since and r["tested"] == 1
+    assert r["best"]["train"]["n"] == 30 and r["best"]["test"]["n"] == 40
+    assert r["holds"]                                     # 登記日前虧錢不影響,只看登記日之後
+
+
 def test_daytrade_simulate_stop_target_close_and_same_bar_rule():
     bars = _5m_day([100] * 54)
     bars[5] = {"t": bars[5]["t"], "o": 100, "h": 102.5, "l": 98.5, "c": 100, "v": 1}   # 同一根碰到停損與停利
