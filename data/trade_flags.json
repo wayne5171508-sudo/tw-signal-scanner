@@ -1,7 +1,7 @@
 {
- "date": "2026-10-30",
- "fetched_at": "2026-10-30T01:01:25",
- "daytrade_list_date": "2026-10-30",
+ "date": "2026-11-02",
+ "fetched_at": "2026-11-02T01:01:34",
+ "daytrade_list_date": "2026-11-02",
  "status": {
   "twse_daytrade": "ok",
   "tpex_daytrade": "ok",
@@ -20,10 +20,9 @@
   "3374": {
    "daytrade": true,
    "notice": {
-    "date": "2026-10-28",
-    "reason": "當日本益比為78.49、股價淨值比為13.76且為其所屬產業類別股價淨值比之2.73倍、當日週轉率達7.93%(第六款)最近六個營業日(自當日之前一個營業日起)"
-   },
-   "near_disposal": "115年10月22日至115年10月29日連續四次"
+    "date": "2026-10-30",
+    "reason": "當日本益比為76.61、股價淨值比為13.43且為其所屬產業類別股價淨值比之2.93倍、當日週轉率達13.43%(第六款)"
+   }
   },
   "2408": {
    "daytrade": true
@@ -41,28 +40,23 @@
    "daytrade": true
   },
   "8358": {
-   "daytrade": false,
-   "disposal": {
-    "start": "2026-10-23",
-    "end": "2026-10-30",
-    "measure": "每2分鐘撮合・預收款券"
-   }
+   "daytrade": false
   },
   "3264": {
    "daytrade": true
   },
   "4979": {
-   "daytrade": true,
-   "notice": {
-    "date": "2026-10-29",
-    "reason": "當日本益比為78.07、股價淨值比為15.3且為其所屬產業類別股價淨值比之2.28倍、當日週轉率達5.57%(第六款)"
-   }
+   "daytrade": true
   },
   "3105": {
    "daytrade": true
   },
   "6173": {
-   "daytrade": true
+   "daytrade": true,
+   "notice": {
+    "date": "2026-10-30",
+    "reason": "最近六個營業日(自當日之前一個營業日起)之當日沖銷成交量占總成交量比率達63.9%，當日之前一個營業日當日沖銷成交量占總成交量達63.41%（第十三款)"
+   }
   },
   "3016": {
    "daytrade": true
@@ -83,11 +77,7 @@
    "daytrade": true
   },
   "1815": {
-   "daytrade": true,
-   "notice": {
-    "date": "2026-10-28",
-    "reason": "最近六十個營業日(含當日)起迄兩個營業日之最後成交價漲幅達151.57%(第二款)"
-   }
+   "daytrade": true
   },
   "2630": {
    "daytrade": true
