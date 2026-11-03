@@ -13,11 +13,18 @@ import requests
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
+import cost  # noqa: E402
 import daytrade_lab  # noqa: E402
+import diag  # noqa: E402
 import health
 import intraday
+import journal
+import lab
+import loop
+import review
 import scan
 import sjquote
+import team
 import tradingday
 
 TPE = ZoneInfo("Asia/Taipei")
@@ -338,3 +345,107 @@ def test_commit_data_ignores_missing_and_noop(tmp_path):
     assert "沒有變更" in again.stdout
     count = subprocess.run(["git", "rev-list", "--count", "HEAD"], cwd=repo, capture_output=True, text=True)
     assert count.stdout.strip() == "1"
+
+
+# ---------- 費率、警告門檻、訂閱差集、接力、衝突 ----------
+
+def test_round_trip_cost_is_shared():
+    assert cost.ROUND_TRIP_PCT == 0.23
+    assert daytrade_lab.COST_PCT == lab.COST_PCT == review.COST_PCT == team.COST_PCT == 0.23
+    assert journal.FEE_RATE == cost.FEE_RATE and journal.DAYTRADE_TAX == cost.DAYTRADE_TAX
+    assert journal.FEE_DISCOUNT == 0.28
+
+
+def test_diag_counts_without_stopping_and_health_flags(tmp_path, monkeypatch):
+    diag.reset()
+    diag.warn("一檔失敗")
+    assert not diag.over_threshold()
+    diag.reset()
+    for i in range(diag.FLAG_WARN):
+        diag.warn(f"w{i}")
+    assert diag.over_threshold()
+    diag.reset()
+    d = str(tmp_path)
+    monkeypatch.setattr(health, "D", d)
+    monkeypatch.setattr(health, "OUT", os.path.join(d, "health.json"))
+    _write(d, "intraday_latest.json", {"runtime": {"warn": 9, "error": 0, "samples": ["太多"]}})
+    _write(d, "latest.json", {"runtime": {"warn": 0, "error": 0}})
+    _write(d, "track_record.json", [])
+    items = {i["key"]: i for i in health.run(at(2026, 11, 3, 12, 0))["items"]}
+    assert not items["runtime"]["ok"] and items["scan_runtime"]["ok"]
+
+
+def test_subscription_delta_keeps_unchanged_names():
+    now = 1_000_000.0
+    seen = {"A": now, "B": now - 60}
+    new, drop = sjquote.subscription_delta({"A", "B"}, seen, ["A", "B"], now, sjquote.BOOK_KEEP)
+    assert new == [] and drop == []
+    new, drop = sjquote.subscription_delta({"A", "B"}, seen, ["B"], now, sjquote.BOOK_KEEP)
+    assert new == [] and drop == []          # 剛離開名單,保留訂閱
+    seen["A"] = now - sjquote.BOOK_KEEP - 1
+    new, drop = sjquote.subscription_delta({"A", "B"}, seen, ["B", "C"], now, sjquote.BOOK_KEEP)
+    assert new == ["C"] and drop == ["A"]
+
+
+def test_relay_skips_weekend_and_holiday_but_bridges_morning():
+    friday_close = at(2026, 11, 6, 13, 50)
+    far = tradingday.relay_plan(friday_close)
+    assert far["action"] == "wait_cron" and far["next_open"].startswith("2026-11-09")
+    morning = tradingday.relay_plan(at(2026, 11, 9, 1, 0))
+    assert morning["action"] == "nap" and morning["seconds"] <= tradingday.RELAY_NAP_MAX
+    assert tradingday.relay_plan(at(2026, 11, 9, 8, 20))["action"] == "run"
+    # 平日收盤到明天早上仍要接力,不能把每個晚上都交給不準時的 cron
+    assert tradingday.relay_plan(at(2026, 11, 3, 13, 50))["action"] == "nap"
+    # 12/25 行憲紀念日,前一天下午要跳到 12/28
+    holiday = tradingday.relay_plan(at(2026, 12, 24, 13, 50))
+    assert holiday["action"] == "wait_cron" and holiday["next_open"].startswith("2026-12-28")
+    assert not tradingday.is_trading_day(datetime(2026, 12, 25).date())
+
+
+def test_pin_sources_keeps_the_startup_copy(tmp_path, monkeypatch):
+    repo = tmp_path / "repo"
+    pin = tmp_path / "pin"
+    repo.mkdir()
+    (repo / "m.py").write_text("x = 1\n", encoding="utf-8")
+    monkeypatch.setattr(loop, "ROOT", str(repo))
+    monkeypatch.setattr(loop, "PIN_DIR", str(pin))
+    loop.pin_sources()
+    try:
+        (repo / "m.py").write_text("x = 2\n", encoding="utf-8")
+        assert (pin / "m.py").read_text(encoding="utf-8") == "x = 1\n"
+        assert sys.path[0] == str(pin)
+    finally:
+        while str(pin) in sys.path:
+            sys.path.remove(str(pin))
+
+
+def _git(repo, *args):
+    subprocess.run(["git", "-c", "core.hooksPath=/dev/null", *args], cwd=repo, check=True, capture_output=True)
+
+
+def test_rebase_keeps_round_data_and_upstream_code(tmp_path, monkeypatch):
+    origin = tmp_path / "origin"
+    work = tmp_path / "work"
+    origin.mkdir()
+    _git(origin, "init", "-b", "main")
+    _git(origin, "config", "user.email", "t@example.com")
+    _git(origin, "config", "user.name", "t")
+    (origin / "a.py").write_text("v1\n", encoding="utf-8")
+    (origin / "data").mkdir()
+    (origin / "data" / "x.json").write_text('{"n": 1}\n', encoding="utf-8")
+    _git(origin, "add", "-A")
+    _git(origin, "commit", "-m", "base")
+    _git(tmp_path, "clone", str(origin), "work")
+    _git(work, "config", "user.email", "t@example.com")
+    _git(work, "config", "user.name", "t")
+    (origin / "a.py").write_text("v2\n", encoding="utf-8")
+    (origin / "data" / "x.json").write_text('{"n": 2}\n', encoding="utf-8")
+    _git(origin, "add", "-A")
+    _git(origin, "commit", "-m", "remote")
+    (work / "data" / "x.json").write_text('{"n": 3}\n', encoding="utf-8")
+    _git(work, "add", "-A")
+    _git(work, "commit", "-m", "round")
+    monkeypatch.setattr(loop, "ROOT", str(work))
+    assert loop._rebase_keep_round()
+    assert (work / "data" / "x.json").read_text(encoding="utf-8") == '{"n": 3}\n'
+    assert (work / "a.py").read_text(encoding="utf-8") == "v2\n"
