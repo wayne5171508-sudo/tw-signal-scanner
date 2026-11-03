@@ -1,7 +1,7 @@
 {
- "date": "2026-11-02",
- "fetched_at": "2026-11-02T01:01:34",
- "daytrade_list_date": "2026-11-02",
+ "date": "2026-11-03",
+ "fetched_at": "2026-11-03T01:01:34",
+ "daytrade_list_date": "2026-11-03",
  "status": {
   "twse_daytrade": "ok",
   "tpex_daytrade": "ok",
@@ -18,7 +18,12 @@
    "daytrade": true
   },
   "3374": {
-   "daytrade": true,
+   "daytrade": false,
+   "disposal": {
+    "start": "2026-11-02",
+    "end": "2026-11-10",
+    "measure": "每2分鐘撮合・預收款券"
+   },
    "notice": {
     "date": "2026-10-30",
     "reason": "當日本益比為76.61、股價淨值比為13.43且為其所屬產業類別股價淨值比之2.93倍、當日週轉率達13.43%(第六款)"
@@ -46,7 +51,11 @@
    "daytrade": true
   },
   "4979": {
-   "daytrade": true
+   "daytrade": true,
+   "notice": {
+    "date": "2026-11-02",
+    "reason": "當日本益比為69.72、股價淨值比為13.66且為其所屬產業類別股價淨值比之2.16倍、當日週轉率達5.47%、美商高盛亞證券公司當日買進該有價證券之成交金額達"
+   }
   },
   "3105": {
    "daytrade": true
@@ -65,7 +74,11 @@
    "daytrade": true
   },
   "8042": {
-   "daytrade": true
+   "daytrade": true,
+   "notice": {
+    "date": "2026-11-02",
+    "reason": "最近六個營業日(自當日之前一個營業日起)之當日沖銷成交量占總成交量比率達68.03%，當日之前一個營業日當日沖銷成交量占總成交量達75.76%（第十三款)"
+   }
   },
   "3027": {
    "daytrade": true
