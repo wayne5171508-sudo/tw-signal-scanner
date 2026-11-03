@@ -50,6 +50,7 @@ from datetime import datetime
 import requests
 
 import bear_signals as bs
+import tradingday
 import bias
 import lab
 from intraday import (BIAS_LOG_FILE, DATA_DIR, GROUP_OF, HISTORY_FILE, TAIPEI, TPEX_ALL_URL, TWSE_ALL_URL, UNIVERSE_HEADERS,
@@ -356,12 +357,20 @@ def fetch_1m(codes, ev):
     return out
 
 
-def save_1m(days, today, after_close):
-    """每天一個 data/bars1m/日期.json.gz(排程機器上),已收盤的完整交易日才存。回傳存了哪些日期。"""
+def _session_already_saved(target):
+    """這個已收盤交易日的 5 分K和當沖成績都在,就不要重算覆蓋。"""
+    path = os.path.join(BARS_DIR, f"{target}.json.gz")
+    last = ((load_json_safe(OUT_FILE, {}) or {}).get("archive") or {}).get("last")
+    return os.path.exists(path) and last == target
+
+
+def save_1m(days, run_time):
+    """每天一個 data/bars1m/日期.json.gz(排程機器上),已收盤的完整交易日才存。
+    比日曆今天早的日期算已收盤,所以跨午夜補跑仍會存到前一個交易日。回傳存了哪些日期。"""
     os.makedirs(BARS1M_DIR, exist_ok=True)
     saved = []
     for d, stocks in sorted(days.items()):
-        if (d < today or after_close) and len(stocks) >= bs.MIN_UNIVERSE:
+        if tradingday.day_is_closed(d, run_time, tradingday.DAYTRADE_CLOSE_MINUTE) and len(stocks) >= bs.MIN_UNIVERSE:
             with gzip.open(os.path.join(BARS1M_DIR, f"{d}.json.gz"), "wt", encoding="utf-8") as f:
                 json.dump({"date": d, "source": "Yahoo Finance 1m", "stocks": stocks}, f, separators=(",", ":"))
             saved.append(d)
@@ -741,17 +750,29 @@ def evaluate(trades):
 
 
 def main():
+    force = "--force" in sys.argv or os.environ.get("FORCE") == "true"
     run_time = datetime.now(TAIPEI)
+    session = None
+    if not force:
+        try:
+            session = tradingday.latest_completed_trading_day(run_time)
+        except Exception as e:  # noqa: BLE001  交易日曆查不到就照算,不因為查詢失敗把整天跳過
+            print(f"[警告] 查不到最近交易日,這次照算: {type(e).__name__}")
+            session = None
+        if session and _session_already_saved(session):
+            print(f"[略過] {session} 的當沖回測與 5 分K已存在,不覆蓋")
+            return 0
     codes = [c for c in bs.WATCHLIST_NAMES if not bs.is_etf(c)]
     ev, _, closes = bs.fetch_corp_actions(codes, run_time)
     data = fetch_5m(codes, ev)
     idx_days = fetch_index_5m()
     if len(data) < bs.MIN_UNIVERSE:
         raise RuntimeError(f"5分K只抓到 {len(data)} 檔,不更新")
-    # 先把 Yahoo 這次抓到、還沒存過的完整交易日存檔(第一次執行會把約 60 天全部補存),再合併所有存檔
+    # 先把 Yahoo 這次抓到、還沒存過的完整交易日存檔(第一次執行會把約 60 天全部補存),再合併所有存檔。
+    # 是否收盤看台北時間:跨午夜時「昨天」已經收完,不能因為時鐘還在 13:35 以前就把那天丟掉。
     today = run_time.strftime("%Y-%m-%d")
-    after_close = run_time.hour * 60 + run_time.minute >= 13 * 60 + 35
-    yahoo_days = sorted({d for days in data.values() for d in days if d < today or after_close})
+    closed = lambda d: tradingday.day_is_closed(d, run_time, tradingday.DAYTRADE_CLOSE_MINUTE)  # noqa: E731
+    yahoo_days = sorted({d for days in data.values() for d in days if closed(d)})
     saved = sum(1 for d in yahoo_days if save_bars_day(d, data, closes, idx_days))
     archive = load_bars_archive()
     added = merge_archive(data, closes, idx_days, archive)
@@ -772,13 +793,13 @@ def main():
     res, all_days, split = evaluate(trades)
 
     # 交叉驗證:成交值前 200 大裡不在自選股的股票,用同一組參數再測一次(5 分K 也每天存檔,樣本會累積)
-    top_info, trades_top, top_n, top_days, ev_top = fetch_top_universe(today), None, 0, 0, {}
+    top_info, trades_top, top_n, top_days, ev_top = fetch_top_universe(session or today), None, 0, 0, {}
     top_codes = [c for c in (top_info.get("codes") or []) if c not in bs.WATCHLIST_NAMES]
     try:
         if top_codes and res:
             ev_top, _, closes_top = bs.fetch_corp_actions(top_codes, run_time)
             data_top = fetch_5m(top_codes, ev_top)
-            for d in sorted({d for days in data_top.values() for d in days if d < today or after_close}):
+            for d in sorted({d for days in data_top.values() for d in days if closed(d)}):
                 save_bars_day(d, data_top, closes_top, {}, BARS_DIR_TOP)
             merge_archive(data_top, closes_top, {}, load_bars_archive(BARS_DIR_TOP))
             trades_top = trades_for(data_top, closes_top, {}, score_context(data_top, closes_top, idx_days))
@@ -790,7 +811,7 @@ def main():
 
     # 1 分K:自選股 + 前 200 大,存在排程機器上,由 bear.yml 推到 data-archive 分支(Yahoo 只給 7 天,每天存才會累積)
     try:
-        saved_1m = save_1m(fetch_1m(codes + top_codes, {**ev, **ev_top}), today, after_close)
+        saved_1m = save_1m(fetch_1m(codes + top_codes, {**ev, **ev_top}), run_time)
     except Exception as e:  # noqa: BLE001
         print(f"[警告] 1 分K 存檔失敗: {e}")
         saved_1m = []
@@ -814,7 +835,7 @@ def main():
     log_bias_day(load_json_safe(HISTORY_FILE, {}) or {})
     log = load_json_safe(BIAS_LOG_FILE, {}) or {}
     srcs = {d: (x or {}).get("source") for d, x in archive.items()}
-    n_eval = evaluate_live(log, data, rules_prev or res or {}, srcs, None if after_close else today)
+    n_eval = evaluate_live(log, data, rules_prev or res or {}, srcs, None if closed(today) else today)
     if n_eval:
         write_json_atomic(BIAS_LOG_FILE, log, separators=(",", ":"))
     out["live"] = live_stats(log, res or {})

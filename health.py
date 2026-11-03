@@ -141,6 +141,10 @@ def run(now=None):
     bad = [r for r in tr if r.get("signal_date") in idx and r.get("checked_date") in idx
            and idx[r["checked_date"]] != idx[r["signal_date"]] + 1]
     sc = load("latest.json", {}) or {}
+    tw = sc.get("twse_fetch") or {}
+    if tw:
+        fails = int(tw.get("failures") or 0)
+        add("twse", "證交所連線", fails == 0, f"最終失敗 {fails} 次,重試 {tw.get('retries', 0)} 次(共 {tw.get('attempts', 0)} 次請求)")
     shown = (sc.get("track_record_stats") or {}).get("sample_size")
     real = len([r for r in tr if r.get("close_return_pct") is not None][-60:])
     problems = []

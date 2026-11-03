@@ -31,7 +31,8 @@ START_HM, END_HM = (8, 55), (13, 40)
 WAIT_MAX_SEC = 3600        # 離 08:55 超過 1 小時就不等(intraday.yml 接力最早 08:10 叫醒,要等得到)
 OFFSET_SEC = 35            # 5 分K 收盤後幾秒跑(intraday.K5_SETTLE_SEC 是 30 秒,要比它晚一點)
 FAST_UNTIL = 9 * 60 + 15   # 這個時間(分鐘)之前每分鐘一輪
-ROUND_TIMEOUT = 200        # 一輪最多幾秒,超過就放棄這一輪
+ROUND_TIMEOUT = 200        # 一輪硬上限(秒),超過就放棄這一輪;平時靠下面的查詢截止,不要拖到這裡
+ROUND_BUDGET_SECONDS = 50  # 永豐 1 分K / 逐筆整輪共用的截止(09:15 前每分鐘一輪,超過 60 秒就會吃掉下一輪)
 STAMP_FILE = os.path.join("data", "stamp.json")
 KEEP_MODULES = {"sjquote", "loop", "__main__"}
 
@@ -137,6 +138,7 @@ def run_round():
     try:
         import sjquote
         sjquote.STATS.update({"rows": 0, "asked": 0, "seconds": 0.0, "kbars": 0})
+        sjquote.ROUND_DEADLINE = time.time() + ROUND_BUDGET_SECONDS
     except ImportError:
         sjquote = None
     signal.signal(signal.SIGALRM, _alarm)

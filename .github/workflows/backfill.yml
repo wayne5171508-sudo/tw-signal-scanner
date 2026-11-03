@@ -15,8 +15,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 150
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
       - run: pip install -r requirements.txt
@@ -43,9 +43,7 @@ jobs:
             if [ "$st" = "OK $d" ]; then
               cp /tmp/out.json "data/$d.json"
               # 每補完一天就先存回去,中途逾時也不會整批白做
-              git config user.name "tw-signal-scanner-bot"
-              git config user.email "actions@users.noreply.github.com"
-              git add "data/$d.json" && git commit -qm "回補盤後掃描 $d" && (git push -q || (git pull -q --rebase origin main && git push -q))
+              bash .github/scripts/commit_data.sh "回補盤後掃描 $d" "data/$d.json"
             fi
             sleep 20   # 每天之間停一下,證交所對連續大量查詢會暫時擋 IP
           done
@@ -58,8 +56,4 @@ jobs:
           DATES: ${{ github.event.inputs.dates }}
         run: |
           python health.py || true
-          git config user.name "tw-signal-scanner-bot"
-          git config user.email "actions@users.noreply.github.com"
-          git add data/
-          git diff --quiet --cached || git commit -m "回補盤後掃描並重建戰績: $DATES"
-          git push || (git pull --rebase origin main && git push)
+          bash .github/scripts/commit_data.sh "回補盤後掃描並重建戰績: $DATES" data/
