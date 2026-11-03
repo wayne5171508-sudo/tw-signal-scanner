@@ -2,15 +2,9 @@ name: 盤中即時報價
 
 on:
   schedule:
-    # GitHub的cron在低活躍repo常常延遲或整批跳過(例:10/29 08:40 沒觸發),所以主要靠下面的「接力」:
-    # 每天收盤後這個 workflow 會自己叫醒自己,睡到隔天開盤前。cron 只是接力斷掉時的備援。
-    - cron: "40 0 * * 1-5"   # 08:40 台北(會等到08:55再開始)
-    - cron: "5 1 * * 1-5"    # 09:05
-    - cron: "35 1 * * 1-5"   # 09:35
-    - cron: "5 2 * * 1-5"    # 10:05
-    - cron: "5 3 * * 1-5"    # 11:05
-    - cron: "5 4 * * 1-5"    # 12:05
-    # 晚上再兩個:接力那一棒被取消或 runner 掛掉時(那條路沒有 always() 叫醒),當晚就能接回來
+    # 盤中靠下面的接力自己叫醒自己。白天的 cron 在這個 repo 常常晚 5 到 10 小時才觸發,
+    # 進到 intraday-scan 佇列後又被下一棒接力取消,只留下一堆 cancelled,救不了斷掉的迴圈。
+    # 備援只留晚上兩次:接力被取消或 runner 掛掉時,當晚就能接回來。已有接力在跑就立刻結束。
     - cron: "0 13 * * 0-4"   # 21:00 台北(週日~週四)
     - cron: "0 17 * * 0-4"   # 01:00 台北(週一~週五凌晨)
   workflow_dispatch: {}
@@ -34,6 +28,17 @@ jobs:
       - name: 接力待命(離開盤太久就先睡一段,再叫醒下一棒)
         id: relay
         run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            others=$(gh run list -R "$GITHUB_REPOSITORY" --workflow intraday.yml --limit 20 \
+              --json databaseId,status \
+              --jq "[.[] | select(.databaseId != ${{ github.run_id }} and (.status == \"in_progress\" or .status == \"queued\"))] | length" \
+              2>/dev/null || echo 0)
+            if [ "${others:-0}" != "0" ]; then
+              echo "已有盤中接力在跑或排隊,這次定時備援直接結束"
+              echo "run=no" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
           now=$(date +%s)
           next=""
           for i in 0 1 2 3 4 5 6 7; do
@@ -66,7 +71,7 @@ jobs:
           cache-dependency-path: requirements.txt
       - name: 安裝套件
         if: steps.relay.outputs.run == 'yes'
-        run: pip install requests shioaji
+        run: pip install -r requirements.txt
       - name: 隔夜風向(開盤前排程沒跑到時補拍;08:45 之後只會記美股)
         if: steps.relay.outputs.run == 'yes'
         continue-on-error: true

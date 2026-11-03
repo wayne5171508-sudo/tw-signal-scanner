@@ -35,6 +35,7 @@ from datetime import datetime
 
 import requests
 
+import tradingday
 from corp import adjust_bars  # noqa: F401  還原權值共用(盤中 intraday.py 也用這份)
 from intraday import (DATA_DIR, DAILY_OFFICIAL_FILE, HEADERS, TAIPEI, WATCHLIST_NAMES, _EmptyHistory,
                       fetch_history_one, load_json_safe, write_json_atomic)
@@ -442,16 +443,32 @@ def build_today(today_hits, sig_out, bars, latest_date):
     return items
 
 
+def decide_update(run_time, latest_bar, previous_bar, force=False):
+    """要不要重算成績單。目標是最近一根已收盤的日K,不是日曆上的今天。
+    跨過午夜才跑時,日曆今天還沒開盤,但昨天那根已經收完,仍然要算。
+    成績單已經是同一根,就不再寫檔(假日重跑不會覆蓋)。"""
+    if force:
+        return True, "強制重算"
+    target = tradingday.completed_bar_date(run_time, latest_bar)
+    clock = run_time.strftime("%Y-%m-%d %H:%M")
+    if target is None:
+        return False, f"日K最新日期是 {latest_bar},這一根還沒收盤(台北 {clock}),不更新"
+    if previous_bar == target:
+        return False, f"{target} 的成績單已經算過(台北 {clock}),不重複更新"
+    return True, target
+
+
 def main():
-    force = "--force" in sys.argv
+    force = "--force" in sys.argv or os.environ.get("FORCE") == "true"
     run_time = datetime.now(TAIPEI)
-    today = run_time.strftime("%Y-%m-%d")
     bars, fresh, errors = load_bars(run_time)
     if len(bars) < MIN_UNIVERSE:
         raise RuntimeError(f"可用日K只有 {len(bars)} 檔,少於 {MIN_UNIVERSE} 檔,不更新成績單")
     latest = max(b[-1]["d"] for b in bars.values())
-    if latest != today and not force:
-        print(f"[略過] 日K最新日期是 {latest},不是今天 {today}(休市),不更新")
+    prev = load_json_safe(OUT_FILE, {}) or {}
+    do_update, reason = decide_update(run_time, latest, prev.get("latest_bar"), force)
+    if not do_update:
+        print(f"[略過] {reason}")
         return
 
     ev, ev_src, closes = fetch_corp_actions(list(bars), run_time)
@@ -463,7 +480,6 @@ def main():
 
     result, today_hits, flagged = backtest(bars)
 
-    prev = load_json_safe(OUT_FILE, {}) or {}
     try:
         windows = entry_windows(fetch_hourly(list(bars), ev, closes), flagged, result["signals"], ev)
     except Exception as e:  # noqa: BLE001  進場時段是加分資料,失敗就沿用上次結果

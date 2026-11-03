@@ -2345,11 +2345,15 @@ def load_flow(run_time, codes):
     cache = load_json_safe(TICKS_CACHE_FILE, {}) or {}
     if cache.get("date") != today:
         cache = {"date": today, "codes": {}}
-    try:
-        sjquote.tick_flow(codes, today, cache["codes"], run_time.strftime("%H:%M:%S"), budget=FLOW_BUDGET_SECONDS)
-        write_json_atomic(TICKS_CACHE_FILE, cache, separators=(",", ":"))
-    except Exception as e:  # noqa: BLE001
-        print(f"[警告] 逐筆內外盤失敗: {type(e).__name__}: {str(e)[:120]}")
+    # 09:03 前(含開盤前)略過逐筆。這段永豐逾時最密,一輪會拖過 60 秒,排程上的下一分鐘就被吃掉。
+    if m < 3:
+        print("[永豐] 09:03 前略過逐筆,避免開盤逾時吃掉下一輪")
+    else:
+        try:
+            sjquote.tick_flow(codes, today, cache["codes"], run_time.strftime("%H:%M:%S"), budget=FLOW_BUDGET_SECONDS)
+            write_json_atomic(TICKS_CACHE_FILE, cache, separators=(",", ":"))
+        except Exception as e:  # noqa: BLE001
+            print(f"[警告] 逐筆內外盤失敗: {type(e).__name__}: {str(e)[:120]}")
     try:
         books = sjquote.watch_books(codes)
     except Exception as e:  # noqa: BLE001
