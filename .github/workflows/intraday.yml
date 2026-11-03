@@ -2,9 +2,9 @@ name: 盤中即時報價
 
 on:
   schedule:
-    # 盤中靠下面的接力自己叫醒自己。白天的 cron 在這個 repo 常常晚 5 到 10 小時才觸發,
-    # 進到 intraday-scan 佇列後又被下一棒接力取消,只留下一堆 cancelled,救不了斷掉的迴圈。
-    # 備援只留晚上兩次:接力被取消或 runner 掛掉時,當晚就能接回來。已有接力在跑就立刻結束。
+    # 週一到週五 08:10 直接開跑(離開盤 40 分鐘)。晚上兩次是 cron 晚到時的備援。
+    # 下一個交易日比明天還遠(週末、連假)就不連續睡 5 小時;平日晚上仍會睡一段接到早上。
+    - cron: "10 0 * * 1-5"   # 08:10 台北(週一~週五)
     - cron: "0 13 * * 0-4"   # 21:00 台北(週日~週四)
     - cron: "0 17 * * 0-4"   # 01:00 台北(週一~週五凌晨)
   workflow_dispatch: {}
@@ -22,11 +22,12 @@ jobs:
   intraday:
     runs-on: ubuntu-latest
     timeout-minutes: 355     # hosted runner 上限 360;08:30 叫醒 → 13:40 收盤 → 存檔約 13:50,還有餘裕
-    env:
-      GH_TOKEN: ${{ github.token }}
     steps:
+      - uses: actions/checkout@v7
       - name: 接力待命(離開盤太久就先睡一段,再叫醒下一棒)
         id: relay
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           if [ "${{ github.event_name }}" = "schedule" ]; then
             others=$(gh run list -R "$GITHUB_REPOSITORY" --workflow intraday.yml --limit 20 \
@@ -39,30 +40,26 @@ jobs:
               exit 0
             fi
           fi
-          now=$(date +%s)
-          next=""
-          for i in 0 1 2 3 4 5 6 7; do
-            d=$(TZ=Asia/Taipei date -d "today +${i} day 08:50" +%s)
-            end=$(TZ=Asia/Taipei date -d "today +${i} day 13:40" +%s)
-            dw=$(TZ=Asia/Taipei date -d "today +${i} day" +%u)
-            # 離收盤不到 10 分鐘就當作今天結束(不然收盤叫醒的下一棒會再跑一輪、又叫醒下一棒,一直到 13:40)
-            if [ "$dw" -le 5 ] && [ "$end" -gt "$(( now + 600 ))" ]; then next=$d; break; fi
-          done
-          wait_s=$(( next - now ))
-          echo "下一個開盤日 08:50 還有 ${wait_s} 秒"
-          if [ "$wait_s" -le 2400 ]; then
-            echo "run=yes" >> "$GITHUB_OUTPUT"; exit 0
+          plan=$(python3 tradingday.py --relay)
+          echo "$plan"
+          action=$(printf '%s\n' "$plan" | sed -n 's/^action=//p')
+          seconds=$(printf '%s\n' "$plan" | sed -n 's/^seconds=//p')
+          if [ "$action" = "run" ]; then
+            echo "run=yes" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
-          nap=$(( wait_s - 1200 )); [ "$nap" -gt 18000 ] && nap=18000   # 一棒最多睡 5 小時(job 上限 6 小時);最後一棒約 08:30 醒
-          echo "先睡 ${nap} 秒,再叫醒下一棒"
-          sleep "$nap"
+          if [ "$action" = "wait_cron" ] || [ "$action" != "nap" ]; then
+            echo "下一個交易日比明天還遠,或判斷失敗,不佔 runner。08:10 與 01:00 的 cron 會再試"
+            echo "run=no" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "先睡 ${seconds} 秒,再叫醒下一棒"
+          sleep "$seconds"
           for k in 1 2 3 4 5; do
             gh workflow run intraday.yml -R "$GITHUB_REPOSITORY" --ref main && break
             echo "叫醒失敗,30 秒後重試($k)"; sleep 30
           done
           echo "run=no" >> "$GITHUB_OUTPUT"
-      - uses: actions/checkout@v7
-        if: steps.relay.outputs.run == 'yes'
       - uses: actions/setup-python@v6
         if: steps.relay.outputs.run == 'yes'
         with:
@@ -79,7 +76,8 @@ jobs:
       - name: 常駐迴圈:對齊 5 分K 收盤抓報價並存回repo,直到收盤(loop.py)
         if: steps.relay.outputs.run == 'yes'
         env:
-          SJ_API_KEY: ${{ secrets.SJ_API_KEY }}       # 永豐金鑰(沒設也能跑,會自動改用鉅亨)
+          # 永豐金鑰只放這一步。接力、隔夜風向、收盤叫醒都碰不到。沒設也能跑,會改用鉅亨。
+          SJ_API_KEY: ${{ secrets.SJ_API_KEY }}
           SJ_SECRET_KEY: ${{ secrets.SJ_SECRET_KEY }}
         run: |
           set -o pipefail      # loop.py 當掉時這一步要顯示失敗,不能被 sed 的結束碼蓋掉
@@ -87,10 +85,17 @@ jobs:
           git config user.email "actions@users.noreply.github.com"
           # repo 是公開的,執行記錄大家看得到:輸出先遮掉身分證字號、帳號格式的字串
           python -u loop.py 2>&1 | sed -u -E -e 's/[A-Z][12][0-9]{8}/[已遮蔽]/g' -e "s/(account_id|person_id|broker_id)([\\\"' :=]+)[0-9A-Za-z]+/\\1\\2[已遮蔽]/g"
-      - name: 收盤後叫醒下一棒(睡到下一個開盤日)
+      - name: 收盤後叫醒下一棒(下一個交易日太遠就交給 cron)
         if: always() && steps.relay.outputs.run == 'yes'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          gh workflow run intraday.yml -R "$GITHUB_REPOSITORY" --ref main || echo "叫醒失敗,明天靠 cron 備援"
+          action=$(python3 tradingday.py --relay | sed -n 's/^action=//p')
+          if [ "$action" = "wait_cron" ]; then
+            echo "下一個交易日比明天還遠,不接力。08:10 與 01:00 的 cron 會再試"
+          else
+            gh workflow run intraday.yml -R "$GITHUB_REPOSITORY" --ref main || echo "叫醒失敗,明天靠 cron 備援"
+          fi
           # 收盤後直接叫永豐回補(存今天的 5 分K + 補歷史)。GitHub cron 常晚 4~6 小時,過了 23:30 回補就不跑(10/29、10/30 都這樣沒存到),
           # 用 dispatch 不會延遲;回補和回測在同一條 bars5m-writers 佇列,不會同時寫 .gz。晚上 19:15 的 cron 留著當備援
           if [ "$(TZ=Asia/Taipei date +%H%M)" -ge 1335 ]; then

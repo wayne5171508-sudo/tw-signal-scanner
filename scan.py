@@ -37,6 +37,8 @@ from zoneinfo import ZoneInfo
 
 import requests
 
+import diag
+
 TAIPEI = ZoneInfo("Asia/Taipei")
 HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; personal-trading-dashboard/1.0)"}
 TIMEOUT = 20
@@ -104,6 +106,17 @@ def twse_get(url):
 
 def _attach_twse(result):
     result["twse_fetch"] = {k: TWSE_STATS[k] for k in ("attempts", "retries", "failures")}
+
+
+def _emit(result):
+    """印出 JSON。警告太多就讓這個 job 失敗,單一股票的失敗只計數、仍會出現在 excluded。"""
+    _attach_twse(result)
+    result["runtime"] = diag.snapshot()
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    if diag.over_threshold():
+        rt = result["runtime"]
+        print(f"[錯誤] 警告 {rt['warn']}、錯誤 {rt['error']} 超過門檻,掃描失敗", file=sys.stderr)
+        raise SystemExit(1)
 
 
 def fetch_t86(date_str):
@@ -214,7 +227,7 @@ def fetch_mi_index(date_str):
                         return clean_number(row[pct_col])
         return None
     except Exception as e:  # noqa: BLE001
-        print(f"[warn] 大盤指數抓取失敗,略過: {e}", file=sys.stderr)
+        diag.warn(f"大盤指數抓取失敗,略過: {e}")
         return None
 
 
@@ -275,7 +288,7 @@ def market_rank(today, n_each=6, min_lots=1000, min_price=10.0, max_lookback=12)
         try:
             q = fetch_all_quotes(d.strftime("%Y%m%d"))
         except Exception as e:  # noqa: BLE001
-            print(f"[warn] 全市場行情 {d:%Y%m%d} 抓取失敗: {e}", file=sys.stderr)
+            diag.warn(f"全市場行情 {d:%Y-%m-%d} 抓取失敗: {e}")
             q = None
         if q:
             days.append((d.strftime("%Y-%m-%d"), q))
@@ -337,7 +350,7 @@ def fetch_industry_map(codes):
                 if industry and industry.lower() != "nan":
                     out[code] = industry
     except Exception as e:  # noqa: BLE001
-        print(f"[warn] 產業別對照抓取失敗,略過,族群效應標記為無法查核: {e}", file=sys.stderr)
+        diag.warn(f"產業別對照抓取失敗,略過,族群效應標記為無法查核: {e}")
     return out
 
 
@@ -491,7 +504,7 @@ def compute_track_record(today_iso, month_first):
         try:
             days = fetch_stock_day(code, month_first)
         except Exception as e:  # noqa: BLE001
-            print(f"[warn] 戰績追蹤{code}的STOCK_DAY抓取失敗: {e}", file=sys.stderr)
+            diag.warn(f"戰績追蹤{code}的STOCK_DAY抓取失敗: {e}")
             continue
 
         if item["signal_date"][:7] != today_iso[:7]:
@@ -543,7 +556,7 @@ def compute_track_record(today_iso, month_first):
             with open(TRACK_RECORD_FILE, encoding="utf-8") as fh:
                 history = json.load(fh)
         except Exception as e:  # noqa: BLE001
-            print(f"[warn] 讀取track_record.json失敗,視為空歷史: {e}", file=sys.stderr)
+            diag.warn(f"讀取track_record.json失敗,視為空歷史: {e}")
             history = []
 
     # v11.4:同一個訊號只驗證一次(排程重跑、或延遲造成同一天跑兩次,都不會重複計入)
@@ -620,6 +633,7 @@ def resolve_latest_trading_day(run_time, max_lookback_days=7):
 
 
 def main():
+    diag.reset()
     TWSE_STATS["attempts"] = TWSE_STATS["retries"] = TWSE_STATS["failures"] = 0
     run_time = taipei_now()
     # 回補模式:SCAN_DATE=YYYY-MM-DD 指定要重算的交易日(backfill.yml 用)
@@ -676,8 +690,7 @@ def main():
     if stat != "OK":
         result["market_status"] = "data_not_ready_or_no_trading_day"
         result["t86_stat_raw"] = stat
-        _attach_twse(result)
-        print(json.dumps(result, ensure_ascii=False, indent=2))
+        _emit(result)
         return
 
     result["market_status"] = "OK"
@@ -710,7 +723,7 @@ def main():
     try:
         rank = market_rank(today)
     except Exception as e:  # noqa: BLE001
-        print(f"[warn] 全市場排行失敗,略過: {e}", file=sys.stderr)
+        diag.warn(f"全市場排行失敗,略過: {e}")
     result["market_rank"] = rank or {"note": "全市場排行這次抓不到,候選名單只有法人買超"}
     rank_codes = []
     if rank:
@@ -748,6 +761,7 @@ def main():
         try:
             days = fetch_recent_days(code, today)
         except Exception as e:  # noqa: BLE001
+            diag.warn(f"{code} STOCK_DAY抓取失敗: {e}")
             excluded.append({"code": code, "reason": f"STOCK_DAY抓取失敗: {e}"})
             continue
 
@@ -807,7 +821,8 @@ def main():
         gap_pct = round((open_p - prev_close) / prev_close * 100, 2) if (open_p is not None and prev_close) else None
         gap_tag = "large_gap" if (gap_pct is not None and abs(gap_pct) >= 2) else "normal"
 
-        # 損益平衡提醒:當沖來回手續費+證交稅大約0.5~0.6%,漲跌幅太小扣掉成本所剩不多
+        # 漲跌幅絕對值小於 1% 標 below_cost。這是操作空間提醒,門檻維持 1%,不跟費率連動。
+        # 當沖來回成本見 cost.py(約 0.23 個百分點),不是以前註解寫的 0.5% 到 0.6%。
         cost_breakeven_tag = "below_cost" if (change_pct is not None and abs(change_pct) < 1.0) else "normal"
 
         # 漲停可執行性(概略估算,實際跳動點位以交易所公告為準,這裡只做粗略提醒)
@@ -893,7 +908,7 @@ def main():
                     if today_bal is not None and prev_bal is not None:
                         e["margin_change"] = today_bal - prev_bal
         except Exception as e:  # noqa: BLE001
-            print(f"[warn] 融資融券抓取失敗,略過: {e}", file=sys.stderr)
+            diag.warn(f"融資融券抓取失敗,略過: {e}")
 
     # 連續買超天數(查最近3天T86,比對同一批候選股)
     try:
@@ -930,24 +945,22 @@ def main():
                     break
             e["consecutive_buy_days"] = streak if streak > 0 else "無法確認"
     except Exception as e:  # noqa: BLE001
-        print(f"[warn] 連續買超天數計算失敗,略過: {e}", file=sys.stderr)
+        diag.warn(f"連續買超天數計算失敗,略過: {e}")
 
     # 戰績追蹤:回頭驗證前一個交易日標記過的股票,今天實際表現如何
     # (回補模式不在這裡算,補完後由 rebuild_track.py 依相鄰交易日整份重建)
     if backfill_date:
-        _attach_twse(result)
-        print(json.dumps(result, ensure_ascii=False, indent=2))
+        _emit(result)
         return
     try:
         track_new, track_stats = compute_track_record(iso_date, month_first)
         result["track_record_new_entries"] = track_new
         result["track_record_stats"] = track_stats
     except Exception as e:  # noqa: BLE001
-        print(f"[warn] 戰績追蹤計算失敗,略過: {e}", file=sys.stderr)
+        diag.warn(f"戰績追蹤計算失敗,略過: {e}")
         result["track_record_stats"] = {"sample_size": 0, "note": "本次執行時戰績追蹤計算失敗,不影響其他資料"}
 
-    _attach_twse(result)
-    print(json.dumps(result, ensure_ascii=False, indent=2))
+    _emit(result)
 
 
 if __name__ == "__main__":

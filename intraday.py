@@ -34,6 +34,8 @@ from zoneinfo import ZoneInfo
 
 import requests
 
+import diag
+
 # 收盤復盤、盤中走勢存檔、策略驗證放在另外兩個檔案;萬一 repo 裡還沒有這兩個檔,
 # 這裡只會跳過那些功能,即時報價照常更新,不會整支程式掛掉。
 try:
@@ -653,6 +655,7 @@ def _signal_eval(days):
                         bb["n"] += 1
                         bb["ret"] += x
                         bb["base"] += sg * base
+    # 0.4 是這個成績單畫面上的差距門檻,不是手續費。手續費見 cost.ROUND_TRIP_PCT。門檻不改,避免「有優勢跡象」跟著變。
     out = {"days": ndays, "cost_pct": 0.4, "strats": {}}
     for name, a in acc.items():
         n = a["n"]
@@ -2393,6 +2396,7 @@ def load_market_flags(run_time, codes):
 
 
 def main():
+    diag.reset()
     run_time = taipei_now()
 
     index_codes = [c for c, _ in INDICES]
@@ -2414,7 +2418,7 @@ def main():
             print(f"[略過] 報價時間是 {session_date},今天 {run_time.strftime('%Y-%m-%d')} 還沒有新成交(休市或尚未開盤),這一輪不更新")
             return
     else:
-        print("[警告] 報價沒有時間戳,無法判斷是否為交易日,照常處理")
+        diag.warn("報價沒有時間戳,無法判斷是否為交易日,照常處理")
 
     watchlist_out = [row_to_quote(all_rows.get(f"TWS:{code}:STOCK"), code, name) for code, name in WATCHLIST_NAMES.items()]
     for q in indices_out:
@@ -2422,7 +2426,7 @@ def main():
     try:
         amount_unit = normalize_amounts(watchlist_out)
     except Exception as e:  # noqa: BLE001  成交金額只用在資金流向,失敗就退回量×價
-        print(f"[警告] 成交金額換算失敗: {e}")
+        diag.warn(f"成交金額換算失敗: {e}")
         amount_unit = None
         for q in watchlist_out:
             q.pop("amount_raw", None)
@@ -2433,7 +2437,7 @@ def main():
     try:
         official = refresh_official_bars(run_time)
     except Exception as e:  # noqa: BLE001  日K是加分資料,出任何狀況都不能影響即時報價
-        print(f"[警告] 正式日K更新失敗,改用舊記錄: {e}")
+        diag.warn(f"正式日K更新失敗,改用舊記錄: {e}")
         official = {}
     touch_summary = build_levels(watchlist_out, prev_bars, history_days, official, run_time.strftime("%Y-%m-%d"))
     trade_flags = load_trade_flags(run_time)
@@ -2447,7 +2451,7 @@ def main():
         for q in watchlist_out:
             q["news"] = news.recent_for(news_data, q["code"], run_time.strftime("%Y-%m-%d")) or None
     except Exception as e:  # noqa: BLE001  消息是加分資料
-        print(f"[警告] 重大訊息抓取失敗: {e}")
+        diag.warn(f"重大訊息抓取失敗: {e}")
 
     # 資料實際代表的時間(取台股報價裡最新的時間戳;指數報價偶爾會停在幾分鐘前),跟程式執行時間分開揭露。
     # 不算美股指數與台指期:它們收盤/夜盤時間比台股晚,週末或收盤後會讓「報價時間」看起來比實際新。
@@ -2463,7 +2467,7 @@ def main():
     try:
         opening_out, opening_state = compute_opening_alerts(run_time, watchlist_out, official)
     except Exception as e:  # noqa: BLE001  開盤爆量是加分功能,不能影響報價
-        print(f"[警告] 開盤爆量偵測失敗: {e}")
+        diag.warn(f"開盤爆量偵測失敗: {e}")
         opening_out, opening_state = None, None
 
     result = {
@@ -2496,17 +2500,17 @@ def main():
         result["signal_stats"] = signal_stats()
         result["market_signal_stats"] = market_signal_stats()
     except Exception as e:  # noqa: BLE001  成績單/量能曲線是加分功能,不能影響報價
-        print(f"[警告] 歷史/成績單/量能曲線處理失敗: {e}")
+        diag.warn(f"歷史/成績單/量能曲線處理失敗: {e}")
     try:
         import overnight
         overnight.record_outcome(run_time, watchlist_out, GROUP_OF)
     except Exception as e:  # noqa: BLE001  隔夜風向驗證是加分功能
-        print(f"[警告] 隔夜風向驗證記錄失敗: {e}")
+        diag.warn(f"隔夜風向驗證記錄失敗: {e}")
     try:
         k5 = load_k5(run_time, [c for c in WATCHLIST_NAMES if not c.startswith("00")])   # 永豐 1 分K → 真實 5 分K(和回測同一套)
         result["bias"] = compute_bias(run_time, indices_out, watchlist_out, official, k5)
     except Exception as e:  # noqa: BLE001  多空判斷是加分功能,不能影響報價
-        print(f"[警告] 多空判斷失敗: {e}")
+        diag.warn(f"多空判斷失敗: {e}")
         k5 = None
     try:
         import team         # 交易小組六個觀測員:每輪的結果記進 data/team/今天.json
@@ -2522,24 +2526,24 @@ def main():
         if day:
             result["team"] = {"as_of": day["as_of"], "picks": len(day["picks"]), "mood": (day.get("mood_now") or {}).get("score")}
     except Exception as e:  # noqa: BLE001  觀測員紀錄是加分功能
-        print(f"[警告] 交易小組紀錄失敗: {e}")
+        diag.warn(f"交易小組紀錄失敗: {e}")
     result["amount_unit"] = amount_unit
     try:
         if lab is not None:
             result["lab_summary"] = lab.load_summary()
     except Exception as e:  # noqa: BLE001
-        print(f"[警告] 讀取策略驗證結果失敗: {e}")
+        diag.warn(f"讀取策略驗證結果失敗: {e}")
     write_json_atomic(OUT_FILE, result, separators=(",", ":"))
     try:
         dump_fields(all_rows, run_time)
         scan_market(run_time, set(WATCHLIST_NAMES), ((touch_summary or {}).get("regime_today") or {}).get("label"))
         close_market(run_time)
     except Exception as e:  # noqa: BLE001  試跑功能,任何錯誤都不能影響主流程
-        print(f"[警告] 全市場掃描/欄位樣本失敗: {e}")
+        diag.warn(f"全市場掃描/欄位樣本失敗: {e}")
     try:
         live = scan_live(run_time, set(WATCHLIST_NAMES))   # 每輪全市場爆量榜(永豐)
     except Exception as e:  # noqa: BLE001
-        print(f"[警告] 每輪全市場掃描失敗: {e}")
+        diag.warn(f"每輪全市場掃描失敗: {e}")
         live = None
     try:
         import market        # 全市場雷達:全部股票打多空分數、市場統計、做多/做空推薦與每日紀錄
@@ -2547,14 +2551,16 @@ def main():
             market.run(run_time, live, indices_out, set(WATCHLIST_NAMES), lambda codes: load_k5(run_time, codes),
                        lambda codes: load_market_flags(run_time, codes), lambda codes: load_flow(run_time, codes))
     except Exception as e:  # noqa: BLE001  全市場雷達是加分功能
-        print(f"[警告] 全市場雷達失敗: {type(e).__name__}: {e}")
+        diag.warn(f"全市場雷達失敗: {type(e).__name__}: {e}")
     end_of_day_extras(run_time, indices_out, watchlist_out, (touch_summary or {}).get("regime_today"))
 
+    result["runtime"] = diag.snapshot()
+    write_json_atomic(OUT_FILE, result, separators=(",", ":"))
     if health is not None:
         try:
             health.run(run_time)
         except Exception as e:  # noqa: BLE001
-            print(f"[警告] 健康檢查失敗: {e}")
+            diag.warn(f"健康檢查失敗: {e}")
 
     n_quote = sum(1 for q in watchlist_out if q.get("last") is not None)
     print(f"[完成] {run_time:%Y-%m-%d %H:%M} 報價 {n_quote}/{len(watchlist_out)} 檔,日K {result['official_bars_status']}")

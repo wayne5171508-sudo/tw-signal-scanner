@@ -338,7 +338,7 @@ _BOOK = {}                  # 五檔訂閱收到的最新一筆:{代號: (收到
 _SUBS = set()
 _SUB_API = None
 _SEEN = {}                  # 五檔:每檔最後一次被要求的時間;超過 BOOK_KEEP 秒沒人要才退訂
-BOOK_KEEP = 600
+BOOK_KEEP = 4 * 3600         # 訂過的五檔留 4 小時。短名單每幾十分鐘換檔,10 分鐘就退訂會在同一天反覆訂閱(11/03 共 175 檔、628 次)
 
 
 def _wall_hms(ts_ns):
@@ -417,9 +417,18 @@ def _on_bidask(exchange, ba):
         pass
 
 
+def subscription_delta(subscribed, seen, want, now, hold):
+    """只處理差集。(要新訂的代號, 要退訂的代號)。
+    已訂過的不重訂。退訂只針對超過 hold 秒沒再出現在名單裡的。名單沒變就兩邊都空。"""
+    want = set(want)
+    new = sorted(want - set(subscribed))
+    drop = sorted(c for c in subscribed if c not in want and now - seen.get(c, now) > hold)
+    return new, drop
+
+
 def watch_books(codes):
-    """五檔即時訂閱(盤中常駐迴圈才有用,因為要一直開著連線收推播):訂閱 codes 裡還沒訂的;
-    退訂超過 BOOK_KEEP 秒沒被要求的(同一輪自選股、全市場各呼叫一次,不能互相退訂)。
+    """五檔即時訂閱(盤中常駐迴圈才有用,因為要一直開著連線收推播)。
+    只訂還沒訂的、只退訂超過 BOOK_KEEP 秒沒人要的。同一輪自選股和全市場各呼叫一次,不能互相退訂。
     回傳 {代號: {"imb": 委買委賣失衡 %(+ 委買多)、"bid","ask": 5 檔量合計, "age": 幾秒前}};還沒收到的不放。"""
     global _SUB_API
     api = _login()
@@ -438,7 +447,8 @@ def watch_books(codes):
     want, now0 = set(codes), time.time()
     for code in want:
         _SEEN[code] = now0
-    for code in sorted(want - _SUBS):
+    new, drop = subscription_delta(_SUBS, _SEEN, want, now0, BOOK_KEEP)
+    for code in new:
         k = _contract(api, code)
         if k is None:
             continue
@@ -447,7 +457,7 @@ def watch_books(codes):
             _SUBS.add(code)
         except Exception as e:  # noqa: BLE001
             _log(f"{code} 五檔訂閱失敗: {type(e).__name__}: {str(e)[:100]}")
-    for code in sorted(c for c in _SUBS if now0 - _SEEN.get(c, 0) > BOOK_KEEP):
+    for code in drop:
         k = _contract(api, code)
         try:
             if k is not None:

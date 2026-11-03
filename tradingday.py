@@ -20,6 +20,21 @@ from zoneinfo import ZoneInfo
 TAIPEI = ZoneInfo("Asia/Taipei")
 CLOSE_MINUTE = 13 * 60 + 30            # 證交所 13:30 收盤
 DAYTRADE_CLOSE_MINUTE = 13 * 60 + 35   # 當沖回測沿用原本的 13:35,才把「今天」的 5 分K當成收完
+OPEN_HM = (8, 50)                      # 盤中迴圈對齊的開盤前時間
+SESSION_END_HM = (13, 40)
+RELAY_RUN_WITHIN = 40 * 60             # 離開盤不到這段就直接跑
+RELAY_NAP_MAX = 5 * 3600               # 一棒最多睡 5 小時(job 上限 6 小時)
+# 證交所 115 年開休市表裡「沒有交易」的平日(不含週末,週末另外跳過)。不含颱風臨時休市。
+CLOSED_DATES = frozenset({
+    "2026-01-01",
+    "2026-02-12", "2026-02-13", "2026-02-16", "2026-02-17", "2026-02-18", "2026-02-19", "2026-02-20", "2026-02-27",
+    "2026-04-03", "2026-04-06",
+    "2026-05-01",
+    "2026-06-19",
+    "2026-09-25", "2026-09-28",
+    "2026-10-09", "2026-10-26",
+    "2026-12-25",
+})
 FMTQIK = "https://www.twse.com.tw/rwd/zh/afterTrading/FMTQIK?date={ym}&response=json"
 _ROC = re.compile(r"^\s*(\d{2,3})/(\d{1,2})/(\d{1,2})")
 
@@ -103,6 +118,43 @@ def latest_completed_trading_day(run_time, fetch=None):
     return latest_completed(run_time, days)
 
 
+def is_trading_day(day, closed=None):
+    """day 是 datetime.date。週六日和 CLOSED_DATES 不算交易日。"""
+    closed = CLOSED_DATES if closed is None else closed
+    return day.weekday() < 5 and day.isoformat() not in closed
+
+
+def next_open(now, closed=None):
+    """下一個還趕得上的交易日 08:50(台北)。今天已過 13:30 就從明天開始找。"""
+    _require_taipei(now)
+    for i in range(0, 16):
+        day = (now + timedelta(days=i)).date()
+        if not is_trading_day(day, closed):
+            continue
+        start = datetime(day.year, day.month, day.day, OPEN_HM[0], OPEN_HM[1], tzinfo=TAIPEI)
+        end = datetime(day.year, day.month, day.day, SESSION_END_HM[0], SESSION_END_HM[1], tzinfo=TAIPEI)
+        if end - timedelta(minutes=10) > now:
+            return start
+    return None
+
+
+def relay_plan(now, closed=None):
+    """盤中接力該直接跑、睡一段再叫醒,還是把週末和連假留給 cron。
+    回傳 action: run / nap / wait_cron,seconds,next_open(ISO 或空字串)。"""
+    nxt = next_open(now, closed)
+    if nxt is None:
+        return {"action": "wait_cron", "seconds": 0, "next_open": ""}
+    wait = (nxt - now).total_seconds()
+    if wait <= RELAY_RUN_WITHIN:
+        return {"action": "run", "seconds": max(0, int(wait)), "next_open": nxt.isoformat()}
+    # 下一個交易日比「明天」還遠:週末或連假。不從收盤一路睡到開盤,交給 08:10 / 01:00 的 cron。
+    # 明天就開盤的話仍睡一段再叫醒,cron 晚到時平日早上還是接得上。
+    if nxt.date() > (now + timedelta(days=1)).date():
+        return {"action": "wait_cron", "seconds": int(wait), "next_open": nxt.isoformat()}
+    nap = min(wait - 20 * 60, RELAY_NAP_MAX)
+    return {"action": "nap", "seconds": int(max(0, nap)), "next_open": nxt.isoformat()}
+
+
 def postmarket_plan(run_time, trading_days, scorecard_bar, daytrade_last, bars_exist, force=False):
     """盤後工作要不要重跑。已經算過同一個已收盤交易日就跳過,跨午夜也對得到那一天。"""
     target = latest_completed(run_time, trading_days) or ""
@@ -153,6 +205,12 @@ def main(argv=None):
         plan = github_status(force=force)
         _emit_github(plan)
         print(f"目標交易日 {plan['target'] or '未知'} 利空跳過={plan['bear_skip']} 當沖跳過={plan['daytrade_skip']}", file=sys.stderr)
+        return 0
+    if "--relay" in argv:
+        plan = relay_plan(datetime.now(TAIPEI))
+        print(f"action={plan['action']}")
+        print(f"seconds={plan['seconds']}")
+        print(f"next={plan['next_open']}")
         return 0
     if "--print" in argv:
         try:

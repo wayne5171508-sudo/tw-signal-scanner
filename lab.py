@@ -16,7 +16,7 @@
      收盤:抱到收盤最後一筆
      C 規則:RSI7 曾到 80 以上,之後 RSI7 向下穿過 RSI14(死亡交叉)才出場,沒出現就收盤出
      C+E:同 C,但 RSI14 連續 3 根以上卡在 80 以上(鈍化)時,改成「價格跌破 12 根均線」才出場
-   每一筆都和「同一進場時間到同一出場時間,全部自選股(不含ETF)的平均漲跌」比較,並扣 0.4% 來回成本。
+   每一筆都和「同一進場時間到同一出場時間,全部自選股(不含ETF)的平均漲跌」比較,並扣 cost.py 的來回成本。
 
 2) 參數掃描與樣本外驗證(待辦3):用訊號實驗室的快照(自選股 4 個時點、全市場 3 個時點),
    把四種策略的門檻(漲跌幅、量能倍數、拉回/反彈幅度)全部組合跑一遍。
@@ -33,6 +33,8 @@ from datetime import datetime
 from itertools import product
 from zoneinfo import ZoneInfo
 
+import cost
+
 try:
     import review
 except ImportError:      # 單獨執行時 review.py 應該在同一個資料夾
@@ -43,7 +45,7 @@ DATA_DIR = "data"
 LAB_FILE = os.path.join(DATA_DIR, "lab.json")
 SIGNAL_FILE = os.path.join(DATA_DIR, "signal_log.json")
 MARKET_DIR = os.path.join(DATA_DIR, "mkt")
-COST_PCT = 0.23            # 當沖來回成本(手續費 2.8 折 + 當沖證交稅),和 daytrade_lab 一致
+COST_PCT = cost.ROUND_TRIP_PCT   # 當沖來回成本,費率只定義在 cost.py
 
 RSI_S, RSI_L = 7, 14
 OVERSOLD, OVERBOUGHT, HOT = 30, 70, 80
