@@ -58,9 +58,9 @@
    "date": "2026-11-03",
    "code": "4979",
    "name": "華星光",
-   "side": "long",
-   "entry": 402.0,
-   "exit": 407.0,
+   "side": "short",
+   "entry": 407.0,
+   "exit": 402.0,
    "shares": 1000,
    "time_in": "09:32",
    "time_out": "09:43",
@@ -68,11 +68,11 @@
    "fee": 322,
    "tax": 610,
    "net": 4068,
-   "pct": 1.244,
+   "pct": 1.229,
    "note": "",
    "rec": {
     "src": "market",
-    "same_side": false,
+    "same_side": true,
     "first_t": "09:02",
     "first_price": 400.0,
     "vc": "warn",
@@ -80,7 +80,7 @@
     "best_vc": "warn",
     "close_net": null
    },
-   "added_at": "2026-11-03T10:27:28",
+   "added_at": "2026-11-03T12:19:24",
    "net_src": "對帳單",
    "side_known": true
   }
