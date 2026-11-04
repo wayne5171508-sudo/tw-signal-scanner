@@ -83,6 +83,37 @@
    "added_at": "2026-11-03T12:19:24",
    "net_src": "對帳單",
    "side_known": true
+  },
+  {
+   "id": 4,
+   "date": "2026-11-04",
+   "code": "1815",
+   "name": "富喬",
+   "side": "long",
+   "entry": 137.5,
+   "exit": 136.0,
+   "shares": 1000,
+   "time_in": null,
+   "time_out": null,
+   "gross": -1500,
+   "fee": 108,
+   "tax": 204,
+   "net": -1812,
+   "pct": -1.091,
+   "note": "",
+   "rec": {
+    "src": "market",
+    "same_side": true,
+    "first_t": "09:08",
+    "first_price": 135.5,
+    "vc": "warn",
+    "score": 60,
+    "best_vc": "warn",
+    "close_net": -3.92
+   },
+   "added_at": "2026-11-04T13:45:14",
+   "net_src": "對帳單",
+   "side_known": true
   }
  ]
 }
