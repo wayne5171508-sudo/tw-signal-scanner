@@ -1,19 +1,19 @@
 {
-  "checked_at": "2026-11-05T09:09:35+08:00",
+  "checked_at": "2026-11-05T09:10:35+08:00",
   "trade_date": "2026-11-05",
-  "ok": false,
+  "ok": true,
   "items": [
     {
       "key": "quotes",
       "name": "盤中報價",
       "ok": true,
-      "detail": "最後報價 09:09,距今 0 分鐘"
+      "detail": "最後報價 09:10,距今 0 分鐘"
     },
     {
       "key": "bars",
       "name": "日K資料",
-      "ok": false,
-      "detail": "partial 76/79(來源無日K:7781)"
+      "ok": true,
+      "detail": "ok 79/79(來源無日K:7781)"
     },
     {
       "key": "market",
