@@ -16,6 +16,8 @@ import os
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
+import diag
+
 TAIPEI = ZoneInfo("Asia/Taipei")
 D = "data"
 OUT = os.path.join(D, "health.json")
@@ -141,6 +143,10 @@ def run(now=None):
     bad = [r for r in tr if r.get("signal_date") in idx and r.get("checked_date") in idx
            and idx[r["checked_date"]] != idx[r["signal_date"]] + 1]
     sc = load("latest.json", {}) or {}
+    tw = sc.get("twse_fetch") or {}
+    if tw:
+        fails = int(tw.get("failures") or 0)
+        add("twse", "證交所連線", fails == 0, f"最終失敗 {fails} 次,重試 {tw.get('retries', 0)} 次(共 {tw.get('attempts', 0)} 次請求)")
     shown = (sc.get("track_record_stats") or {}).get("sample_size")
     real = len([r for r in tr if r.get("close_return_pct") is not None][-60:])
     problems = []
@@ -151,6 +157,17 @@ def run(now=None):
     if shown is not None and shown != real:
         problems.append(f"網頁顯示 {shown} 筆,實際 {real} 筆")
     add("track", "隔日戰績", not problems, "、".join(problems) if problems else f"{len(tr)} 筆,無重複、皆為隔日")
+
+    # 9. 這一輪吞掉的警告。沒有 runtime 欄位的舊檔不檢查。
+    rt = latest.get("runtime") or {}
+    if rt:
+        w, e = int(rt.get("warn") or 0), int(rt.get("error") or 0)
+        add("runtime", "盤中警告", not diag.over_threshold(rt),
+            f"警告 {w}、錯誤 {e}" + (f":{';'.join(rt.get('samples') or [])[:80]}" if not diag.over_threshold(rt) else " 超過門檻"))
+    srt = sc.get("runtime") or {}
+    if srt:
+        w, e = int(srt.get("warn") or 0), int(srt.get("error") or 0)
+        add("scan_runtime", "掃描警告", not diag.over_threshold(srt), f"警告 {w}、錯誤 {e}")
 
     out = {
         "checked_at": now.isoformat(timespec="seconds"),

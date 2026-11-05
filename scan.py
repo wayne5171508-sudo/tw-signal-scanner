@@ -37,11 +37,17 @@ from zoneinfo import ZoneInfo
 
 import requests
 
+import diag
+
 TAIPEI = ZoneInfo("Asia/Taipei")
 HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; personal-trading-dashboard/1.0)"}
 TIMEOUT = 20
 DATA_DIR = "data"
 TRACK_RECORD_FILE = os.path.join(DATA_DIR, "track_record.json")
+TWSE_GAP = 0.4          # 連續打證交所至少間隔這麼多秒
+TWSE_TRIES = 3          # 失敗後指數退避再試
+TWSE_STATS = {"attempts": 0, "retries": 0, "failures": 0}
+_last_twse_at = 0.0
 
 
 # ---------- 基本工具 ----------
@@ -73,11 +79,50 @@ def clean_number(s):
 
 # ---------- TWSE 官方 API ----------
 
+def twse_get(url):
+    """證交所請求:每次至少間隔 TWSE_GAP 秒,失敗最多再試 TWSE_TRIES-1 次(0.4 秒、0.8 秒)。"""
+    global _last_twse_at
+    last_err = None
+    for attempt in range(TWSE_TRIES):
+        TWSE_STATS["attempts"] += 1
+        wait = TWSE_GAP - (time.time() - _last_twse_at) if _last_twse_at else 0
+        if wait > 0:
+            time.sleep(wait)
+        try:
+            r = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
+            _last_twse_at = time.time()
+            r.raise_for_status()
+            return r
+        except Exception as e:  # noqa: BLE001
+            _last_twse_at = time.time()
+            last_err = e
+            if attempt + 1 >= TWSE_TRIES:
+                TWSE_STATS["failures"] += 1
+                break
+            TWSE_STATS["retries"] += 1
+            time.sleep(TWSE_GAP * (2 ** attempt))
+    raise last_err
+
+
+def _attach_twse(result):
+    result["twse_fetch"] = {k: TWSE_STATS[k] for k in ("attempts", "retries", "failures")}
+
+
+def _emit(result):
+    """印出 JSON。警告太多就讓這個 job 失敗,單一股票的失敗只計數、仍會出現在 excluded。"""
+    _attach_twse(result)
+    result["runtime"] = diag.snapshot()
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    if diag.over_threshold():
+        rt = result["runtime"]
+        print(f"[錯誤] 警告 {rt['warn']}、錯誤 {rt['error']} 超過門檻,掃描失敗", file=sys.stderr)
+        raise SystemExit(1)
+
+
 def fetch_t86(date_str):
     """三大法人買賣超日報。date_str: YYYYMMDD。回傳 (stat, rows) rows是dict list。"""
     url = f"https://www.twse.com.tw/rwd/zh/fund/T86?date={date_str}&selectType=ALL&response=json"
-    r = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
-    r.raise_for_status()
+    r = twse_get(url)
     data = r.json()
     stat = data.get("stat", "")
     if stat != "OK":
@@ -93,8 +138,7 @@ def fetch_stock_day(stock_no, month_first_day_str):
         f"https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY"
         f"?date={month_first_day_str}&stockNo={stock_no}&response=json"
     )
-    r = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
-    r.raise_for_status()
+    r = twse_get(url)
     data = r.json()
     if data.get("stat") != "OK":
         return []
@@ -131,8 +175,7 @@ def fetch_recent_days(stock_no, today, min_rows=6):
 def fetch_margin(date_str):
     """融資融券日報。回傳 dict: 股票代號 -> row"""
     url = f"https://www.twse.com.tw/rwd/zh/marginTrading/MI_MARGN?date={date_str}&selectType=ALL&response=json"
-    r = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
-    r.raise_for_status()
+    r = twse_get(url)
     data = r.json()
     if data.get("stat") != "OK":
         return {}
@@ -164,8 +207,7 @@ def fetch_mi_index(date_str):
     """
     url = f"https://www.twse.com.tw/rwd/zh/afterTrading/MI_INDEX?date={date_str}&type=ALL&response=json"
     try:
-        r = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
-        r.raise_for_status()
+        r = twse_get(url)
         data = r.json()
         if data.get("stat") != "OK":
             return None
@@ -185,7 +227,7 @@ def fetch_mi_index(date_str):
                         return clean_number(row[pct_col])
         return None
     except Exception as e:  # noqa: BLE001
-        print(f"[warn] 大盤指數抓取失敗,略過: {e}", file=sys.stderr)
+        diag.warn(f"大盤指數抓取失敗,略過: {e}")
         return None
 
 
@@ -205,8 +247,7 @@ def fetch_all_quotes(date_str):
     官方資料、可以查歷史日期,所以盤後回補也能用(wantgoo 只有即時排行)。
     """
     url = f"https://www.twse.com.tw/rwd/zh/afterTrading/MI_INDEX?date={date_str}&type=ALLBUT0999&response=json"
-    r = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
-    r.raise_for_status()
+    r = twse_get(url)
     data = r.json()
     if data.get("stat") != "OK":
         return None
@@ -247,7 +288,7 @@ def market_rank(today, n_each=6, min_lots=1000, min_price=10.0, max_lookback=12)
         try:
             q = fetch_all_quotes(d.strftime("%Y%m%d"))
         except Exception as e:  # noqa: BLE001
-            print(f"[warn] 全市場行情 {d:%Y%m%d} 抓取失敗: {e}", file=sys.stderr)
+            diag.warn(f"全市場行情 {d:%Y-%m-%d} 抓取失敗: {e}")
             q = None
         if q:
             days.append((d.strftime("%Y-%m-%d"), q))
@@ -309,20 +350,26 @@ def fetch_industry_map(codes):
                 if industry and industry.lower() != "nan":
                     out[code] = industry
     except Exception as e:  # noqa: BLE001
-        print(f"[warn] 產業別對照抓取失敗,略過,族群效應標記為無法查核: {e}", file=sys.stderr)
+        diag.warn(f"產業別對照抓取失敗,略過,族群效應標記為無法查核: {e}")
     return out
 
 
 # ---------- 多空判讀技術面評分 ----------
 
-def tech_score(net_buy_lots, is_top_buyer, volume_multiple, price_change_pct, prev_close, close):
+def tech_score(net_buy_lots, is_top_buyer, volume_multiple, price_change_pct, prev_close, close, is_top_seller=False):
     """
-    依阿文既有的多空判讀公式算技術面評分T(-5~+5)。
-    買超方向±2分(規模全市場最大+0.5)、量能倍數爆量+1.5/放量+0.8、
-    量價關係同步+1/背離-1.5/溫和+0.5。
+    技術面評分,範圍 -5~+5。
+    買超 +2 / 賣超 -2;全市場買超最大再 +0.5、賣超最大再 -0.5。
+    量能:不是「賣超又下跌」時,爆量 +1.5、放量 +0.8(上漲那一側維持原公式)。
+    賣超又下跌則對稱扣分:下跌爆量 -1.5、下跌放量 -0.8、量價同步下跌 -1、沒放量的溫和下跌 -0.5。
+    買超但價跌仍是背離 -1.5,量能不加不減方向(標籤另走「中性(警示)」)。
     """
     score = 0.0
     breakdown = []
+    up = price_change_pct is not None and price_change_pct > 0
+    down = price_change_pct is not None and price_change_pct < 0
+    volume_up = volume_multiple is not None and volume_multiple >= 1.5
+    bearish_down = net_buy_lots < 0 and down
 
     if net_buy_lots > 0:
         score += 2
@@ -333,28 +380,42 @@ def tech_score(net_buy_lots, is_top_buyer, volume_multiple, price_change_pct, pr
     elif net_buy_lots < 0:
         score -= 2
         breakdown.append("賣超-2")
+        if is_top_seller:
+            score -= 0.5
+            breakdown.append("規模最大賣超-0.5")
 
-    if volume_multiple is not None:
-        if volume_multiple >= 3.0:
-            score += 1.5
-            breakdown.append("爆量+1.5")
-        elif volume_multiple >= 1.5:
-            score += 0.8
-            breakdown.append("放量+0.8")
+    if volume_up:
+        heavy = volume_multiple >= 3.0
+        if bearish_down:
+            if heavy:
+                score -= 1.5
+                breakdown.append("下跌爆量-1.5")
+            else:
+                score -= 0.8
+                breakdown.append("下跌放量-0.8")
+        else:
+            if heavy:
+                score += 1.5
+                breakdown.append("爆量+1.5")
+            else:
+                score += 0.8
+                breakdown.append("放量+0.8")
 
-    if price_change_pct is not None:
-        up = price_change_pct > 0
-        down = price_change_pct < 0
-        volume_up = volume_multiple is not None and volume_multiple >= 1.5
-        if up and volume_up:
-            score += 1
-            breakdown.append("量價同步上漲+1")
-        elif down and volume_up and net_buy_lots > 0:
-            score -= 1.5
-            breakdown.append("買超但價跌背離-1.5")
-        elif up and not volume_up:
-            score += 0.5
-            breakdown.append("溫和上漲+0.5")
+    if up and volume_up:
+        score += 1
+        breakdown.append("量價同步上漲+1")
+    elif down and volume_up and net_buy_lots > 0:
+        score -= 1.5
+        breakdown.append("買超但價跌背離-1.5")
+    elif bearish_down and volume_up:
+        score -= 1
+        breakdown.append("量價同步下跌-1")
+    elif up and not volume_up:
+        score += 0.5
+        breakdown.append("溫和上漲+0.5")
+    elif bearish_down and not volume_up:
+        score -= 0.5
+        breakdown.append("溫和下跌-0.5")
 
     return round(score, 2), "、".join(breakdown)
 
@@ -443,7 +504,7 @@ def compute_track_record(today_iso, month_first):
         try:
             days = fetch_stock_day(code, month_first)
         except Exception as e:  # noqa: BLE001
-            print(f"[warn] 戰績追蹤{code}的STOCK_DAY抓取失敗: {e}", file=sys.stderr)
+            diag.warn(f"戰績追蹤{code}的STOCK_DAY抓取失敗: {e}")
             continue
 
         if item["signal_date"][:7] != today_iso[:7]:
@@ -495,7 +556,7 @@ def compute_track_record(today_iso, month_first):
             with open(TRACK_RECORD_FILE, encoding="utf-8") as fh:
                 history = json.load(fh)
         except Exception as e:  # noqa: BLE001
-            print(f"[warn] 讀取track_record.json失敗,視為空歷史: {e}", file=sys.stderr)
+            diag.warn(f"讀取track_record.json失敗,視為空歷史: {e}")
             history = []
 
     # v11.4:同一個訊號只驗證一次(排程重跑、或延遲造成同一天跑兩次,都不會重複計入)
@@ -531,6 +592,20 @@ def track_stats(history):
     return stats
 
 
+def published_scan_text(iso_date):
+    """這個交易日已經有一份 market_status=OK 的存檔,就回傳原始文字(不重算、不改內容)。"""
+    path = os.path.join(DATA_DIR, f"{iso_date}.json")
+    try:
+        with open(path, encoding="utf-8") as fh:
+            raw = fh.read()
+        data = json.loads(raw)
+    except (OSError, ValueError):
+        return None
+    if data.get("market_status") == "OK" and data.get("date") == iso_date:
+        return raw
+    return None
+
+
 # ---------- 主流程 ----------
 
 def resolve_latest_trading_day(run_time, max_lookback_days=7):
@@ -558,6 +633,8 @@ def resolve_latest_trading_day(run_time, max_lookback_days=7):
 
 
 def main():
+    diag.reset()
+    TWSE_STATS["attempts"] = TWSE_STATS["retries"] = TWSE_STATS["failures"] = 0
     run_time = taipei_now()
     # 回補模式:SCAN_DATE=YYYY-MM-DD 指定要重算的交易日(backfill.yml 用)
     backfill_date = os.environ.get("SCAN_DATE", "").strip()
@@ -569,6 +646,15 @@ def main():
     date_str = today.strftime("%Y%m%d")
     iso_date = today.strftime("%Y-%m-%d")
     month_first = today.strftime("%Y%m") + "01"
+
+    # 非交易日或排程跨午夜重跑時,解析出來的還是上一個有資料的交易日。
+    # 那天的 OK 存檔已經在,就原樣輸出,避免重算後覆蓋 data/日期.json。
+    if stat == "OK" and not backfill_date and os.environ.get("SCAN_FORCE") != "1":
+        raw = published_scan_text(iso_date)
+        if raw is not None:
+            sys.stdout.write(raw if raw.endswith("\n") else raw + "\n")
+            print(f"[略過] {iso_date} 的盤後掃描已存在,不覆蓋", file=sys.stderr)
+            return
 
     result = {
         "date": iso_date,
@@ -604,7 +690,7 @@ def main():
     if stat != "OK":
         result["market_status"] = "data_not_ready_or_no_trading_day"
         result["t86_stat_raw"] = stat
-        print(json.dumps(result, ensure_ascii=False, indent=2))
+        _emit(result)
         return
 
     result["market_status"] = "OK"
@@ -628,6 +714,8 @@ def main():
     top8 = [p for p in parsed if p["net_buy_lots"] > 0][:8]
     result["institutional_buy_rank_top8"] = top8
     max_net_buy_code = top8[0]["code"] if top8 else None
+    neg = [p for p in parsed if p["net_buy_lots"] < 0]
+    max_net_sell_code = min(neg, key=lambda p: p["net_buy_lots"])["code"] if neg else None
 
     # 候選名單來源二(wantgoo 量能異常 + 漲幅排行, best-effort)
     # v11.5:wantgoo 從 10/12 起都抓不到(候選只剩法人前8),改用證交所官方全市場資料自己排行
@@ -635,7 +723,7 @@ def main():
     try:
         rank = market_rank(today)
     except Exception as e:  # noqa: BLE001
-        print(f"[warn] 全市場排行失敗,略過: {e}", file=sys.stderr)
+        diag.warn(f"全市場排行失敗,略過: {e}")
     result["market_rank"] = rank or {"note": "全市場排行這次抓不到,候選名單只有法人買超"}
     rank_codes = []
     if rank:
@@ -673,6 +761,7 @@ def main():
         try:
             days = fetch_recent_days(code, today)
         except Exception as e:  # noqa: BLE001
+            diag.warn(f"{code} STOCK_DAY抓取失敗: {e}")
             excluded.append({"code": code, "reason": f"STOCK_DAY抓取失敗: {e}"})
             continue
 
@@ -704,8 +793,12 @@ def main():
 
         net_buy_lots = net_buy_lookup.get(code, 0)
         is_top_buyer = code == max_net_buy_code
+        is_top_seller = code == max_net_sell_code
 
-        score, breakdown = tech_score(net_buy_lots, is_top_buyer, volume_multiple, change_pct, prev_close, close)
+        score, breakdown = tech_score(
+            net_buy_lots, is_top_buyer, volume_multiple, change_pct, prev_close, close,
+            is_top_seller=is_top_seller,
+        )
         diverged = (
             change_pct is not None and change_pct < 0
             and volume_multiple is not None and volume_multiple >= 1.5
@@ -728,7 +821,8 @@ def main():
         gap_pct = round((open_p - prev_close) / prev_close * 100, 2) if (open_p is not None and prev_close) else None
         gap_tag = "large_gap" if (gap_pct is not None and abs(gap_pct) >= 2) else "normal"
 
-        # 損益平衡提醒:當沖來回手續費+證交稅大約0.5~0.6%,漲跌幅太小扣掉成本所剩不多
+        # 漲跌幅絕對值小於 1% 標 below_cost。這是操作空間提醒,門檻維持 1%,不跟費率連動。
+        # 當沖來回成本見 cost.py(約 0.23 個百分點),不是以前註解寫的 0.5% 到 0.6%。
         cost_breakeven_tag = "below_cost" if (change_pct is not None and abs(change_pct) < 1.0) else "normal"
 
         # 漲停可執行性(概略估算,實際跳動點位以交易所公告為準,這裡只做粗略提醒)
@@ -814,7 +908,7 @@ def main():
                     if today_bal is not None and prev_bal is not None:
                         e["margin_change"] = today_bal - prev_bal
         except Exception as e:  # noqa: BLE001
-            print(f"[warn] 融資融券抓取失敗,略過: {e}", file=sys.stderr)
+            diag.warn(f"融資融券抓取失敗,略過: {e}")
 
     # 連續買超天數(查最近3天T86,比對同一批候選股)
     try:
@@ -851,22 +945,22 @@ def main():
                     break
             e["consecutive_buy_days"] = streak if streak > 0 else "無法確認"
     except Exception as e:  # noqa: BLE001
-        print(f"[warn] 連續買超天數計算失敗,略過: {e}", file=sys.stderr)
+        diag.warn(f"連續買超天數計算失敗,略過: {e}")
 
     # 戰績追蹤:回頭驗證前一個交易日標記過的股票,今天實際表現如何
     # (回補模式不在這裡算,補完後由 rebuild_track.py 依相鄰交易日整份重建)
     if backfill_date:
-        print(json.dumps(result, ensure_ascii=False, indent=2))
+        _emit(result)
         return
     try:
         track_new, track_stats = compute_track_record(iso_date, month_first)
         result["track_record_new_entries"] = track_new
         result["track_record_stats"] = track_stats
     except Exception as e:  # noqa: BLE001
-        print(f"[warn] 戰績追蹤計算失敗,略過: {e}", file=sys.stderr)
+        diag.warn(f"戰績追蹤計算失敗,略過: {e}")
         result["track_record_stats"] = {"sample_size": 0, "note": "本次執行時戰績追蹤計算失敗,不影響其他資料"}
 
-    print(json.dumps(result, ensure_ascii=False, indent=2))
+    _emit(result)
 
 
 if __name__ == "__main__":

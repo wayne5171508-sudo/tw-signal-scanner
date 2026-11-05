@@ -15,6 +15,8 @@ import json
 import os
 from datetime import datetime
 
+import cost
+
 DATA_DIR = "data"
 ARCHIVE_DIR = os.path.join(DATA_DIR, "intraday_archive")
 REVIEW_FILE = os.path.join(DATA_DIR, "review.json")
@@ -24,7 +26,7 @@ MARKET_DIR = os.path.join(DATA_DIR, "mkt")
 MARKET_FILE = os.path.join(DATA_DIR, "market_scan.json")
 ARCHIVE_KEEP_DAYS = 120     # 約半年;一天約60~90KB
 REVIEW_KEEP_DAYS = 30
-COST_PCT = 0.23         # 當沖來回成本(手續費 2.8 折 + 當沖證交稅),和訊號實驗室、daytrade_lab 一致
+COST_PCT = cost.ROUND_TRIP_PCT   # 當沖來回成本,費率只定義在 cost.py
 NEAR_HIGH_PCT = 1.0     # 收盤離今日最高/最低在 1% 以內算「收在高點/低點」
 
 

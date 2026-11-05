@@ -23,9 +23,12 @@ import os
 import sys
 from datetime import datetime
 
+import cost
+
 FILE = os.path.join("data", "journal.json")
-FEE_RATE, FEE_DISCOUNT, FEE_MIN = 0.001425, 0.28, 1      # 阿文的券商手續費 2.8 折;對帳單 7781 每邊只收 11、9 元,沒有 20 元下限
-DAYTRADE_TAX = 0.0015
+FEE_RATE, FEE_DISCOUNT = cost.FEE_RATE, cost.FEE_DISCOUNT
+DAYTRADE_TAX = cost.DAYTRADE_TAX
+FEE_MIN = 1      # 阿文的券商沒有 20 元下限;對帳單 7781 每邊只收 11、9 元,這裡用 1 元避免算成 0
 
 
 def load():

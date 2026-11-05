@@ -30,11 +30,4 @@ jobs:
       - name: 拍隔夜風向快照
         run: python overnight.py
       - name: 存回 repo
-        run: |
-          [ -f data/overnight.json ] || { echo "沒有產生檔案"; exit 0; }
-          git config user.name "tw-signal-scanner-bot"
-          git config user.email "actions@users.noreply.github.com"
-          git add data/overnight.json
-          if git diff --quiet --cached; then echo "沒有變更"; exit 0; fi
-          git commit -m "隔夜風向 $(TZ=Asia/Taipei date +'%Y-%m-%d %H:%M')"
-          git push || (git pull --rebase origin main && git push)
+        run: bash .github/scripts/commit_data.sh "隔夜風向 $(TZ=Asia/Taipei date +'%Y-%m-%d %H:%M')" data/overnight.json

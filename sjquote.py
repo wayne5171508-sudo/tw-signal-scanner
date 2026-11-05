@@ -124,6 +124,7 @@ SERIAL_SEC = 900          # 同時查出錯(不是逾時)就先改回一檔一�
 QUERY_TIMEOUT_MS = 8000   # 單檔 1 分K / 逐筆最多等幾毫秒(永豐預設 30 秒,10/30 開盤一檔就卡 30 秒)
 _serial_until = 0.0
 _qkw = {"timeout": QUERY_TIMEOUT_MS}   # 舊版套件不收 timeout 就拿掉
+ROUND_DEADLINE = None     # loop.py 每輪設成「開始時間 + 50 秒」(epoch);沒設就只看這次呼叫的 budget
 
 
 def is_timeout(e):
@@ -132,15 +133,22 @@ def is_timeout(e):
 
 
 def _query_many(api, codes, call, budget, gap):
-    """每檔 call(代號, contract) 一次,最多 QUERY_WORKERS 條同時查;超過 budget 秒就不再送新的。
-    依完成順序回傳 [(代號, 結果, 例外)],結果的處理(改 state、算失敗次數)留給呼叫端在主執行緒做。"""
-    from concurrent.futures import ThreadPoolExecutor
+    """每檔 call(代號, contract) 一次,最多 QUERY_WORKERS 條同時查。
+    截止時間取「這次 budget」和「整輪 ROUND_DEADLINE」較早的那個。
+    時間到就不再等已經送出、還沒回來的請求,剩下的下一輪再抓。
+    回傳 ([(代號, 結果, 例外)], 是否沒抓完),順序跟 codes 一樣。"""
+    from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
     global _serial_until
     t0 = time.time()
+    deadline = t0 + max(0.0, budget)
+    if ROUND_DEADLINE is not None:
+        deadline = min(deadline, ROUND_DEADLINE)
     jobs = [(c, k) for c in codes if (k := _contract(api, c)) is not None]
+    if not jobs or time.time() >= deadline:
+        return [], bool(jobs)
 
     def one(job):
-        if time.time() - t0 > budget:
+        if time.time() >= deadline:
             return job[0], None, None, True
         try:
             res, err = call(*job), None
@@ -155,13 +163,35 @@ def _query_many(api, codes, call, budget, gap):
                     res, err = None, e2
         except Exception as e:  # noqa: BLE001  單檔失敗不影響其他檔
             res, err = None, e
-        time.sleep(gap)
+        if gap:
+            time.sleep(gap)
         return job[0], res, err, False
 
     workers = 1 if time.time() < _serial_until else QUERY_WORKERS
-    with ThreadPoolExecutor(max_workers=workers) as ex:
-        done = list(ex.map(one, jobs))
-    out = [(c, r, e) for c, r, e, skipped in done if not skipped]
+    ex = ThreadPoolExecutor(max_workers=workers)
+    inflight, pending, finished = {}, list(jobs), []
+    try:
+        while pending or inflight:
+            while pending and len(inflight) < workers and time.time() < deadline:
+                job = pending.pop(0)
+                inflight[ex.submit(one, job)] = job[0]
+            if not inflight:
+                break
+            remaining = deadline - time.time()
+            if remaining <= 0:
+                break
+            done, _pending = wait(set(inflight), timeout=remaining, return_when=FIRST_COMPLETED)
+            if not done:
+                break
+            for fut in done:
+                inflight.pop(fut, None)
+                finished.append(fut.result())
+    finally:
+        # wait=False:到點還沒回來的請求不要卡住這一輪。cancel_futures 只取消還沒開始的。
+        ex.shutdown(wait=False, cancel_futures=True)
+    out = [(c, r, e) for c, r, e, skipped in finished if not skipped]
+    order = {c: i for i, (c, _) in enumerate(jobs)}
+    out.sort(key=lambda x: order.get(x[0], len(jobs)))
     if workers > 1 and sum(e is not None and not is_timeout(e) for _, _, e in out) >= 2:
         _serial_until = time.time() + SERIAL_SEC
         _log(f"同時查詢出錯,先改回一檔一檔查 {SERIAL_SEC // 60} 分鐘")
@@ -308,7 +338,7 @@ _BOOK = {}                  # 五檔訂閱收到的最新一筆:{代號: (收到
 _SUBS = set()
 _SUB_API = None
 _SEEN = {}                  # 五檔:每檔最後一次被要求的時間;超過 BOOK_KEEP 秒沒人要才退訂
-BOOK_KEEP = 600
+BOOK_KEEP = 4 * 3600         # 訂過的五檔留 4 小時。短名單每幾十分鐘換檔,10 分鐘就退訂會在同一天反覆訂閱(11/03 共 175 檔、628 次)
 
 
 def _wall_hms(ts_ns):
@@ -387,9 +417,18 @@ def _on_bidask(exchange, ba):
         pass
 
 
+def subscription_delta(subscribed, seen, want, now, hold):
+    """只處理差集。(要新訂的代號, 要退訂的代號)。
+    已訂過的不重訂。退訂只針對超過 hold 秒沒再出現在名單裡的。名單沒變就兩邊都空。"""
+    want = set(want)
+    new = sorted(want - set(subscribed))
+    drop = sorted(c for c in subscribed if c not in want and now - seen.get(c, now) > hold)
+    return new, drop
+
+
 def watch_books(codes):
-    """五檔即時訂閱(盤中常駐迴圈才有用,因為要一直開著連線收推播):訂閱 codes 裡還沒訂的;
-    退訂超過 BOOK_KEEP 秒沒被要求的(同一輪自選股、全市場各呼叫一次,不能互相退訂)。
+    """五檔即時訂閱(盤中常駐迴圈才有用,因為要一直開著連線收推播)。
+    只訂還沒訂的、只退訂超過 BOOK_KEEP 秒沒人要的。同一輪自選股和全市場各呼叫一次,不能互相退訂。
     回傳 {代號: {"imb": 委買委賣失衡 %(+ 委買多)、"bid","ask": 5 檔量合計, "age": 幾秒前}};還沒收到的不放。"""
     global _SUB_API
     api = _login()
@@ -408,7 +447,8 @@ def watch_books(codes):
     want, now0 = set(codes), time.time()
     for code in want:
         _SEEN[code] = now0
-    for code in sorted(want - _SUBS):
+    new, drop = subscription_delta(_SUBS, _SEEN, want, now0, BOOK_KEEP)
+    for code in new:
         k = _contract(api, code)
         if k is None:
             continue
@@ -417,7 +457,7 @@ def watch_books(codes):
             _SUBS.add(code)
         except Exception as e:  # noqa: BLE001
             _log(f"{code} 五檔訂閱失敗: {type(e).__name__}: {str(e)[:100]}")
-    for code in sorted(c for c in _SUBS if now0 - _SEEN.get(c, 0) > BOOK_KEEP):
+    for code in drop:
         k = _contract(api, code)
         try:
             if k is not None:

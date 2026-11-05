@@ -29,7 +29,7 @@ jobs:
           python-version: "3.11"
           cache: pip
           cache-dependency-path: requirements.txt
-      - run: pip install -r requirements.txt shioaji
+      - run: pip install -r requirements.txt
       - name: 回補(只讀行情資料,不下單)
         env:
           SJ_API_KEY: ${{ secrets.SJ_API_KEY }}
@@ -40,16 +40,5 @@ jobs:
           python -u sj_backfill.py --days "$DAYS" --max-seconds 4200 2>&1 | sed -E -e 's/[A-Z][12][0-9]{8}/[已遮蔽]/g' -e "s/(account_id|person_id|broker_id)([\\\"' :=]+)[0-9A-Za-z]+/\1\2[已遮蔽]/g"
       - name: 存回 repo
         run: |
-          git config user.name "tw-signal-scanner-bot"
-          git config user.email "actions@users.noreply.github.com"
-          # 只 add 存在的(backfill_tried.json 沒有缺資料的股票時不會產生;10/29 晚上因此整批沒存到)
-          for f in data/bars5m data/bars5m_top data/backfill_status.json data/backfill_tried.json; do
-            [ -e "$f" ] && git add "$f"
-          done
-          git diff --quiet --cached && exit 0
-          git commit -m "永豐 1 分K 回補 $(TZ=Asia/Taipei date +'%Y-%m-%d %H:%M')"
-          for i in 1 2 3; do
-            git pull --rebase origin main && git push && exit 0
-            git rebase --abort 2>/dev/null; sleep 10
-          done
-          echo "push 失敗,這次回補的資料沒推上去(明晚會重抓)"; exit 1
+          bash .github/scripts/commit_data.sh "永豐 1 分K 回補 $(TZ=Asia/Taipei date +'%Y-%m-%d %H:%M')" \
+            data/bars5m data/bars5m_top data/backfill_status.json data/backfill_tried.json

@@ -5,10 +5,10 @@ jobs:
   quote:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
-      - run: pip install -U shioaji
+      - run: pip install "shioaji==1.7.10"
       - name: 正式環境抓即時行情
         env:
           SJ_API_KEY: ${{ secrets.SJ_API_KEY }}
@@ -27,7 +27,7 @@ jobs:
           api.logout()
           EOF
           python -u q.py 2>&1 | sed -E -e 's/[A-Z][12][0-9]{8}/[已遮蔽]/g' -e "s/(account_id|person_id|broker_id)([\\\"' :=]+)[0-9A-Za-z]+/\1\2[已遮蔽]/g"
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           path: repo
       - name: 今天 1 分K → 5 分K(確認時間寫法、量的單位)

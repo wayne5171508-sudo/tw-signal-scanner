@@ -24,11 +24,13 @@ import json
 import math
 import os
 
+import cost
+
 TEAM_DIR = os.path.join("data", "team")
 INDEX_FILE = os.path.join(TEAM_DIR, "index.json")
 ZONE_BAND_PCT = 0.15      # 和 classic.html 一樣:均價線上下 0.15% 算平衡區
 MIN_RR = 1.5              # 和 classic.html RISK_DEF.minRR 一樣
-COST_PCT = 0.23           # 當沖來回成本(和 daytrade_lab 一致,手續費 2.8 折),只用在「收盤淨報酬」
+COST_PCT = cost.ROUND_TRIP_PCT   # 收盤淨報酬扣的來回成本,費率只定義在 cost.py
 MAX_PICKS = 12
 NO_NEW_AFTER = 265        # 13:25 起是收盤集合競價(價格成交不到),之後不新增推薦,只更新既有的            # 每一輪最多記幾檔(網頁看板顯示 8 檔,多記一點)
 ROLES = ("機會", "消息", "情緒", "圖表", "風險")

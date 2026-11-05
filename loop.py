@@ -6,8 +6,9 @@
   連線斷了 sjquote 會自己重新登入;登入不了就照舊用鉅亨。
 - 每輪對齊 5 分K 收盤:每根收完後 35 秒跑一輪(多空規則馬上用剛收完的那根判斷),兩根中間再補一輪
   (所以是 2、3 分鐘交錯);09:15 前每分鐘一輪(開盤爆量最需要快)。
-- 每輪先 git pull 拿最新程式與資料,重新載入 intraday 等模組(sjquote 不重載,保住連線;
-  sjquote.py 有改的話隔天才生效),跑完 commit + push。
+- 啟動時把 .py 複製到暫存目錄,整趟行程都從那份載入。每輪只快轉 git,以便推送資料;
+  盤中新推進 main 的程式要等下一趟 job 才會執行(公開 repo 不能在握著永豐金鑰時跑剛拉下來的程式)。
+  sjquote 不重載,保住連線。跑完只提交 data/,衝突時 data 留這一輪,不 reset --hard。
 - 每輪另外寫 data/stamp.json(只有更新時間),網頁每 15 秒看一次這個小檔,有新資料才整包重抓。
 
 手動測試:python loop.py --once   (只跑一輪,不 commit)
@@ -17,9 +18,11 @@ import hashlib
 import importlib
 import json
 import os
+import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 import time
 import traceback
 from datetime import datetime, timedelta
@@ -31,9 +34,11 @@ START_HM, END_HM = (8, 55), (13, 40)
 WAIT_MAX_SEC = 3600        # 離 08:55 超過 1 小時就不等(intraday.yml 接力最早 08:10 叫醒,要等得到)
 OFFSET_SEC = 35            # 5 分K 收盤後幾秒跑(intraday.K5_SETTLE_SEC 是 30 秒,要比它晚一點)
 FAST_UNTIL = 9 * 60 + 15   # 這個時間(分鐘)之前每分鐘一輪
-ROUND_TIMEOUT = 200        # 一輪最多幾秒,超過就放棄這一輪
+ROUND_TIMEOUT = 200        # 一輪硬上限(秒),超過就放棄這一輪;平時靠下面的查詢截止,不要拖到這裡
+ROUND_BUDGET_SECONDS = 50  # 永豐 1 分K / 逐筆整輪共用的截止(09:15 前每分鐘一輪,超過 60 秒就會吃掉下一輪)
 STAMP_FILE = os.path.join("data", "stamp.json")
 KEEP_MODULES = {"sjquote", "loop", "__main__"}
+PIN_DIR = os.path.join(tempfile.gettempdir(), "tw-signal-pinned-src")
 
 
 class RoundTimeout(BaseException):
@@ -55,42 +60,107 @@ def next_slot(t):
 
 
 def git(*args):
-    """git 子程序;逾時或執行不了都回傳 1(不能讓網路卡住讓整天的迴圈當掉)。"""
+    """git 子程序;逾時或執行不了都回傳 1(不能讓網路卡住讓整天的迴圈當掉)。
+    hooksPath 指到空目錄,避免 pull 到的 commit 用 hook 在還握著金鑰的行程裡跑程式。"""
     try:
-        return subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True, timeout=90).returncode
+        return subprocess.run(
+            ["git", "-c", "core.hooksPath=/dev/null", *args],
+            cwd=ROOT, capture_output=True, text=True, timeout=90,
+        ).returncode
     except (subprocess.TimeoutExpired, OSError) as e:
         print(f"git {args[0]} 失敗: {type(e).__name__}")
         return 1
 
 
+def git_out(*args):
+    try:
+        r = subprocess.run(
+            ["git", "-c", "core.hooksPath=/dev/null", *args],
+            cwd=ROOT, capture_output=True, text=True, timeout=90,
+        )
+        return r.returncode, r.stdout
+    except (subprocess.TimeoutExpired, OSError) as e:
+        print(f"git {args[0]} 失敗: {type(e).__name__}")
+        return 1, ""
+
+
+def pin_sources():
+    """把啟動當下的 .py 複製出來。後面即使快轉到新的 main,這一趟行程仍 import 這份。"""
+    os.makedirs(PIN_DIR, exist_ok=True)
+    for name in os.listdir(PIN_DIR):
+        if name.endswith(".py"):
+            os.remove(os.path.join(PIN_DIR, name))
+    for name in os.listdir(ROOT):
+        if name.endswith(".py"):
+            shutil.copy2(os.path.join(ROOT, name), os.path.join(PIN_DIR, name))
+    while PIN_DIR in sys.path:
+        sys.path.remove(PIN_DIR)
+    sys.path.insert(0, PIN_DIR)
+
+
 def pull():
-    if git("pull", "--rebase", "--autostash", "origin", "main") != 0:
+    """只快轉到 origin/main,好讓下一輪推得上去。不在這裡重新載入程式。"""
+    if git("fetch", "origin", "main") != 0:
+        print("fetch失敗,沿用目前資料")
+        return
+    if git("merge", "--ff-only", "origin/main") != 0:
+        print("無法快轉(本地還有沒推上去的提交),沿用目前版本")
+
+
+def _rebase_keep_round():
+    """把本地提交接到 origin/main。data/ 衝突留下這一輪,其他檔用遠端。
+    接不上就中止 rebase,不 reset --hard,這一輪的 commit 還在。"""
+    if git("fetch", "origin", "main") != 0:
+        return False
+    if git("rebase", "origin/main") == 0:
+        return True
+    code, names = git_out("diff", "--name-only", "--diff-filter=U")
+    if code != 0 or not names.strip():
         git("rebase", "--abort")
-        print("pull失敗,沿用目前版本")
+        return False
+    for name in names.splitlines():
+        # rebase 時 --theirs 是正在重放的這一輪,--ours 是 origin/main
+        side = "--theirs" if name.startswith("data/") else "--ours"
+        if git("checkout", side, "--", name) != 0 or git("add", "--", name) != 0:
+            git("rebase", "--abort")
+            return False
+    env = os.environ.copy()
+    env["GIT_EDITOR"] = "true"
+    try:
+        r = subprocess.run(
+            ["git", "-c", "core.hooksPath=/dev/null", "rebase", "--continue"],
+            cwd=ROOT, capture_output=True, text=True, timeout=90, env=env,
+        )
+    except (subprocess.TimeoutExpired, OSError):
+        git("rebase", "--abort")
+        return False
+    if r.returncode != 0:
+        git("rebase", "--abort")
+        return False
+    return True
 
 
 def commit_push(t):
     git("add", "-A", "data/")
     if git("diff", "--quiet", "--cached") == 0:
         return
-    git("commit", "-m", f"盤中報價更新 {t:%Y-%m-%d %H:%M}")
-    if git("push") == 0:
+    if git("commit", "-m", f"盤中報價更新 {t:%Y-%m-%d %H:%M}") != 0:
+        print("commit 失敗,這一輪先留在工作區")
         return
-    # 被拒:別的 workflow 剛推過 data/。先試 rebase(衝突時 data 以這一輪為準),再不行就丟掉這一輪的 commit
-    # 對齊遠端,下一輪重新算一次(不然同一個衝突的 commit 每輪都會卡住,整天推不上去)
-    if git("pull", "--rebase", "-X", "theirs", "origin", "main") == 0 and git("push") == 0:
-        return
-    git("rebase", "--abort")
-    git("fetch", "origin", "main")
-    git("reset", "--hard", "origin/main")
-    print("push失敗:已對齊遠端,下一輪重新產生資料")
+    for _ in range(3):
+        if git("push") == 0:
+            return
+        if not _rebase_keep_round():
+            break
+    print("push失敗,這一輪留在本地,下一輪再試")
 
 
 def fresh_intraday():
-    """把 repo 裡的模組(sjquote 以外)全部丟掉重新 import,效果等於每輪重開程式,但永豐連線留著。"""
+    """把盤中模組丟掉重載。只從啟動時複製的目錄載,sjquote 留著以保住永豐連線。"""
+    roots = {os.path.abspath(ROOT), os.path.abspath(PIN_DIR)}
     for name, mod in list(sys.modules.items()):
         f = getattr(mod, "__file__", None)
-        if name not in KEEP_MODULES and f and os.path.dirname(os.path.abspath(f)) == ROOT:
+        if name not in KEEP_MODULES and f and os.path.dirname(os.path.abspath(f)) in roots:
             del sys.modules[name]
     importlib.invalidate_caches()
     import intraday
@@ -137,6 +207,7 @@ def run_round():
     try:
         import sjquote
         sjquote.STATS.update({"rows": 0, "asked": 0, "seconds": 0.0, "kbars": 0})
+        sjquote.ROUND_DEADLINE = time.time() + ROUND_BUDGET_SECONDS
     except ImportError:
         sjquote = None
     signal.signal(signal.SIGALRM, _alarm)
@@ -157,7 +228,9 @@ def run_round():
 
 def main():
     os.chdir(ROOT)
-    sys.path.insert(0, ROOT)
+    pin_sources()
+    if ROOT not in sys.path:
+        sys.path.append(ROOT)
     signal.signal(signal.SIGTERM, _term)
     sj_sha = _sha("sjquote.py")
     if "--once" in sys.argv:
