@@ -1,8 +1,8 @@
 {
- "as_of": "2026-11-05T13:38:08+08:00",
+ "as_of": "2026-11-06T13:38:09+08:00",
  "window": [
-  "2025-10-21",
-  "2026-11-05"
+  "2025-10-22",
+  "2026-11-06"
  ],
  "trade_days": 252,
  "codes_total": 221,
@@ -11,7 +11,7 @@
  "stock_days_now": 221,
  "files_saved": 7,
  "stopped": null,
- "remaining_mb": 390.6,
+ "remaining_mb": 402.7,
  "limit_mb": 524.3,
- "seconds": 154
+ "seconds": 171
 }
