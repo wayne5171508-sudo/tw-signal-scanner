@@ -1,8 +1,8 @@
 {
- "updated": "2026-11-06T13:30:35+08:00",
+ "updated": "2026-11-06T22:27:47+08:00",
  "status": {
   "t187ap04_L": "ok",
-  "mopsfin_t187ap04_O": "ok"
+  "mopsfin_t187ap04_O": "fail"
  },
  "keep_days": 7,
  "items": [
