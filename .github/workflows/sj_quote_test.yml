@@ -1,6 +1,9 @@
 name: 永豐正式行情測試
 on:
   workflow_dispatch:
+permissions:
+  contents: read
+
 jobs:
   quote:
     runs-on: ubuntu-latest

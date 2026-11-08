@@ -1,6 +1,9 @@
 name: 永豐功能探測
 on:
   workflow_dispatch:
+permissions:
+  contents: read
+
 jobs:
   probe:
     runs-on: ubuntu-latest

@@ -8,6 +8,9 @@ on:
     paths: ["bias.py", "daytrade_lab.py", ".github/workflows/score-backtest.yml"]
   workflow_dispatch: {}
 
+permissions:
+  contents: read
+
 jobs:
   backtest:
     runs-on: ubuntu-latest
