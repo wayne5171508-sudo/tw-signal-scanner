@@ -1,8 +1,8 @@
 {
- "updated": "2026-11-06T22:27:47+08:00",
+ "updated": "2026-11-09T09:00:35+08:00",
  "status": {
   "t187ap04_L": "ok",
-  "mopsfin_t187ap04_O": "fail"
+  "mopsfin_t187ap04_O": "ok"
  },
  "keep_days": 7,
  "items": [
@@ -824,15 +824,6 @@
    "title": "公告本公司資訊安全長異動",
    "clause": "第8款",
    "cat": "其他"
-  },
-  {
-   "code": "8358",
-   "name": "金居",
-   "date": "2026-10-31",
-   "time": "18:16",
-   "title": "代子公司COTECH DEVELOPMENT (PENANG) SDN. BHD.公告取得土地使用權資產",
-   "clause": "第20款",
-   "cat": "重大交易"
   }
  ],
  "source": "公開資訊觀測站重大訊息(證交所/櫃買 OpenAPI)"
