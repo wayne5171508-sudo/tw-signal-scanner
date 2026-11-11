@@ -389,7 +389,9 @@ function viewRadar(){
     <button class="btn" data-act="reload">刷新</button></div>`;
   if(!R || !R.stats) return head + `<div class="card"><div class="empty">今天還沒有全市場資料(盤中迴圈 09:01 開始,每輪寫進 data/market_radar.json)</div></div>`;
   const st = R.stats, md = st.mood, day = MDAY[R.date], age = radarAge();
-  const stale = staleNote(R.date) + (age !== null && age > 6 ? `<div class="card stale bad"><div style="padding:10px 18px;font-size:13px"><b>雷達已經 ${age} 分鐘沒更新</b>,下面的價位可能已經失效,下單前先看即時報價。</div></div>` : '');
+  const lag = R.k5_lag || [0, 0], lagNote = age !== null && lag[1] && lag[0] * 2 >= lag[1]
+    ? `<div class="card stale"><div style="padding:10px 18px;font-size:13px"><b>永豐 K 線延遲</b>:${lag[1]} 檔推薦裡有 ${lag[0]} 檔的 5 分K 落後 10 分鐘以上,均價線、開盤區間和停損停利可能是舊的。現價與漲跌幅仍是即時的。</div></div>` : '';
+  const stale = lagNote + staleNote(R.date) + (age !== null && age > 6 ? `<div class="card stale bad"><div style="padding:10px 18px;font-size:13px"><b>雷達已經 ${age} 分鐘沒更新</b>,下面的價位可能已經失效,下單前先看即時報價。</div></div>` : '');
   const tot = Math.max(1, st.up + st.down + st.flat);
   const breadth = `<div class="breadth"><i class="bu" style="width:${st.up / tot * 100}%"></i><i class="bf" style="width:${st.flat / tot * 100}%"></i><i class="bd" style="width:${st.down / tot * 100}%"></i></div>`;
   const cats = st.cats || [], strong = cats.slice(0, 5), weak = cats.slice(-5).reverse();

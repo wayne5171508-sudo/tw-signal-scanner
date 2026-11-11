@@ -361,6 +361,19 @@ def confirmed(picks, state, known, m):
     return [p for p in picks if known.get(p["code"]) == cur[p["code"]] or (seen[p["code"]][1] >= CONFIRM_ROUNDS and m < LATE_FROM)]
 
 
+def k5_lag(picks, k5, m):
+    """推薦裡有幾檔的 5 分K 落後 10 分鐘以上(或完全沒有):永豐 1 分K 逾時那幾輪,均價線、開盤區間、照計畫出場都是舊的。
+    回傳 [落後檔數, 推薦檔數];09:10 前還沒有收完的 K 棒,不算。"""
+    want = int((m * 60 - 30) // 300) * 5 - 5            # 最新一根收完的 5 分K 從開盤後第幾分鐘開始(和 intraday.K5_SETTLE_SEC 一致)
+    if want < 5:
+        return [0, len(picks)]
+    def start(code):
+        bars = (k5.get(code) or (None,))[0]
+        return (int(bars[-1]["t"][:2]) - 9) * 60 + int(bars[-1]["t"][3:]) if bars else None
+    late = sum(1 for p in picks if (s := start(p["code"])) is None or min(want, 265) - s >= 10)
+    return [late, len(picks)]
+
+
 def _day_sides(today):
     """今天已經推薦過的 {代號: 目前那筆的方向}。"""
     day = _load(os.path.join(DAY_DIR, f"{today}.json"), {})
@@ -407,7 +420,7 @@ def run(run_time, live, indices, watch, k5_loader, flags_loader, flow_loader=Non
     counter = [dict(deep_check(q, "long", k5, flags, hlc, mood, state), counter=True) for q in c_up] + \
               [dict(deep_check(q, "short", k5, flags, hlc, mood, state), counter=True) for q in c_dn]
     team._write(STATE_FILE, state)
-    out = {"as_of": run_time.strftime("%H:%M"), "date": today, "stats": st,
+    out = {"as_of": run_time.strftime("%H:%M"), "date": today, "stats": st, "k5_lag": k5_lag(picks, k5, m),
            "longs": [p for p in picks if p["side"] == "long"], "shorts": [p for p in picks if p["side"] == "short"], "counter": counter,
            "params": {"top_n": TOP_N, "pick_min": PICK_MIN, "threshold": bias.THRESHOLD, "min_vol": EARLY_MIN_VOL if m < 30 else MIN_VOL},
            "note": "全市場用多空分數機械式篩選;目前回測沒有站得住的多空分數規則,只是觀察名單,不構成買賣建議。"}

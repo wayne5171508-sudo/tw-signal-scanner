@@ -940,6 +940,13 @@ def test_confirmed_needs_consecutive_rounds_and_not_late():
     assert not market.pick_ok({"last": 100.0, "pct": 6.5, "upper_limit": 110.0, "parts": {"mkt": 20}}, 1)   # 已漲 6.5% 不追
 
 
+def test_k5_lag_counts_stale_and_missing_bars():
+    picks = [{"code": "A"}, {"code": "B"}, {"code": "C"}]
+    k5 = {"A": ([{"t": "10:30"}], None, 0), "B": ([{"t": "10:15"}], None, 0)}        # 10:36 時最新收完的是 10:30 那根
+    assert market.k5_lag(picks, k5, 96.6) == [2, 3]                                   # B 落後 15 分鐘、C 沒有 K 棒
+    assert market.k5_lag(picks, {}, 6) == [0, 3]                                      # 開盤頭幾分鐘還沒有收完的 K 棒
+
+
 def test_journal_costs_and_recommendation_match(tmp_path, monkeypatch):
     gross, fee, tax, net = journal.costs("long", 100, 102, 1000)
     assert gross == 2000 and fee == 39 + 40 and tax == 153 and net == 2000 - 79 - 153       # 0.1425% 打 2.8 折,買賣各一次,無條件捨去
