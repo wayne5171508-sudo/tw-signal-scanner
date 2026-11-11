@@ -385,7 +385,7 @@ function radarAge(){
 const radarAgeText = () => { const a = radarAge(); return a === null ? '' : `(${a <= 0 ? '剛剛' : a + ' 分前'})`; };
 function viewRadar(){
   const R = RADAR, head = `<div class="head"><div><div class="eyebrow">MARKET RADAR</div><h1>盤中雷達</h1>
-    <p class="sub">全市場約 650 檔(前一天量 ≥ 500 張)每輪用多空分數打分,列出做多、做空推薦,六個觀測員逐檔檢查。${R ? esc(mmdd(R.date)) + ' ' + esc(R.as_of) + ' 更新' + radarAgeText() : ''}</p></div>
+    <p class="sub">全市場${RADAR && RADAR.stats ? ' ' + RADAR.stats.n : '約 700'} 檔(前一天量 ≥ 500 張)每輪用多空分數打分,列出做多、做空推薦,六個觀測員逐檔檢查。${R ? esc(mmdd(R.date)) + ' ' + esc(R.as_of) + ' 更新' + radarAgeText() : ''}</p></div>
     <button class="btn" data-act="reload">刷新</button></div>`;
   if(!R || !R.stats) return head + `<div class="card"><div class="empty">今天還沒有全市場資料(盤中迴圈 09:01 開始,每輪寫進 data/market_radar.json)</div></div>`;
   const st = R.stats, md = st.mood, day = MDAY[R.date], age = radarAge();

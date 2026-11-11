@@ -2395,13 +2395,35 @@ def load_market_flags(run_time, codes):
         return cur.get("flags") or {}
 
 
+def warmup(run_time):
+    """開盤前(08:40~09:00)先把一天只抓一次的資料抓好:日K、交易限制、全市場名單。
+    不然全擠在 09:00 第一輪(11/9~11/11 那輪 70~145 秒,後面一兩輪被跳過,第一份雷達 09:04 才出來)。"""
+    if not 8 * 60 + 40 <= run_time.hour * 60 + run_time.minute < 9 * 60:
+        return
+    t0 = time.time()
+    for name, fn in (("日K", lambda: refresh_official_bars(run_time)), ("交易限制", lambda: load_trade_flags(run_time)),
+                     ("全市場名單與限制", lambda: load_market_flags(run_time, list(load_universe(run_time, [])[0] or {})))):
+        try:
+            fn()
+        except Exception as e:  # noqa: BLE001  暖身失敗沒關係,開盤那輪照舊會抓
+            print(f"[暖身] {name} 失敗: {type(e).__name__}: {str(e)[:100]}")
+    if time.time() - t0 > 2:
+        print(f"[暖身] 開盤前預抓 {time.time() - t0:.1f} 秒")
+
+
 def main():
     diag.reset()
     run_time = taipei_now()
+    laps, lap_t = [], [time.time()]
+
+    def lap(name):       # 分段計時:一輪超過 40 秒才印,查得出慢在哪
+        laps.append(f"{name} {time.time() - lap_t[0]:.0f}")
+        lap_t[0] = time.time()
 
     index_codes = [c for c, _ in INDICES]
     stock_codes = [f"TWS:{code}:STOCK" for code in WATCHLIST_NAMES]
     all_rows = fetch_quotes(index_codes + stock_codes)
+    lap("報價")
 
     indices_out = [row_to_quote(all_rows.get(code), code, name) for code, name in INDICES]
 
@@ -2416,6 +2438,7 @@ def main():
         session_date = datetime.fromtimestamp(max(ts_list), TAIPEI).strftime("%Y-%m-%d")
         if session_date != run_time.strftime("%Y-%m-%d"):
             print(f"[略過] 報價時間是 {session_date},今天 {run_time.strftime('%Y-%m-%d')} 還沒有新成交(休市或尚未開盤),這一輪不更新")
+            warmup(run_time)
             return
     else:
         diag.warn("報價沒有時間戳,無法判斷是否為交易日,照常處理")
@@ -2440,6 +2463,7 @@ def main():
         diag.warn(f"正式日K更新失敗,改用舊記錄: {e}")
         official = {}
     touch_summary = build_levels(watchlist_out, prev_bars, history_days, official, run_time.strftime("%Y-%m-%d"))
+    lap("日K")
     trade_flags = load_trade_flags(run_time)
     for q in watchlist_out:
         q["flags"] = (trade_flags.get("flags") or {}).get(q["code"])
@@ -2534,6 +2558,7 @@ def main():
     except Exception as e:  # noqa: BLE001
         diag.warn(f"讀取策略驗證結果失敗: {e}")
     write_json_atomic(OUT_FILE, result, separators=(",", ":"))
+    lap("自選股")
     try:
         dump_fields(all_rows, run_time)
         scan_market(run_time, set(WATCHLIST_NAMES), ((touch_summary or {}).get("regime_today") or {}).get("label"))
@@ -2545,6 +2570,7 @@ def main():
     except Exception as e:  # noqa: BLE001
         diag.warn(f"每輪全市場掃描失敗: {e}")
         live = None
+    lap("全市場掃描")
     try:
         import market        # 全市場雷達:全部股票打多空分數、市場統計、做多/做空推薦與每日紀錄
         if live:
@@ -2552,6 +2578,9 @@ def main():
                        lambda codes: load_market_flags(run_time, codes), lambda codes: load_flow(run_time, codes))
     except Exception as e:  # noqa: BLE001  全市場雷達是加分功能
         diag.warn(f"全市場雷達失敗: {type(e).__name__}: {e}")
+    lap("雷達")
+    if sum(int(x.rsplit(" ", 1)[1]) for x in laps) > 40:
+        print("[慢] 這一輪分段秒數:" + "、".join(laps))
     end_of_day_extras(run_time, indices_out, watchlist_out, (touch_summary or {}).get("regime_today"))
 
     result["runtime"] = diag.snapshot()

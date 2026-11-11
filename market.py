@@ -27,6 +27,10 @@ STATE_FILE = os.path.join(DATA_DIR, "mkt_state_today.json")   # 均價線歷史�
 TOP_N = 15                 # 做多、做空各挑幾檔
 PICK_MIN = 40              # 分數至少 ±40 才列入(門檻 60 以上會標「達門檻」)
 ROOM_MIN_PCT = 3.0         # 離漲停(做空是跌停)至少要有幾 % 才推
+# 以下三條來自 11/2~11/11 共 1,009 筆推薦的照計畫成績(樣本只有 8 天,之後要再驗證):
+CHASE_MAX_PCT = 6.0        # 已經順向漲跌超過這麼多不追(138 筆平均 -0.59%)
+LATE_FROM = 180            # 12:00 起不新增推薦,只更新已經在名單上的(93 筆平均 -0.42%)
+CONFIRM_ROUNDS = 2         # 連續幾輪都在名單上才算推薦(只出現 1~2 輪的 336 筆平均 -0.57%,來不及看也來不及下單)
 EARLY_MIN_VOL, MIN_VOL = 300, 1000   # 09:30 前累積量 >= 300 張、之後 >= 1000 張才列入推薦
 VWAP_LAG = 14              # 均價線方向:和約 15 分鐘前比(和 intraday.BIAS_VWAP_LAG 一樣)
 ORB_FROM, ORB_TO = 15, 25  # 09:15~09:25 第一輪記下當時的今日高低當開盤區間(挑出來的會再用真實 5 分K 校正)
@@ -162,6 +166,8 @@ def pick_ok(q, sg):
     - 離漲跌停不到 ROOM_MIN_PCT 不推(停利空間不夠,10/30 這組空單照計畫平均 -1.5%)"""
     if (q.get("parts") or {}).get("mkt", 0) * sg < 0:
         return False
+    if (_n(q.get("pct")) or 0) * sg >= CHASE_MAX_PCT:
+        return False
     room = _limit_room(q, sg)
     return room is None or room >= ROOM_MIN_PCT
 
@@ -275,10 +281,14 @@ def record(run_time, m, picks, qs, st, k5):
         code = key.split("#")[0]
         pk["active"] = "#" not in key and sides.get(code) == pk["first"]["side"]
         fs, q = pk["first"], by_code.get(code)
+        bars = (k5.get(code) or (None,))[0]
+        if "#" in key and bars and not pk.get("plan_exit"):     # 翻向另存的那筆也要有照計畫出場的成績(以前 32 筆裡 5 筆沒有)
+            pe = plan_exit(fs, bars)
+            if pe:
+                pk["plan_exit"] = pe
         if "#" in key or not q:
             continue
         pk["now"] = {"t": hm, "price": q["last"], "move": team._move(fs["side"], fs["price"], q["last"])}
-        bars = (k5.get(code) or (None,))[0]
         if bars and not pk.get("plan_exit"):
             pe = plan_exit(fs, bars)
             if pe:
@@ -338,6 +348,25 @@ def plan_exit(fs, bars):
     return None
 
 
+def confirmed(picks, state, known, m):
+    """這一輪真的要列出來的推薦:今天已經推薦過同方向的照舊;新的要連續 CONFIRM_ROUNDS 輪都在名單上,而且在 LATE_FROM 之前。
+    state["seen"] = {代號: [方向, 連續幾輪]},這一輪不在名單上的就清掉(要「連續」)。"""
+    seen = state.setdefault("seen", {})
+    cur = {p["code"]: (1 if p["side"] == "long" else -1) for p in picks}
+    for c, sg in cur.items():
+        prev = seen.get(c)
+        seen[c] = [sg, prev[1] + 1 if prev and prev[0] == sg else 1]
+    for c in set(seen) - set(cur):
+        del seen[c]
+    return [p for p in picks if known.get(p["code"]) == cur[p["code"]] or (seen[p["code"]][1] >= CONFIRM_ROUNDS and m < LATE_FROM)]
+
+
+def _day_sides(today):
+    """今天已經推薦過的 {代號: 目前那筆的方向}。"""
+    day = _load(os.path.join(DAY_DIR, f"{today}.json"), {})
+    return {k: p["first"]["side"] for k, p in (day.get("picks") or {}).items() if "#" not in k} if day.get("date") == today else {}
+
+
 def _day_codes(today):
     """今天已經推薦過的代號(掉出名單後,最大順向/逆向幅度也要繼續更新)。"""
     day = _load(os.path.join(DAY_DIR, f"{today}.json"), {})
@@ -374,7 +403,7 @@ def run(run_time, live, indices, watch, k5_loader, flags_loader, flow_loader=Non
     hlc = live.get("hlc") or {}
     picks = [deep_check(q, "long", k5, flags, hlc, mood, state) for q in longs] + \
             [deep_check(q, "short", k5, flags, hlc, mood, state) for q in shorts]
-    picks = [p for p in picks if plan_ok(p)]
+    picks = confirmed([p for p in picks if plan_ok(p)], state, _day_sides(today), m)
     counter = [dict(deep_check(q, "long", k5, flags, hlc, mood, state), counter=True) for q in c_up] + \
               [dict(deep_check(q, "short", k5, flags, hlc, mood, state), counter=True) for q in c_dn]
     team._write(STATE_FILE, state)

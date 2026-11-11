@@ -97,7 +97,11 @@ def _rule_params(side):
         pass
     best = ((_RULES["rules"].get("score_long" if side > 0 else "score_short") or {}).get("best") or {})
     stop, tgt = DEFAULT_RULE[side]
-    return best.get("stop") or stop, best.get("target") if best.get("stop") else tgt
+    if not best.get("stop"):
+        return stop, tgt
+    # 回測挑的參數不設停利時,用停損的 2 倍當停利:11/2~11/11 做多「不設停利」277 筆照計畫勝率 24.5%、平均 -0.46%,
+    # 而且沒有損益比,網頁「現在可看」永遠排不進去
+    return best["stop"], best.get("target") or round(best["stop"] * 2, 1)
 
 
 def trade_plan(q, side, levels):

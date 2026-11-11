@@ -132,14 +132,21 @@ def is_timeout(e):
     return "timeout" in type(e).__name__.lower() or "timeout" in str(e).lower()[:200]
 
 
+BUSY_ABORT = 6            # 一開頭連續這麼多檔逾時(沒有任何一檔成功)就當永豐在忙,這批不查了
+BUSY_SEC = 60             # 之後這麼多秒內的 1 分K / 逐筆查詢直接略過(同一輪後面的呼叫不用再白等)
+_busy_until = 0.0
+
+
 def _query_many(api, codes, call, budget, gap):
     """每檔 call(代號, contract) 一次,最多 QUERY_WORKERS 條同時查。
     截止時間取「這次 budget」和「整輪 ROUND_DEADLINE」較早的那個。
     時間到就不再等已經送出、還沒回來的請求,剩下的下一輪再抓。
     回傳 ([(代號, 結果, 例外)], 是否沒抓完),順序跟 codes 一樣。"""
     from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
-    global _serial_until
+    global _serial_until, _busy_until
     t0 = time.time()
+    if t0 < _busy_until:
+        return [], bool(codes)
     deadline = t0 + max(0.0, budget)
     if ROUND_DEADLINE is not None:
         deadline = min(deadline, ROUND_DEADLINE)
@@ -186,6 +193,11 @@ def _query_many(api, codes, call, budget, gap):
             for fut in done:
                 inflight.pop(fut, None)
                 finished.append(fut.result())
+            # 11/9~11/11 每天 09:05 那輪 74 檔全部逾時、白等 40 多秒:開頭全是逾時就提早收手
+            if len(finished) >= BUSY_ABORT and all(e is not None and is_timeout(e) for _, _, e, _sk in finished):
+                _busy_until = time.time() + BUSY_SEC
+                _log(f"開頭 {len(finished)} 檔全部逾時,永豐在忙,這批先不查({BUSY_SEC} 秒後再試)")
+                break
     finally:
         # wait=False:到點還沒回來的請求不要卡住這一輪。cancel_futures 只取消還沒開始的。
         ex.shutdown(wait=False, cancel_futures=True)
@@ -398,12 +410,16 @@ def tick_flow(codes, day, state, now_hms, budget=20.0):
     return state
 
 
+CLOSE_AUCTION = 13 * 60 + 25
+
+
 def flow_metrics(st, now_min):
     """state 一檔 → {"out": 全天外盤比 %, "out15": 最近 15 分鐘外盤比 %, "big": 大單淨買比 %(-100~100), "n15": 最近 15 分鐘內外盤量}。"""
     if not st:
         return None
     tot = st["out"] + st["in"]
-    recent = [v for k, v in st["m"].items() if int(k[:2]) * 60 + int(k[3:]) >= now_min - 15]
+    now_min = min(now_min, CLOSE_AUCTION)      # 13:25 起是收盤集合競價(一筆大量全算外盤或內盤),不算進最近 15 分鐘
+    recent = [v for k, v in st["m"].items() if now_min - 15 <= int(k[:2]) * 60 + int(k[3:]) < CLOSE_AUCTION]
     o15, i15 = sum(x[0] for x in recent), sum(x[1] for x in recent)
     big = st["bo"] + st["bi"]
     return {"out": round(st["out"] / tot * 100, 1) if tot else None, "out15": round(o15 / (o15 + i15) * 100, 1) if o15 + i15 else None,

@@ -40,6 +40,19 @@ jobs:
               exit 0
             fi
           fi
+          # 睡到 $1(epoch)為止,途中準時叫收盤後的工作:GitHub cron 實測晚 8 小時(回測排 14:30 實際 22:30 後、籌碼掃描排 18:20 實際隔天凌晨)。
+          # dispatch 不會延遲;原本的 cron 留著當備援(回測同一天跑過會很快結束)。
+          post_close() {
+            end=$1
+            for spec in "14:35 bear.yml" "18:25 scan.yml"; do
+              at=$(TZ=Asia/Taipei date -d "today ${spec%% *}" +%s); now=$(date +%s)
+              if [ "$(TZ=Asia/Taipei date +%u)" -le 5 ] && [ "$now" -lt "$at" ] && [ "$at" -lt "$end" ]; then
+                sleep $(( at - now ))
+                gh workflow run "${spec##* }" -R "$GITHUB_REPOSITORY" --ref main || echo "叫 ${spec##* } 失敗,靠 cron 備援"
+              fi
+            done
+            now=$(date +%s); if [ "$end" -gt "$now" ]; then sleep $(( end - now )); fi
+          }
           plan=$(python3 tradingday.py --relay)
           echo "$plan"
           action=$(printf '%s\n' "$plan" | sed -n 's/^action=//p')
@@ -49,12 +62,17 @@ jobs:
             exit 0
           fi
           if [ "$action" = "wait_cron" ] || [ "$action" != "nap" ]; then
+            # 週五(或連假前)收盤後叫醒的這一棒:不接力到下一個開盤,但留到 18:26 把今天的回測、籌碼掃描叫完
+            hm=$(TZ=Asia/Taipei date +%H%M)
+            if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "$hm" -ge 1335 ] && [ "$hm" -lt 1825 ]; then
+              post_close "$(TZ=Asia/Taipei date -d 'today 18:26' +%s)"
+            fi
             echo "下一個交易日比明天還遠,或判斷失敗,不佔 runner。08:10 與 01:00 的 cron 會再試"
             echo "run=no" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           echo "先睡 ${seconds} 秒,再叫醒下一棒"
-          sleep "$seconds"
+          post_close "$(( $(date +%s) + seconds ))"
           for k in 1 2 3 4 5; do
             gh workflow run intraday.yml -R "$GITHUB_REPOSITORY" --ref main && break
             echo "叫醒失敗,30 秒後重試($k)"; sleep 30
@@ -91,9 +109,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           action=$(python3 tradingday.py --relay | sed -n 's/^action=//p')
-          if [ "$action" = "wait_cron" ]; then
+          if [ "$action" = "wait_cron" ] && [ "$(TZ=Asia/Taipei date +%H%M)" -lt 1335 ]; then
             echo "下一個交易日比明天還遠,不接力。08:10 與 01:00 的 cron 會再試"
-          else
+          else   # 下一個交易日太遠時也叫一棒:它只負責準時叫今天的回測與籌碼掃描,叫完就結束
             gh workflow run intraday.yml -R "$GITHUB_REPOSITORY" --ref main || echo "叫醒失敗,明天靠 cron 備援"
           fi
           # 收盤後直接叫永豐回補(存今天的 5 分K + 補歷史)。GitHub cron 常晚 4~6 小時,過了 23:30 回補就不跑(10/29、10/30 都這樣沒存到),

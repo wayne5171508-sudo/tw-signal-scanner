@@ -913,6 +913,8 @@ def test_market_run_stats_picks_and_record(tmp_path, monkeypatch):
     idx = [{"code": "TWS:TSE01:INDEX", "last": 100.5, "open": 100, "pct": 0.5}]
     at = lambda h, m: dt.datetime(2026, 10, 29, h, m, 35, tzinfo=TPE)
     flags = {"1102": {"disposal": {"measure": "分盤"}}}
+    first = market.run(at(9, 58), _mkt_live(), idx, {"1101"}, lambda c: {}, lambda c: flags)
+    assert not first["longs"] and not first["shorts"]                               # 第一輪只是候選,連續兩輪才算推薦
     out = market.run(at(10, 0), _mkt_live(), idx, {"1101"}, lambda c: {}, lambda c: flags)
     st = out["stats"]
     assert st["n"] == 80 and st["up"] + st["down"] + st["flat"] == 80 and sum(st["bands"].values()) == 80
@@ -925,6 +927,17 @@ def test_market_run_stats_picks_and_record(tmp_path, monkeypatch):
     top = out2["longs"][0]["code"]
     assert day["closed"] and day["picks"][top]["first"]["t"] == "10:00" and day["picks"][top]["close"]["net"] == pytest.approx(-team.COST_PCT)
     assert json.loads((tmp_path / "m" / "index.json").read_text())["days"]["2026-10-29"]["long"]["n_close"] >= 1
+
+
+def test_confirmed_needs_consecutive_rounds_and_not_late():
+    p = lambda c, side="long": {"code": c, "side": side}
+    st = {}
+    assert market.confirmed([p("A"), p("B")], st, {}, 60) == []
+    assert [x["code"] for x in market.confirmed([p("A")], st, {}, 62)] == ["A"]      # A 連續兩輪;B 掉出名單
+    assert market.confirmed([p("A", "short"), p("B")], st, {}, 64) == []             # A 翻向、B 重新出現:都重新算
+    assert market.confirmed([p("B")], st, {}, market.LATE_FROM) == []                # 12:00 起不新增
+    assert [x["code"] for x in market.confirmed([p("C")], {}, {"C": 1}, 200)] == ["C"]   # 今天推薦過同方向的照舊
+    assert not market.pick_ok({"last": 100.0, "pct": 6.5, "upper_limit": 110.0, "parts": {"mkt": 20}}, 1)   # 已漲 6.5% 不追
 
 
 def test_journal_costs_and_recommendation_match(tmp_path, monkeypatch):
@@ -1003,6 +1016,11 @@ def test_query_many_budget_and_serial_fallback(monkeypatch):
     to = lambda code, k: (_ for _ in ()).throw(TimeoutError("Timeout: 8000ms"))
     sjquote._query_many(object(), ["A", "B"], to, 30, 0)
     assert sjquote._serial_until == 0.0                                 # 逾時只是伺服器忙,不退回單條
+    monkeypatch.setattr(sjquote, "_busy_until", 0.0)
+    got, cut = sjquote._query_many(object(), list("ABCDEFGHIJKL"), to, 30, 0)   # 開頭全逾時:提早收手,不把 12 檔查完
+    assert cut and len(got) < 12 and sjquote._busy_until > sjquote.time.time()
+    assert sjquote._query_many(object(), ["A"], call, 30, 0) == ([], True)      # 忙碌期間直接略過
+    monkeypatch.setattr(sjquote, "_busy_until", 0.0)
     got, cut = sjquote._query_many(object(), ["A", "D"], call, -1, 0)    # 預算用完:一檔都不送
     assert got == [] and cut
 
