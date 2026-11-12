@@ -1,7 +1,7 @@
 {
- "date": "2026-11-11",
- "fetched_at": "2026-11-11T01:01:24",
- "daytrade_list_date": "2026-11-11",
+ "date": "2026-11-12",
+ "fetched_at": "2026-11-12T00:55:55",
+ "daytrade_list_date": "2026-11-12",
  "status": {
   "twse_daytrade": "ok",
   "tpex_daytrade": "ok",
@@ -23,7 +23,11 @@
    }
   },
   "3374": {
-   "daytrade": false
+   "daytrade": true,
+   "notice": {
+    "date": "2026-11-11",
+    "reason": "當日本益比為66.45、股價淨值比為12.09且為其所屬產業類別股價淨值比之3倍、當日週轉率達8.87%(第六款)"
+   }
   },
   "2408": {
    "daytrade": true
@@ -78,7 +82,11 @@
    }
   },
   "1815": {
-   "daytrade": true
+   "daytrade": true,
+   "notice": {
+    "date": "2026-11-11",
+    "reason": "最近六個營業日(含當日)之累積週轉率為124.39%，當日週轉率達19.9%(第十款)"
+   }
   },
   "2630": {
    "daytrade": true
@@ -141,11 +149,7 @@
    "daytrade": true
   },
   "5347": {
-   "daytrade": true,
-   "notice": {
-    "date": "2026-11-09",
-    "reason": "最近六個營業日(自當日之前一個營業日起)之借券賣出成交量占總成交量比率達10.24%，當日之前一個營業日借券賣出成交量較最近六十個營業日(自當日之前一個營業日起"
-   }
+   "daytrade": true
   },
   "6182": {
    "daytrade": true
