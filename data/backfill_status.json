@@ -1,10 +1,10 @@
 {
- "as_of": "2026-11-14T16:48:23+08:00",
+ "as_of": "2026-11-15T17:00:05+08:00",
  "window": [
-  "2025-10-30",
+  "2025-10-31",
   "2026-11-13"
  ],
- "trade_days": 252,
+ "trade_days": 251,
  "codes_total": 222,
  "codes_done_now": 0,
  "codes_already": 222,
@@ -13,5 +13,5 @@
  "stopped": null,
  "remaining_mb": 520.3,
  "limit_mb": 524.3,
- "seconds": 17
+ "seconds": 20
 }
