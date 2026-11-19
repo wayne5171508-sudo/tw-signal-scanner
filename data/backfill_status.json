@@ -1,17 +1,17 @@
 {
- "as_of": "2026-11-18T13:38:19+08:00",
+ "as_of": "2026-11-19T13:38:17+08:00",
  "window": [
-  "2025-11-03",
-  "2026-11-18"
+  "2025-11-04",
+  "2026-11-19"
  ],
  "trade_days": 253,
- "codes_total": 227,
- "codes_done_now": 227,
+ "codes_total": 224,
+ "codes_done_now": 224,
  "codes_already": 0,
- "stock_days_now": 844,
- "files_saved": 352,
+ "stock_days_now": 297,
+ "files_saved": 48,
  "stopped": null,
- "remaining_mb": 369.9,
+ "remaining_mb": 399.9,
  "limit_mb": 524.3,
- "seconds": 282
+ "seconds": 165
 }
