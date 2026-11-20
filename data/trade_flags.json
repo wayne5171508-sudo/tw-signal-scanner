@@ -1,7 +1,7 @@
 {
- "date": "2026-11-19",
- "fetched_at": "2026-11-19T00:55:58",
- "daytrade_list_date": "2026-11-19",
+ "date": "2026-11-20",
+ "fetched_at": "2026-11-20T00:55:46",
+ "daytrade_list_date": "2026-11-20",
  "status": {
   "twse_daytrade": "ok",
   "tpex_daytrade": "ok",
@@ -24,8 +24,7 @@
    "daytrade": true
   },
   "2344": {
-   "daytrade": true,
-   "no_sell_first": true
+   "daytrade": true
   },
   "6147": {
    "daytrade": true
@@ -46,7 +45,11 @@
    "daytrade": true
   },
   "3105": {
-   "daytrade": true
+   "daytrade": true,
+   "notice": {
+    "date": "2026-11-19",
+    "reason": "最近六個營業日(自當日之前一個營業日起)之當日沖銷成交量占總成交量比率達67.39%，當日之前一個營業日當日沖銷成交量占總成交量達76.51%（第十三款)"
+   }
   },
   "6173": {
    "daytrade": true
@@ -58,7 +61,11 @@
    "daytrade": true
   },
   "8042": {
-   "daytrade": true
+   "daytrade": true,
+   "notice": {
+    "date": "2026-11-19",
+    "reason": "最近六個營業日(含當日)累積之最後成交價跌幅達39.9%(第一款)"
+   }
   },
   "3027": {
    "daytrade": true
@@ -70,7 +77,11 @@
    "daytrade": true
   },
   "1815": {
-   "daytrade": true
+   "daytrade": true,
+   "notice": {
+    "date": "2026-11-19",
+    "reason": "最近六個營業日(含當日)之累積週轉率為123.57%，當日週轉率達9.65%(第十款)"
+   }
   },
   "2630": {
    "daytrade": true
@@ -136,7 +147,11 @@
    "daytrade": true
   },
   "6182": {
-   "daytrade": true
+   "daytrade": true,
+   "notice": {
+    "date": "2026-11-19",
+    "reason": "最近六個營業日(自當日之前一個營業日起)之當日沖銷成交量占總成交量比率達65.5%，當日之前一個營業日當日沖銷成交量占總成交量達73.82%（第十三款)"
+   }
   },
   "2351": {
    "daytrade": true
@@ -172,7 +187,11 @@
    "daytrade": true
   },
   "3624": {
-   "daytrade": true
+   "daytrade": true,
+   "notice": {
+    "date": "2026-11-19",
+    "reason": "最近六個營業日(自當日之前一個營業日起)之當日沖銷成交量占總成交量比率達63.2%，當日之前一個營業日當日沖銷成交量占總成交量達75.75%（第十三款)"
+   }
   },
   "3605": {
    "daytrade": true
@@ -201,10 +220,6 @@
     "start": "2026-11-18",
     "end": "2026-11-24",
     "measure": "每2分鐘撮合・預收款券"
-   },
-   "notice": {
-    "date": "2026-11-17",
-    "reason": "最近六個營業日(含當日)累積之最後成交價漲幅達39.52%(第一款)當日週轉率達5.88%(第四款)統一證券公司當日受託賣出該有價證券之成交量占當日該有價證券總"
    }
   },
   "1316": {
