@@ -1,6 +1,6 @@
 {
- "as_of": "2026-11-19T23:55:54.828488+08:00",
- "latest_bar": "2026-11-19",
+ "as_of": "2026-11-20T23:39:30.146162+08:00",
+ "latest_bar": "2026-11-20",
  "stocks": 73,
  "fetched_fresh": 73,
  "errors": [],
@@ -460,15 +460,15 @@
   "entry_windows_source": "fresh"
  },
  "period": [
-  "2025-10-23",
-  "2026-11-12"
+  "2025-10-27",
+  "2026-11-13"
  ],
- "holdout_from": "2026-07-09",
- "recent_from": "2026-05-20",
+ "holdout_from": "2026-07-13",
+ "recent_from": "2026-05-21",
  "baseline": {
   "t1": {
    "n": 14453,
-   "lose": 55.9
+   "lose": 56.0
   },
   "t3": {
    "n": 14307,
@@ -479,9 +479,9 @@
    "lose": 57.3
   },
   "rr5": {
-   "up": 9.16,
-   "dn": 6.58,
-   "rr": 1.39
+   "up": 9.11,
+   "dn": 6.7,
+   "rr": 1.36
   }
  },
  "signals": {
@@ -491,34 +491,34 @@
    "t1": {
     "n": 297,
     "days": 125,
-    "ex": -0.69,
-    "lose": 59.6,
-    "lose_gap": 3.7,
-    "t": -2.5
+    "ex": -0.67,
+    "lose": 59.3,
+    "lose_gap": 3.3,
+    "t": -2.45
    },
    "t3": {
-    "n": 295,
+    "n": 292,
     "days": 123,
-    "ex": -0.53,
-    "lose": 60.7,
-    "lose_gap": 4.2,
-    "t": -0.87
+    "ex": -0.52,
+    "lose": 61.0,
+    "lose_gap": 4.5,
+    "t": -0.74
    },
    "t5": {
-    "n": 294,
-    "days": 122,
-    "ex": -1.57,
-    "lose": 65.3,
-    "lose_gap": 8.0,
-    "t": -1.86
+    "n": 290,
+    "days": 121,
+    "ex": -1.6,
+    "lose": 65.5,
+    "lose_gap": 8.2,
+    "t": -1.87
    },
    "train": {
-    "n": 191,
-    "days": 69,
-    "ex": -1.42,
-    "lose": 65.4,
-    "lose_gap": 8.1,
-    "t": -1.33
+    "n": 187,
+    "days": 68,
+    "ex": -1.46,
+    "lose": 65.8,
+    "lose_gap": 8.5,
+    "t": -1.35
    },
    "test": {
     "n": 103,
@@ -529,17 +529,17 @@
     "t": -1.28
    },
    "recent": {
-    "n": 174,
-    "days": 78,
-    "ex": -1.88,
-    "lose": 66.7,
-    "lose_gap": 9.4,
-    "t": -1.69
+    "n": 173,
+    "days": 77,
+    "ex": -1.92,
+    "lose": 67.1,
+    "lose_gap": 9.8,
+    "t": -1.76
    },
    "rr5": {
-    "up": 9.37,
-    "dn": 8.6,
-    "rr": 1.09
+    "up": 9.36,
+    "dn": 8.7,
+    "rr": 1.08
    },
    "status": "watch",
    "status_reason": "有跑輸傾向,但還沒全部過關"
@@ -548,57 +548,57 @@
    "name": "量大下跌(現行出場)",
    "desc": "量 >= 2 倍且跌 >= 0.5%,也就是網頁現在的「出場」標籤",
    "t1": {
-    "n": 829,
+    "n": 822,
     "days": 191,
-    "ex": -0.29,
-    "lose": 57.9,
-    "lose_gap": 2.0,
-    "t": -1.77
+    "ex": -0.3,
+    "lose": 57.8,
+    "lose_gap": 1.8,
+    "t": -1.76
    },
    "t3": {
-    "n": 823,
+    "n": 815,
     "days": 189,
-    "ex": -0.61,
+    "ex": -0.59,
     "lose": 59.9,
     "lose_gap": 3.4,
-    "t": -1.47
+    "t": -1.37
    },
    "t5": {
-    "n": 821,
+    "n": 811,
     "days": 187,
-    "ex": -0.89,
+    "ex": -0.88,
     "lose": 62.1,
     "lose_gap": 4.8,
-    "t": -1.08
+    "t": -1.07
    },
    "train": {
-    "n": 472,
+    "n": 463,
     "days": 105,
-    "ex": -0.81,
-    "lose": 62.5,
-    "lose_gap": 5.2,
-    "t": -1.55
+    "ex": -0.82,
+    "lose": 62.4,
+    "lose_gap": 5.1,
+    "t": -1.61
    },
    "test": {
-    "n": 349,
+    "n": 348,
     "days": 82,
-    "ex": -0.99,
-    "lose": 61.6,
-    "lose_gap": 4.3,
-    "t": 0.14
+    "ex": -0.96,
+    "lose": 61.8,
+    "lose_gap": 4.5,
+    "t": 0.24
    },
    "recent": {
-    "n": 499,
+    "n": 497,
     "days": 116,
-    "ex": -1.13,
-    "lose": 63.1,
-    "lose_gap": 5.8,
-    "t": -1.19
+    "ex": -1.11,
+    "lose": 63.2,
+    "lose_gap": 5.9,
+    "t": -1.14
    },
    "rr5": {
-    "up": 9.78,
-    "dn": 8.16,
-    "rr": 1.2
+    "up": 9.77,
+    "dn": 8.26,
+    "rr": 1.18
    },
    "status": "inactive",
    "status_reason": "和一般日子差不多,不能當利空"
@@ -607,36 +607,36 @@
    "name": "放量跌破季線",
    "desc": "收盤由季線上方跌到下方,量 >= 1.5 倍",
    "t1": {
-    "n": 86,
-    "days": 61,
-    "ex": -0.46,
-    "lose": 67.4,
-    "lose_gap": 11.5,
-    "t": -0.32
+    "n": 85,
+    "days": 60,
+    "ex": -0.45,
+    "lose": 67.1,
+    "lose_gap": 11.1,
+    "t": -0.27
    },
    "t3": {
-    "n": 84,
+    "n": 85,
     "days": 60,
-    "ex": -0.24,
-    "lose": 60.7,
-    "lose_gap": 4.2,
-    "t": -0.29
+    "ex": -0.15,
+    "lose": 60.0,
+    "lose_gap": 3.5,
+    "t": -0.18
    },
    "t5": {
-    "n": 84,
-    "days": 60,
-    "ex": -0.89,
-    "lose": 61.9,
-    "lose_gap": 4.6,
-    "t": -0.92
+    "n": 83,
+    "days": 59,
+    "ex": -0.96,
+    "lose": 62.7,
+    "lose_gap": 5.4,
+    "t": -1.02
    },
    "train": {
-    "n": 39,
-    "days": 27,
-    "ex": -0.59,
-    "lose": 59.0,
-    "lose_gap": 1.7,
-    "t": -0.29
+    "n": 38,
+    "days": 26,
+    "ex": -0.75,
+    "lose": 60.5,
+    "lose_gap": 3.2,
+    "t": -0.42
    },
    "test": {
     "n": 45,
@@ -655,9 +655,9 @@
     "t": -1.33
    },
    "rr5": {
-    "up": 8.48,
-    "dn": 6.4,
-    "rr": 1.32
+    "up": 8.45,
+    "dn": 6.46,
+    "rr": 1.31
    },
    "status": "inactive",
    "status_reason": "和一般日子差不多,不能當利空"
@@ -666,57 +666,57 @@
    "name": "收盤跌破20日最低收",
    "desc": "收盤低於前20日最低收盤價",
    "t1": {
-    "n": 1405,
+    "n": 1464,
     "days": 142,
-    "ex": -0.08,
-    "lose": 53.7,
-    "lose_gap": -2.2,
-    "t": -0.64
+    "ex": -0.09,
+    "lose": 54.6,
+    "lose_gap": -1.4,
+    "t": -0.67
    },
    "t3": {
-    "n": 1357,
+    "n": 1379,
     "days": 140,
-    "ex": -0.29,
-    "lose": 55.7,
-    "lose_gap": -0.8,
-    "t": -1.57
+    "ex": -0.31,
+    "lose": 55.8,
+    "lose_gap": -0.7,
+    "t": -1.64
    },
    "t5": {
-    "n": 1335,
+    "n": 1330,
     "days": 138,
-    "ex": -0.61,
+    "ex": -0.62,
     "lose": 56.5,
     "lose_gap": -0.8,
-    "t": -2.32
+    "t": -2.38
    },
    "train": {
     "n": 480,
     "days": 79,
-    "ex": -1.38,
-    "lose": 60.0,
-    "lose_gap": 2.7,
-    "t": -3.18
+    "ex": -1.41,
+    "lose": 59.8,
+    "lose_gap": 2.5,
+    "t": -3.27
    },
    "test": {
-    "n": 855,
+    "n": 850,
     "days": 59,
     "ex": -0.17,
-    "lose": 54.5,
-    "lose_gap": -2.8,
+    "lose": 54.6,
+    "lose_gap": -2.7,
     "t": -0.06
    },
    "recent": {
-    "n": 984,
+    "n": 974,
     "days": 81,
-    "ex": -0.42,
-    "lose": 55.8,
-    "lose_gap": -1.5,
-    "t": -0.85
+    "ex": -0.43,
+    "lose": 55.9,
+    "lose_gap": -1.4,
+    "t": -0.9
    },
    "rr5": {
     "up": 9.52,
-    "dn": 7.24,
-    "rr": 1.32
+    "dn": 7.28,
+    "rr": 1.31
    },
    "status": "watch",
    "status_reason": "有跑輸傾向,但還沒全部過關"
@@ -725,36 +725,36 @@
    "name": "跳空缺口未補",
    "desc": "開盤低於昨日最低,收盤仍低於昨日最低",
    "t1": {
-    "n": 1471,
-    "days": 133,
+    "n": 1459,
+    "days": 132,
     "ex": -0.12,
     "lose": 54.3,
-    "lose_gap": -1.6,
-    "t": -1.82
+    "lose_gap": -1.7,
+    "t": -1.83
    },
    "t3": {
-    "n": 1415,
+    "n": 1458,
     "days": 131,
-    "ex": -0.3,
-    "lose": 57.3,
-    "lose_gap": 0.8,
-    "t": -2.86
+    "ex": -0.32,
+    "lose": 57.6,
+    "lose_gap": 1.1,
+    "t": -2.85
    },
    "t5": {
-    "n": 1394,
-    "days": 130,
-    "ex": -0.44,
-    "lose": 57.5,
-    "lose_gap": 0.2,
-    "t": -3.22
+    "n": 1382,
+    "days": 129,
+    "ex": -0.41,
+    "lose": 57.3,
+    "lose_gap": 0.0,
+    "t": -3.16
    },
    "train": {
-    "n": 685,
-    "days": 71,
-    "ex": -0.56,
-    "lose": 59.4,
-    "lose_gap": 2.1,
-    "t": -2.64
+    "n": 673,
+    "days": 70,
+    "ex": -0.5,
+    "lose": 59.0,
+    "lose_gap": 1.7,
+    "t": -2.56
    },
    "test": {
     "n": 709,
@@ -765,16 +765,16 @@
     "t": -1.85
    },
    "recent": {
-    "n": 936,
-    "days": 78,
+    "n": 934,
+    "days": 77,
     "ex": -0.55,
-    "lose": 57.3,
-    "lose_gap": -0.0,
-    "t": -1.9
+    "lose": 57.2,
+    "lose_gap": -0.1,
+    "t": -1.87
    },
    "rr5": {
-    "up": 9.48,
-    "dn": 7.11,
+    "up": 9.51,
+    "dn": 7.16,
     "rr": 1.33
    },
    "status": "watch",
@@ -784,57 +784,57 @@
    "name": "均線空頭排列首日",
    "desc": "5日 < 10日 < 20日均線,且昨天還不是",
    "t1": {
-    "n": 568,
+    "n": 581,
     "days": 159,
-    "ex": 0.0,
-    "lose": 56.5,
-    "lose_gap": 0.6,
-    "t": 0.47
+    "ex": -0.01,
+    "lose": 57.0,
+    "lose_gap": 1.0,
+    "t": 0.44
    },
    "t3": {
-    "n": 543,
+    "n": 546,
     "days": 157,
-    "ex": -0.08,
-    "lose": 57.6,
-    "lose_gap": 1.1,
-    "t": 0.54
+    "ex": -0.13,
+    "lose": 57.9,
+    "lose_gap": 1.4,
+    "t": 0.47
    },
    "t5": {
-    "n": 542,
-    "days": 156,
-    "ex": -0.1,
+    "n": 537,
+    "days": 155,
+    "ex": -0.12,
     "lose": 59.2,
     "lose_gap": 1.9,
-    "t": 0.64
+    "t": 0.61
    },
    "train": {
-    "n": 294,
+    "n": 298,
     "days": 91,
-    "ex": -0.35,
-    "lose": 60.9,
-    "lose_gap": 3.6,
-    "t": 0.3
+    "ex": -0.46,
+    "lose": 61.1,
+    "lose_gap": 3.8,
+    "t": 0.22
    },
    "test": {
-    "n": 248,
-    "days": 65,
-    "ex": 0.2,
-    "lose": 57.3,
-    "lose_gap": -0.0,
-    "t": 0.69
+    "n": 239,
+    "days": 64,
+    "ex": 0.31,
+    "lose": 56.9,
+    "lose_gap": -0.4,
+    "t": 0.75
    },
    "recent": {
-    "n": 341,
-    "days": 95,
-    "ex": 0.14,
-    "lose": 57.5,
-    "lose_gap": 0.2,
-    "t": 1.28
+    "n": 337,
+    "days": 94,
+    "ex": 0.23,
+    "lose": 57.0,
+    "lose_gap": -0.3,
+    "t": 1.42
    },
    "rr5": {
-    "up": 8.94,
-    "dn": 5.7,
-    "rr": 1.57
+    "up": 8.93,
+    "dn": 5.75,
+    "rr": 1.55
    },
    "status": "inactive",
    "status_reason": "和一般日子差不多,不能當利空"
@@ -843,57 +843,57 @@
    "name": "放量跌破20日低",
    "desc": "收盤低於前20日最低價,量 >= 1.5 倍",
    "t1": {
-    "n": 187,
+    "n": 194,
     "days": 64,
-    "ex": 0.04,
-    "lose": 55.6,
-    "lose_gap": -0.3,
-    "t": 0.76
+    "ex": 0.07,
+    "lose": 55.2,
+    "lose_gap": -0.8,
+    "t": 0.72
    },
    "t3": {
     "n": 183,
     "days": 62,
     "ex": -0.01,
-    "lose": 56.3,
-    "lose_gap": -0.2,
-    "t": 0.04
+    "lose": 55.7,
+    "lose_gap": -0.8,
+    "t": 0.05
    },
    "t5": {
-    "n": 182,
-    "days": 61,
-    "ex": -0.43,
+    "n": 180,
+    "days": 60,
+    "ex": -0.51,
     "lose": 54.4,
     "lose_gap": -2.9,
-    "t": -1.12
+    "t": -1.28
    },
    "train": {
-    "n": 44,
+    "n": 43,
     "days": 29,
-    "ex": -0.97,
-    "lose": 56.8,
-    "lose_gap": -0.5,
-    "t": -0.98
+    "ex": -1.56,
+    "lose": 58.1,
+    "lose_gap": 0.8,
+    "t": -1.51
    },
    "test": {
-    "n": 138,
-    "days": 32,
-    "ex": -0.26,
-    "lose": 53.6,
-    "lose_gap": -3.7,
-    "t": -0.6
+    "n": 137,
+    "days": 31,
+    "ex": -0.18,
+    "lose": 53.3,
+    "lose_gap": -4.0,
+    "t": -0.27
    },
    "recent": {
-    "n": 145,
-    "days": 38,
-    "ex": -0.17,
-    "lose": 53.1,
-    "lose_gap": -4.2,
-    "t": -0.4
+    "n": 144,
+    "days": 37,
+    "ex": -0.21,
+    "lose": 53.5,
+    "lose_gap": -3.8,
+    "t": -0.54
    },
    "rr5": {
-    "up": 10.68,
-    "dn": 7.2,
-    "rr": 1.48
+    "up": 10.65,
+    "dn": 7.29,
+    "rr": 1.46
    },
    "status": "inactive",
    "status_reason": "和一般日子差不多,不能當利空"
@@ -902,44 +902,44 @@
    "name": "高檔爆量不漲",
    "desc": "量 >= 2.5 倍、漲跌 < 1%、最高價在60日高點 3% 內",
    "t1": {
-    "n": 88,
-    "days": 60,
-    "ex": 0.34,
-    "lose": 55.7,
-    "lose_gap": -0.2,
-    "t": 1.51
+    "n": 83,
+    "days": 59,
+    "ex": 0.53,
+    "lose": 53.0,
+    "lose_gap": -3.0,
+    "t": 1.59
    },
    "t3": {
-    "n": 88,
-    "days": 60,
-    "ex": 0.03,
-    "lose": 56.8,
-    "lose_gap": 0.3,
-    "t": 0.49
+    "n": 83,
+    "days": 59,
+    "ex": 0.13,
+    "lose": 55.4,
+    "lose_gap": -1.1,
+    "t": 0.51
    },
    "t5": {
-    "n": 88,
-    "days": 60,
-    "ex": 0.15,
-    "lose": 55.7,
-    "lose_gap": -1.6,
-    "t": 0.8
+    "n": 83,
+    "days": 59,
+    "ex": 0.32,
+    "lose": 55.4,
+    "lose_gap": -1.9,
+    "t": 0.83
    },
    "train": {
-    "n": 64,
+    "n": 60,
     "days": 40,
-    "ex": -0.12,
-    "lose": 54.7,
-    "lose_gap": -2.6,
+    "ex": 0.05,
+    "lose": 55.0,
+    "lose_gap": -2.3,
     "t": 0.34
    },
    "test": {
-    "n": 24,
-    "days": 20,
-    "ex": 0.86,
-    "lose": 58.3,
-    "lose_gap": 1.0,
-    "t": 0.95
+    "n": 23,
+    "days": 19,
+    "ex": 1.01,
+    "lose": 56.5,
+    "lose_gap": -0.8,
+    "t": 1.02
    },
    "recent": {
     "n": 40,
@@ -950,8 +950,8 @@
     "t": 0.99
    },
    "rr5": {
-    "up": 10.99,
-    "dn": 6.95,
+    "up": 11.17,
+    "dn": 7.06,
     "rr": 1.58
    },
    "status": "inactive",
@@ -961,57 +961,57 @@
    "name": "高檔爆量長上影",
    "desc": "量 >= 2 倍、最高價在60日高點 3% 內、上影線 >= 振幅 50%",
    "t1": {
-    "n": 194,
-    "days": 101,
-    "ex": -0.01,
-    "lose": 58.2,
-    "lose_gap": 2.3,
-    "t": 0.59
+    "n": 187,
+    "days": 100,
+    "ex": 0.03,
+    "lose": 57.2,
+    "lose_gap": 1.2,
+    "t": 0.62
    },
    "t3": {
-    "n": 194,
-    "days": 101,
-    "ex": 0.02,
-    "lose": 56.7,
-    "lose_gap": 0.2,
-    "t": 0.89
+    "n": 187,
+    "days": 100,
+    "ex": 0.09,
+    "lose": 56.1,
+    "lose_gap": -0.4,
+    "t": 0.92
    },
    "t5": {
-    "n": 193,
+    "n": 187,
     "days": 100,
-    "ex": -0.15,
-    "lose": 59.6,
-    "lose_gap": 2.3,
-    "t": 0.55
+    "ex": 0.04,
+    "lose": 58.8,
+    "lose_gap": 1.5,
+    "t": 0.5
    },
    "train": {
-    "n": 142,
-    "days": 68,
-    "ex": -0.57,
-    "lose": 57.0,
-    "lose_gap": -0.3,
-    "t": -0.2
+    "n": 135,
+    "days": 67,
+    "ex": -0.25,
+    "lose": 55.6,
+    "lose_gap": -1.7,
+    "t": -0.11
    },
    "test": {
-    "n": 51,
-    "days": 32,
-    "ex": 1.03,
-    "lose": 66.7,
-    "lose_gap": 9.4,
-    "t": 1.1
+    "n": 52,
+    "days": 33,
+    "ex": 0.8,
+    "lose": 67.3,
+    "lose_gap": 10.0,
+    "t": 0.9
    },
    "recent": {
     "n": 92,
     "days": 54,
-    "ex": 1.06,
+    "ex": 1.07,
     "lose": 62.0,
     "lose_gap": 4.7,
-    "t": 1.09
+    "t": 1.1
    },
    "rr5": {
-    "up": 10.37,
-    "dn": 7.61,
-    "rr": 1.36
+    "up": 10.44,
+    "dn": 7.89,
+    "rr": 1.32
    },
    "status": "inactive",
    "status_reason": "和一般日子差不多,不能當利空"
@@ -1020,12 +1020,12 @@
    "name": "連3日量增價跌",
    "desc": "連續3天成交量增加、收盤下跌",
    "t1": {
-    "n": 56,
-    "days": 33,
-    "ex": -0.0,
-    "lose": 50.0,
-    "lose_gap": -5.9,
-    "t": 0.48
+    "n": 59,
+    "days": 34,
+    "ex": -0.02,
+    "lose": 50.8,
+    "lose_gap": -5.2,
+    "t": 0.46
    },
    "t3": {
     "n": 48,
@@ -1044,28 +1044,28 @@
     "t": 0.9
    },
    "train": {
-    "n": 23,
-    "days": 16,
-    "ex": 0.98,
-    "lose": 52.2,
-    "lose_gap": -5.1,
-    "t": 0.77
+    "n": 24,
+    "days": 17,
+    "ex": 0.04,
+    "lose": 54.2,
+    "lose_gap": -3.1,
+    "t": 0.24
    },
    "test": {
-    "n": 25,
-    "days": 16,
-    "ex": 0.37,
-    "lose": 56.0,
-    "lose_gap": -1.3,
-    "t": 0.49
+    "n": 24,
+    "days": 15,
+    "ex": 1.29,
+    "lose": 54.2,
+    "lose_gap": -3.1,
+    "t": 1.19
    },
    "recent": {
-    "n": 28,
-    "days": 19,
-    "ex": 1.17,
-    "lose": 53.6,
-    "lose_gap": -3.7,
-    "t": 0.85
+    "n": 27,
+    "days": 18,
+    "ex": 0.11,
+    "lose": 55.6,
+    "lose_gap": -1.7,
+    "t": 0.34
    },
    "rr5": {
     "up": 12.15,
@@ -1099,46 +1099,46 @@
     "label": "13:00-13:30"
    }
   ],
-  "first": "2023-11-17",
-  "last": "2026-11-18",
+  "first": "2023-11-20",
+  "last": "2026-11-19",
   "all": {
    "days": 725,
-   "stock_days": 52279,
+   "stock_days": 52283,
    "by_window": {
     "09": {
-     "n": 52279,
-     "cheap": 0.23,
+     "n": 52283,
+     "cheap": 0.24,
      "below_close": 41.5,
-     "t_cheap": 5.63,
-     "nxt": -0.02
+     "t_cheap": 5.74,
+     "nxt": -0.04
     },
     "10": {
-     "n": 52279,
+     "n": 52283,
      "cheap": 0.15,
-     "below_close": 40.8,
-     "t_cheap": 4.91,
-     "nxt": 0.04
+     "below_close": 40.7,
+     "t_cheap": 4.97,
+     "nxt": 0.02
     },
     "11": {
-     "n": 52279,
+     "n": 52283,
      "cheap": 0.09,
-     "below_close": 40.1,
-     "t_cheap": 4.12,
-     "nxt": 0.08
+     "below_close": 40.0,
+     "t_cheap": 4.2,
+     "nxt": 0.07
     },
     "12": {
-     "n": 52279,
-     "cheap": 0.04,
-     "below_close": 39.7,
-     "t_cheap": 3.28,
-     "nxt": 0.12
+     "n": 52283,
+     "cheap": 0.05,
+     "below_close": 39.6,
+     "t_cheap": 3.36,
+     "nxt": 0.11
     },
     "13": {
-     "n": 52279,
+     "n": 52283,
      "cheap": 0.01,
-     "below_close": 37.1,
+     "below_close": 37.0,
      "t_cheap": 2.27,
-     "nxt": 0.15
+     "nxt": 0.14
     }
    },
    "ready": true,
@@ -1148,42 +1148,42 @@
   },
   "after_bear": {
    "days": 187,
-   "stock_days": 2417,
+   "stock_days": 2421,
    "by_window": {
     "09": {
-     "n": 2417,
-     "cheap": 0.19,
-     "below_close": 45.6,
-     "t_cheap": 1.5,
-     "nxt": -0.12
+     "n": 2421,
+     "cheap": 0.23,
+     "below_close": 45.1,
+     "t_cheap": 1.66,
+     "nxt": -0.23
     },
     "10": {
-     "n": 2417,
-     "cheap": -0.02,
-     "below_close": 46.7,
-     "t_cheap": 0.57,
-     "nxt": 0.03
+     "n": 2421,
+     "cheap": -0.01,
+     "below_close": 46.4,
+     "t_cheap": 0.6,
+     "nxt": -0.05
     },
     "11": {
-     "n": 2417,
-     "cheap": -0.11,
-     "below_close": 45.0,
-     "t_cheap": -0.14,
-     "nxt": 0.12
+     "n": 2421,
+     "cheap": -0.1,
+     "below_close": 44.8,
+     "t_cheap": -0.09,
+     "nxt": 0.03
     },
     "12": {
-     "n": 2417,
-     "cheap": -0.1,
-     "below_close": 42.8,
-     "t_cheap": -0.19,
-     "nxt": 0.09
+     "n": 2421,
+     "cheap": -0.09,
+     "below_close": 42.5,
+     "t_cheap": -0.11,
+     "nxt": 0.01
     },
     "13": {
-     "n": 2417,
+     "n": 2421,
      "cheap": 0.0,
-     "below_close": 37.6,
-     "t_cheap": 0.97,
-     "nxt": -0.01
+     "below_close": 37.5,
+     "t_cheap": 0.96,
+     "nxt": -0.09
     }
    },
    "ready": true,
@@ -1194,782 +1194,134 @@
  },
  "today": [
   {
-   "code": "3027",
-   "name": "盛達",
-   "close": 13.25,
-   "pct": -8.3,
-   "signals": [
-    {
-     "key": "big_black",
-     "name": "爆量長黑",
-     "status": "watch",
-     "ex5": -1.57
-    },
-    {
-     "key": "vol_down",
-     "name": "量大下跌(現行出場)",
-     "status": "inactive",
-     "ex5": -0.89
-    },
-    {
-     "key": "close_20low",
-     "name": "收盤跌破20日最低收",
-     "status": "watch",
-     "ex5": -0.61
-    },
-    {
-     "key": "break_20low_vol",
-     "name": "放量跌破20日低",
-     "status": "inactive",
-     "ex5": -0.43
-    }
-   ],
-   "n_active": 0,
-   "n_watch": 2,
-   "level": "mid",
-   "score": 0,
-   "rr": {
-    "stop": 14.0,
-    "target": 19.65,
-    "note": "已跌破近20日低點,沒有下方支撐可當停損"
-   }
-  },
-  {
    "code": "4303",
    "name": "信立",
-   "close": 22.85,
-   "pct": -8.05,
+   "close": 21.0,
+   "pct": -8.1,
    "signals": [
     {
      "key": "big_black",
      "name": "爆量長黑",
      "status": "watch",
-     "ex5": -1.57
+     "ex5": -1.6
     },
     {
      "key": "vol_down",
      "name": "量大下跌(現行出場)",
      "status": "inactive",
-     "ex5": -0.89
+     "ex5": -0.88
     },
     {
      "key": "close_20low",
      "name": "收盤跌破20日最低收",
      "status": "watch",
-     "ex5": -0.61
+     "ex5": -0.62
     },
     {
-     "key": "break_20low_vol",
-     "name": "放量跌破20日低",
-     "status": "inactive",
-     "ex5": -0.43
-    }
-   ],
-   "n_active": 0,
-   "n_watch": 2,
-   "level": "mid",
-   "score": 0,
-   "rr": {
-    "stop": 23.65,
-    "target": 31.65,
-    "note": "已跌破近20日低點,沒有下方支撐可當停損"
-   }
-  },
-  {
-   "code": "6937",
-   "name": "天虹",
-   "close": 180.0,
-   "pct": -10.0,
-   "signals": [
-    {
-     "key": "big_black",
-     "name": "爆量長黑",
+     "key": "gap_down",
+     "name": "跳空缺口未補",
      "status": "watch",
-     "ex5": -1.57
-    },
-    {
-     "key": "vol_down",
-     "name": "量大下跌(現行出場)",
-     "status": "inactive",
-     "ex5": -0.89
-    },
-    {
-     "key": "close_20low",
-     "name": "收盤跌破20日最低收",
-     "status": "watch",
-     "ex5": -0.61
+     "ex5": -0.41
     },
     {
      "key": "break_20low_vol",
      "name": "放量跌破20日低",
      "status": "inactive",
-     "ex5": -0.43
+     "ex5": -0.51
     }
    ],
    "n_active": 0,
-   "n_watch": 2,
+   "n_watch": 3,
    "level": "mid",
    "score": 0,
    "rr": {
-    "stop": 186.5,
-    "target": 287.0,
+    "stop": 22.7,
+    "target": 31.45,
     "note": "已跌破近20日低點,沒有下方支撐可當停損"
-   }
-  },
-  {
-   "code": "3706",
-   "name": "神達",
-   "close": 57.5,
-   "pct": -3.85,
-   "signals": [
-    {
-     "key": "big_black",
-     "name": "爆量長黑",
-     "status": "watch",
-     "ex5": -1.57
-    },
-    {
-     "key": "vol_down",
-     "name": "量大下跌(現行出場)",
-     "status": "inactive",
-     "ex5": -0.89
-    },
-    {
-     "key": "close_20low",
-     "name": "收盤跌破20日最低收",
-     "status": "watch",
-     "ex5": -0.61
-    },
-    {
-     "key": "break_20low_vol",
-     "name": "放量跌破20日低",
-     "status": "inactive",
-     "ex5": -0.43
-    }
-   ],
-   "n_active": 0,
-   "n_watch": 2,
-   "level": "mid",
-   "score": 0,
-   "rr": {
-    "stop": 59.2,
-    "target": 82.4,
-    "note": "已跌破近20日低點,沒有下方支撐可當停損"
-   }
-  },
-  {
-   "code": "2455",
-   "name": "全新",
-   "close": 294.0,
-   "pct": -9.95,
-   "signals": [
-    {
-     "key": "close_20low",
-     "name": "收盤跌破20日最低收",
-     "status": "watch",
-     "ex5": -0.61
-    },
-    {
-     "key": "ma_bear",
-     "name": "均線空頭排列首日",
-     "status": "inactive",
-     "ex5": -0.1
-    }
-   ],
-   "n_active": 0,
-   "n_watch": 1,
-   "level": "mid",
-   "score": 0,
-   "rr": {
-    "stop": 299.0,
-    "target": 536.0,
-    "note": "已跌破近20日低點,沒有下方支撐可當停損"
-   }
-  },
-  {
-   "code": "3374",
-   "name": "精材",
-   "close": 355.0,
-   "pct": -9.9,
-   "signals": [
-    {
-     "key": "close_20low",
-     "name": "收盤跌破20日最低收",
-     "status": "watch",
-     "ex5": -0.61
-    }
-   ],
-   "n_active": 0,
-   "n_watch": 1,
-   "level": "mid",
-   "score": 0,
-   "rr": {
-    "stop": 362.5,
-    "target": 519.0,
-    "note": "已跌破近20日低點,沒有下方支撐可當停損"
-   }
-  },
-  {
-   "code": "2408",
-   "name": "南亞科",
-   "close": 293.5,
-   "pct": -9.69,
-   "signals": [
-    {
-     "key": "close_20low",
-     "name": "收盤跌破20日最低收",
-     "status": "watch",
-     "ex5": -0.61
-    }
-   ],
-   "n_active": 0,
-   "n_watch": 1,
-   "level": "mid",
-   "score": 0,
-   "rr": {
-    "stop": 307.0,
-    "target": 497.5,
-    "note": "已跌破近20日低點,沒有下方支撐可當停損"
-   }
-  },
-  {
-   "code": "2344",
-   "name": "華邦電",
-   "close": 98.0,
-   "pct": -9.26,
-   "signals": [
-    {
-     "key": "close_20low",
-     "name": "收盤跌破20日最低收",
-     "status": "watch",
-     "ex5": -0.61
-    }
-   ],
-   "n_active": 0,
-   "n_watch": 1,
-   "level": "mid",
-   "score": 0,
-   "rr": {
-    "stop": 102.12,
-    "target": 175.27,
-    "note": "已跌破近20日低點,沒有下方支撐可當停損"
-   }
-  },
-  {
-   "code": "6147",
-   "name": "頎邦",
-   "close": 128.5,
-   "pct": -9.82,
-   "signals": [
-    {
-     "key": "close_20low",
-     "name": "收盤跌破20日最低收",
-     "status": "watch",
-     "ex5": -0.61
-    }
-   ],
-   "n_active": 0,
-   "n_watch": 1,
-   "level": "mid",
-   "score": 0,
-   "rr": {
-    "stop": 132.0,
-    "target": 223.0,
-    "note": "已跌破近20日低點,沒有下方支撐可當停損"
-   }
-  },
-  {
-   "code": "8021",
-   "name": "尖點",
-   "close": 274.5,
-   "pct": -10.0,
-   "signals": [
-    {
-     "key": "close_20low",
-     "name": "收盤跌破20日最低收",
-     "status": "watch",
-     "ex5": -0.61
-    }
-   ],
-   "n_active": 0,
-   "n_watch": 1,
-   "level": "mid",
-   "score": 0,
-   "rr": {
-    "stop": 282.5,
-    "target": 535.0,
-    "note": "已跌破近20日低點,沒有下方支撐可當停損"
-   }
-  },
-  {
-   "code": "8039",
-   "name": "台虹",
-   "close": 152.5,
-   "pct": -9.76,
-   "signals": [
-    {
-     "key": "close_20low",
-     "name": "收盤跌破20日最低收",
-     "status": "watch",
-     "ex5": -0.61
-    }
-   ],
-   "n_active": 0,
-   "n_watch": 1,
-   "level": "mid",
-   "score": 0,
-   "rr": {
-    "stop": 158.0,
-    "target": 328.5,
-    "note": "已跌破近20日低點,沒有下方支撐可當停損"
-   }
-  },
-  {
-   "code": "8358",
-   "name": "金居",
-   "close": 274.0,
-   "pct": -9.87,
-   "signals": [
-    {
-     "key": "close_20low",
-     "name": "收盤跌破20日最低收",
-     "status": "watch",
-     "ex5": -0.61
-    }
-   ],
-   "n_active": 0,
-   "n_watch": 1,
-   "level": "mid",
-   "score": 0,
-   "rr": {
-    "stop": 288.0,
-    "target": 510.0,
-    "note": "已跌破近20日低點,沒有下方支撐可當停損"
-   }
-  },
-  {
-   "code": "3264",
-   "name": "欣銓",
-   "close": 151.0,
-   "pct": -9.85,
-   "signals": [
-    {
-     "key": "close_20low",
-     "name": "收盤跌破20日最低收",
-     "status": "watch",
-     "ex5": -0.61
-    }
-   ],
-   "n_active": 0,
-   "n_watch": 1,
-   "level": "mid",
-   "score": 0,
-   "rr": {
-    "stop": 158.0,
-    "target": 279.5,
-    "note": "已跌破近20日低點,沒有下方支撐可當停損"
-   }
-  },
-  {
-   "code": "4979",
-   "name": "華星光",
-   "close": 295.5,
-   "pct": -9.91,
-   "signals": [
-    {
-     "key": "close_20low",
-     "name": "收盤跌破20日最低收",
-     "status": "watch",
-     "ex5": -0.61
-    }
-   ],
-   "n_active": 0,
-   "n_watch": 1,
-   "level": "mid",
-   "score": 0,
-   "rr": {
-    "stop": 300.5,
-    "target": 531.0,
-    "note": "已跌破近20日低點,沒有下方支撐可當停損"
-   }
-  },
-  {
-   "code": "6173",
-   "name": "信昌電",
-   "close": 150.0,
-   "pct": -9.91,
-   "signals": [
-    {
-     "key": "close_20low",
-     "name": "收盤跌破20日最低收",
-     "status": "watch",
-     "ex5": -0.61
-    }
-   ],
-   "n_active": 0,
-   "n_watch": 1,
-   "level": "mid",
-   "score": 0,
-   "rr": {
-    "stop": 156.0,
-    "target": 312.5,
-    "note": "已跌破近20日低點,沒有下方支撐可當停損"
-   }
-  },
-  {
-   "code": "3016",
-   "name": "嘉晶",
-   "close": 94.1,
-   "pct": -9.95,
-   "signals": [
-    {
-     "key": "close_20low",
-     "name": "收盤跌破20日最低收",
-     "status": "watch",
-     "ex5": -0.61
-    },
-    {
-     "key": "ma_bear",
-     "name": "均線空頭排列首日",
-     "status": "inactive",
-     "ex5": -0.1
-    }
-   ],
-   "n_active": 0,
-   "n_watch": 1,
-   "level": "mid",
-   "score": 0,
-   "rr": {
-    "stop": 96.3,
-    "target": 159.0,
-    "note": "已跌破近20日低點,沒有下方支撐可當停損"
-   }
-  },
-  {
-   "code": "1727",
-   "name": "中華化",
-   "close": 64.7,
-   "pct": -9.0,
-   "signals": [
-    {
-     "key": "close_20low",
-     "name": "收盤跌破20日最低收",
-     "status": "watch",
-     "ex5": -0.61
-    }
-   ],
-   "n_active": 0,
-   "n_watch": 1,
-   "level": "mid",
-   "score": 0,
-   "rr": {
-    "stop": 68.0,
-    "target": 101.0,
-    "note": "已跌破近20日低點,沒有下方支撐可當停損"
-   }
-  },
-  {
-   "code": "8042",
-   "name": "金山電",
-   "close": 86.3,
-   "pct": -9.92,
-   "signals": [
-    {
-     "key": "close_20low",
-     "name": "收盤跌破20日最低收",
-     "status": "watch",
-     "ex5": -0.61
-    }
-   ],
-   "n_active": 0,
-   "n_watch": 1,
-   "level": "mid",
-   "score": 0,
-   "rr": {
-    "stop": 92.4,
-    "target": 154.5,
-    "note": "已跌破近20日低點,沒有下方支撐可當停損"
-   }
-  },
-  {
-   "code": "8111",
-   "name": "立碁",
-   "close": 62.6,
-   "pct": -9.93,
-   "signals": [
-    {
-     "key": "close_20low",
-     "name": "收盤跌破20日最低收",
-     "status": "watch",
-     "ex5": -0.61
-    }
-   ],
-   "n_active": 0,
-   "n_watch": 1,
-   "level": "mid",
-   "score": 0,
-   "rr": {
-    "stop": 64.0,
-    "target": 83.5,
-    "note": "已跌破近20日低點,沒有下方支撐可當停損"
-   }
-  },
-  {
-   "code": "1815",
-   "name": "富喬",
-   "close": 110.0,
-   "pct": -9.84,
-   "signals": [
-    {
-     "key": "close_20low",
-     "name": "收盤跌破20日最低收",
-     "status": "watch",
-     "ex5": -0.61
-    },
-    {
-     "key": "ma_bear",
-     "name": "均線空頭排列首日",
-     "status": "inactive",
-     "ex5": -0.1
-    }
-   ],
-   "n_active": 0,
-   "n_watch": 1,
-   "level": "mid",
-   "score": 0,
-   "rr": {
-    "stop": 109.5,
-    "target": 161.5,
-    "risk": 0.45,
-    "reward": 46.82,
-    "rr": 103.0
    }
   },
   {
    "code": "2630",
    "name": "亞航",
-   "close": 28.6,
-   "pct": -8.77,
+   "close": 26.0,
+   "pct": -9.09,
    "signals": [
+    {
+     "key": "big_black",
+     "name": "爆量長黑",
+     "status": "watch",
+     "ex5": -1.6
+    },
+    {
+     "key": "vol_down",
+     "name": "量大下跌(現行出場)",
+     "status": "inactive",
+     "ex5": -0.88
+    },
     {
      "key": "close_20low",
      "name": "收盤跌破20日最低收",
      "status": "watch",
-     "ex5": -0.61
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
     },
     {
      "key": "break_20low_vol",
      "name": "放量跌破20日低",
      "status": "inactive",
-     "ex5": -0.43
+     "ex5": -0.51
     }
    ],
    "n_active": 0,
-   "n_watch": 1,
+   "n_watch": 3,
    "level": "mid",
    "score": 0,
    "rr": {
-    "stop": 29.75,
-    "target": 43.75,
+    "stop": 28.5,
+    "target": 43.7,
     "note": "已跌破近20日低點,沒有下方支撐可當停損"
    }
   },
   {
-   "code": "2883",
-   "name": "凱基金",
-   "close": 31.85,
-   "pct": -5.63,
+   "code": "2365",
+   "name": "昆盈",
+   "close": 18.2,
+   "pct": -9.0,
    "signals": [
     {
-     "key": "close_20low",
-     "name": "收盤跌破20日最低收",
+     "key": "big_black",
+     "name": "爆量長黑",
      "status": "watch",
-     "ex5": -0.61
+     "ex5": -1.6
     },
     {
-     "key": "ma_bear",
-     "name": "均線空頭排列首日",
+     "key": "vol_down",
+     "name": "量大下跌(現行出場)",
      "status": "inactive",
-     "ex5": -0.1
-    }
-   ],
-   "n_active": 0,
-   "n_watch": 1,
-   "level": "mid",
-   "score": 0,
-   "rr": {
-    "stop": 31.1,
-    "target": 39.3,
-    "risk": 2.35,
-    "reward": 23.39,
-    "rr": 9.93
-   }
-  },
-  {
-   "code": "4919",
-   "name": "新唐",
-   "close": 85.4,
-   "pct": -9.53,
-   "signals": [
-    {
-     "key": "close_20low",
-     "name": "收盤跌破20日最低收",
-     "status": "watch",
-     "ex5": -0.61
+     "ex5": -0.88
     },
     {
-     "key": "ma_bear",
-     "name": "均線空頭排列首日",
-     "status": "inactive",
-     "ex5": -0.1
-    }
-   ],
-   "n_active": 0,
-   "n_watch": 1,
-   "level": "mid",
-   "score": 0,
-   "rr": {
-    "stop": 88.0,
-    "target": 147.0,
-    "note": "已跌破近20日低點,沒有下方支撐可當停損"
-   }
-  },
-  {
-   "code": "6217",
-   "name": "中探針",
-   "close": 95.4,
-   "pct": -10.0,
-   "signals": [
-    {
      "key": "close_20low",
      "name": "收盤跌破20日最低收",
      "status": "watch",
-     "ex5": -0.61
-    }
-   ],
-   "n_active": 0,
-   "n_watch": 1,
-   "level": "mid",
-   "score": 0,
-   "rr": {
-    "stop": 97.5,
-    "target": 182.5,
-    "note": "已跌破近20日低點,沒有下方支撐可當停損"
-   }
-  },
-  {
-   "code": "1303",
-   "name": "南亞",
-   "close": 228.5,
-   "pct": -9.86,
-   "signals": [
-    {
-     "key": "close_20low",
-     "name": "收盤跌破20日最低收",
-     "status": "watch",
-     "ex5": -0.61
+     "ex5": -0.62
     },
     {
-     "key": "ma_bear",
-     "name": "均線空頭排列首日",
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
+    },
+    {
+     "key": "break_20low_vol",
+     "name": "放量跌破20日低",
      "status": "inactive",
-     "ex5": -0.1
-    }
-   ],
-   "n_active": 0,
-   "n_watch": 1,
-   "level": "mid",
-   "score": 0,
-   "rr": {
-    "stop": 224.5,
-    "target": 325.5,
-    "risk": 1.75,
-    "reward": 42.45,
-    "rr": 24.25
-   }
-  },
-  {
-   "code": "3051",
-   "name": "力特",
-   "close": 17.25,
-   "pct": -6.76,
-   "signals": [
-    {
-     "key": "close_20low",
-     "name": "收盤跌破20日最低收",
-     "status": "watch",
-     "ex5": -0.61
-    }
-   ],
-   "n_active": 0,
-   "n_watch": 1,
-   "level": "mid",
-   "score": 0,
-   "rr": {
-    "stop": 17.1,
-    "target": 22.2,
-    "risk": 0.87,
-    "reward": 28.7,
-    "rr": 33.0
-   }
-  },
-  {
-   "code": "2337",
-   "name": "旺宏",
-   "close": 64.6,
-   "pct": -7.58,
-   "signals": [
-    {
-     "key": "close_20low",
-     "name": "收盤跌破20日最低收",
-     "status": "watch",
-     "ex5": -0.61
-    }
-   ],
-   "n_active": 0,
-   "n_watch": 1,
-   "level": "mid",
-   "score": 0,
-   "rr": {
-    "stop": 66.1,
-    "target": 107.5,
-    "note": "已跌破近20日低點,沒有下方支撐可當停損"
-   }
-  },
-  {
-   "code": "6257",
-   "name": "矽格",
-   "close": 142.0,
-   "pct": -9.55,
-   "signals": [
-    {
-     "key": "close_20low",
-     "name": "收盤跌破20日最低收",
-     "status": "watch",
-     "ex5": -0.61
-    }
-   ],
-   "n_active": 0,
-   "n_watch": 1,
-   "level": "mid",
-   "score": 0,
-   "rr": {
-    "stop": 146.5,
-    "target": 252.0,
-    "note": "已跌破近20日低點,沒有下方支撐可當停損"
-   }
-  },
-  {
-   "code": "3090",
-   "name": "日電貿",
-   "close": 105.5,
-   "pct": -9.05,
-   "signals": [
-    {
-     "key": "close_20low",
-     "name": "收盤跌破20日最低收",
-     "status": "watch",
-     "ex5": -0.61
+     "ex5": -0.51
     },
     {
      "key": "vol_up_price_down3",
@@ -1979,11 +1331,832 @@
     }
    ],
    "n_active": 0,
-   "n_watch": 1,
+   "n_watch": 3,
+   "level": "mid",
+   "score": 0,
+   "rr": {
+    "stop": 19.95,
+    "target": 27.7,
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
+   }
+  },
+  {
+   "code": "2455",
+   "name": "全新",
+   "close": 265.0,
+   "pct": -9.86,
+   "signals": [
+    {
+     "key": "close_20low",
+     "name": "收盤跌破20日最低收",
+     "status": "watch",
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
+    }
+   ],
+   "n_active": 0,
+   "n_watch": 2,
+   "level": "mid",
+   "score": 0,
+   "rr": {
+    "stop": 294.0,
+    "target": 536.0,
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
+   }
+  },
+  {
+   "code": "3374",
+   "name": "精材",
+   "close": 319.5,
+   "pct": -10.0,
+   "signals": [
+    {
+     "key": "close_20low",
+     "name": "收盤跌破20日最低收",
+     "status": "watch",
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
+    },
+    {
+     "key": "ma_bear",
+     "name": "均線空頭排列首日",
+     "status": "inactive",
+     "ex5": -0.12
+    }
+   ],
+   "n_active": 0,
+   "n_watch": 2,
+   "level": "mid",
+   "score": 0,
+   "rr": {
+    "stop": 355.0,
+    "target": 519.0,
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
+   }
+  },
+  {
+   "code": "2408",
+   "name": "南亞科",
+   "close": 264.5,
+   "pct": -9.88,
+   "signals": [
+    {
+     "key": "close_20low",
+     "name": "收盤跌破20日最低收",
+     "status": "watch",
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
+    }
+   ],
+   "n_active": 0,
+   "n_watch": 2,
+   "level": "mid",
+   "score": 0,
+   "rr": {
+    "stop": 292.5,
+    "target": 497.5,
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
+   }
+  },
+  {
+   "code": "2344",
+   "name": "華邦電",
+   "close": 89.2,
+   "pct": -8.98,
+   "signals": [
+    {
+     "key": "close_20low",
+     "name": "收盤跌破20日最低收",
+     "status": "watch",
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
+    }
+   ],
+   "n_active": 0,
+   "n_watch": 2,
+   "level": "mid",
+   "score": 0,
+   "rr": {
+    "stop": 97.3,
+    "target": 175.27,
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
+   }
+  },
+  {
+   "code": "6147",
+   "name": "頎邦",
+   "close": 116.0,
+   "pct": -9.73,
+   "signals": [
+    {
+     "key": "close_20low",
+     "name": "收盤跌破20日最低收",
+     "status": "watch",
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
+    }
+   ],
+   "n_active": 0,
+   "n_watch": 2,
+   "level": "mid",
+   "score": 0,
+   "rr": {
+    "stop": 128.5,
+    "target": 223.0,
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
+   }
+  },
+  {
+   "code": "8021",
+   "name": "尖點",
+   "close": 247.5,
+   "pct": -9.84,
+   "signals": [
+    {
+     "key": "close_20low",
+     "name": "收盤跌破20日最低收",
+     "status": "watch",
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
+    }
+   ],
+   "n_active": 0,
+   "n_watch": 2,
+   "level": "mid",
+   "score": 0,
+   "rr": {
+    "stop": 274.5,
+    "target": 535.0,
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
+   }
+  },
+  {
+   "code": "8039",
+   "name": "台虹",
+   "close": 137.5,
+   "pct": -9.84,
+   "signals": [
+    {
+     "key": "close_20low",
+     "name": "收盤跌破20日最低收",
+     "status": "watch",
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
+    }
+   ],
+   "n_active": 0,
+   "n_watch": 2,
+   "level": "mid",
+   "score": 0,
+   "rr": {
+    "stop": 152.5,
+    "target": 315.0,
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
+   }
+  },
+  {
+   "code": "8358",
+   "name": "金居",
+   "close": 247.0,
+   "pct": -9.85,
+   "signals": [
+    {
+     "key": "close_20low",
+     "name": "收盤跌破20日最低收",
+     "status": "watch",
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
+    }
+   ],
+   "n_active": 0,
+   "n_watch": 2,
+   "level": "mid",
+   "score": 0,
+   "rr": {
+    "stop": 274.0,
+    "target": 496.5,
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
+   }
+  },
+  {
+   "code": "3264",
+   "name": "欣銓",
+   "close": 136.0,
+   "pct": -9.93,
+   "signals": [
+    {
+     "key": "close_20low",
+     "name": "收盤跌破20日最低收",
+     "status": "watch",
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
+    }
+   ],
+   "n_active": 0,
+   "n_watch": 2,
+   "level": "mid",
+   "score": 0,
+   "rr": {
+    "stop": 151.0,
+    "target": 279.5,
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
+   }
+  },
+  {
+   "code": "4979",
+   "name": "華星光",
+   "close": 266.0,
+   "pct": -9.98,
+   "signals": [
+    {
+     "key": "close_20low",
+     "name": "收盤跌破20日最低收",
+     "status": "watch",
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
+    }
+   ],
+   "n_active": 0,
+   "n_watch": 2,
+   "level": "mid",
+   "score": 0,
+   "rr": {
+    "stop": 295.5,
+    "target": 531.0,
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
+   }
+  },
+  {
+   "code": "3105",
+   "name": "穩懋",
+   "close": 381.0,
+   "pct": -9.93,
+   "signals": [
+    {
+     "key": "close_20low",
+     "name": "收盤跌破20日最低收",
+     "status": "watch",
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
+    },
+    {
+     "key": "ma_bear",
+     "name": "均線空頭排列首日",
+     "status": "inactive",
+     "ex5": -0.12
+    }
+   ],
+   "n_active": 0,
+   "n_watch": 2,
+   "level": "mid",
+   "score": 0,
+   "rr": {
+    "stop": 403.5,
+    "target": 596.0,
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
+   }
+  },
+  {
+   "code": "6173",
+   "name": "信昌電",
+   "close": 135.0,
+   "pct": -10.0,
+   "signals": [
+    {
+     "key": "close_20low",
+     "name": "收盤跌破20日最低收",
+     "status": "watch",
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
+    }
+   ],
+   "n_active": 0,
+   "n_watch": 2,
+   "level": "mid",
+   "score": 0,
+   "rr": {
+    "stop": 150.0,
+    "target": 312.5,
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
+   }
+  },
+  {
+   "code": "3016",
+   "name": "嘉晶",
+   "close": 84.7,
+   "pct": -9.99,
+   "signals": [
+    {
+     "key": "close_20low",
+     "name": "收盤跌破20日最低收",
+     "status": "watch",
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
+    }
+   ],
+   "n_active": 0,
+   "n_watch": 2,
+   "level": "mid",
+   "score": 0,
+   "rr": {
+    "stop": 94.1,
+    "target": 159.0,
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
+   }
+  },
+  {
+   "code": "1727",
+   "name": "中華化",
+   "close": 58.5,
+   "pct": -9.58,
+   "signals": [
+    {
+     "key": "close_20low",
+     "name": "收盤跌破20日最低收",
+     "status": "watch",
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
+    }
+   ],
+   "n_active": 0,
+   "n_watch": 2,
+   "level": "mid",
+   "score": 0,
+   "rr": {
+    "stop": 64.0,
+    "target": 101.0,
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
+   }
+  },
+  {
+   "code": "8042",
+   "name": "金山電",
+   "close": 77.7,
+   "pct": -9.97,
+   "signals": [
+    {
+     "key": "close_20low",
+     "name": "收盤跌破20日最低收",
+     "status": "watch",
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
+    }
+   ],
+   "n_active": 0,
+   "n_watch": 2,
+   "level": "mid",
+   "score": 0,
+   "rr": {
+    "stop": 86.3,
+    "target": 154.5,
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
+   }
+  },
+  {
+   "code": "8111",
+   "name": "立碁",
+   "close": 56.4,
+   "pct": -9.9,
+   "signals": [
+    {
+     "key": "close_20low",
+     "name": "收盤跌破20日最低收",
+     "status": "watch",
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
+    }
+   ],
+   "n_active": 0,
+   "n_watch": 2,
+   "level": "mid",
+   "score": 0,
+   "rr": {
+    "stop": 62.6,
+    "target": 83.5,
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
+   }
+  },
+  {
+   "code": "1815",
+   "name": "富喬",
+   "close": 99.0,
+   "pct": -10.0,
+   "signals": [
+    {
+     "key": "close_20low",
+     "name": "收盤跌破20日最低收",
+     "status": "watch",
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
+    }
+   ],
+   "n_active": 0,
+   "n_watch": 2,
    "level": "mid",
    "score": 0,
    "rr": {
     "stop": 109.5,
+    "target": 158.5,
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
+   }
+  },
+  {
+   "code": "2883",
+   "name": "凱基金",
+   "close": 29.9,
+   "pct": -6.12,
+   "signals": [
+    {
+     "key": "close_20low",
+     "name": "收盤跌破20日最低收",
+     "status": "watch",
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
+    }
+   ],
+   "n_active": 0,
+   "n_watch": 2,
+   "level": "mid",
+   "score": 0,
+   "rr": {
+    "stop": 31.1,
+    "target": 39.3,
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
+   }
+  },
+  {
+   "code": "2313",
+   "name": "華通",
+   "close": 152.5,
+   "pct": -9.76,
+   "signals": [
+    {
+     "key": "close_20low",
+     "name": "收盤跌破20日最低收",
+     "status": "watch",
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
+    },
+    {
+     "key": "ma_bear",
+     "name": "均線空頭排列首日",
+     "status": "inactive",
+     "ex5": -0.12
+    }
+   ],
+   "n_active": 0,
+   "n_watch": 2,
+   "level": "mid",
+   "score": 0,
+   "rr": {
+    "stop": 149.0,
+    "target": 266.0,
+    "risk": 2.3,
+    "reward": 74.43,
+    "rr": 32.43
+   }
+  },
+  {
+   "code": "4919",
+   "name": "新唐",
+   "close": 76.9,
+   "pct": -9.95,
+   "signals": [
+    {
+     "key": "close_20low",
+     "name": "收盤跌破20日最低收",
+     "status": "watch",
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
+    }
+   ],
+   "n_active": 0,
+   "n_watch": 2,
+   "level": "mid",
+   "score": 0,
+   "rr": {
+    "stop": 85.0,
+    "target": 147.0,
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
+   }
+  },
+  {
+   "code": "6217",
+   "name": "中探針",
+   "close": 85.9,
+   "pct": -9.96,
+   "signals": [
+    {
+     "key": "close_20low",
+     "name": "收盤跌破20日最低收",
+     "status": "watch",
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
+    }
+   ],
+   "n_active": 0,
+   "n_watch": 2,
+   "level": "mid",
+   "score": 0,
+   "rr": {
+    "stop": 95.4,
+    "target": 180.0,
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
+   }
+  },
+  {
+   "code": "1303",
+   "name": "南亞",
+   "close": 206.0,
+   "pct": -9.85,
+   "signals": [
+    {
+     "key": "close_20low",
+     "name": "收盤跌破20日最低收",
+     "status": "watch",
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
+    }
+   ],
+   "n_active": 0,
+   "n_watch": 2,
+   "level": "mid",
+   "score": 0,
+   "rr": {
+    "stop": 224.5,
+    "target": 325.5,
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
+   }
+  },
+  {
+   "code": "3051",
+   "name": "力特",
+   "close": 15.75,
+   "pct": -8.7,
+   "signals": [
+    {
+     "key": "vol_down",
+     "name": "量大下跌(現行出場)",
+     "status": "inactive",
+     "ex5": -0.88
+    },
+    {
+     "key": "close_20low",
+     "name": "收盤跌破20日最低收",
+     "status": "watch",
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
+    },
+    {
+     "key": "break_20low_vol",
+     "name": "放量跌破20日低",
+     "status": "inactive",
+     "ex5": -0.51
+    },
+    {
+     "key": "vol_up_price_down3",
+     "name": "連3日量增價跌",
+     "status": "inactive",
+     "ex5": 0.67
+    }
+   ],
+   "n_active": 0,
+   "n_watch": 2,
+   "level": "mid",
+   "score": 0,
+   "rr": {
+    "stop": 17.1,
+    "target": 22.2,
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
+   }
+  },
+  {
+   "code": "6937",
+   "name": "天虹",
+   "close": 162.0,
+   "pct": -10.0,
+   "signals": [
+    {
+     "key": "close_20low",
+     "name": "收盤跌破20日最低收",
+     "status": "watch",
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
+    }
+   ],
+   "n_active": 0,
+   "n_watch": 2,
+   "level": "mid",
+   "score": 0,
+   "rr": {
+    "stop": 180.0,
+    "target": 287.0,
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
+   }
+  },
+  {
+   "code": "2337",
+   "name": "旺宏",
+   "close": 58.9,
+   "pct": -8.82,
+   "signals": [
+    {
+     "key": "close_20low",
+     "name": "收盤跌破20日最低收",
+     "status": "watch",
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
+    }
+   ],
+   "n_active": 0,
+   "n_watch": 2,
+   "level": "mid",
+   "score": 0,
+   "rr": {
+    "stop": 64.3,
+    "target": 107.5,
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
+   }
+  },
+  {
+   "code": "6257",
+   "name": "矽格",
+   "close": 128.0,
+   "pct": -9.86,
+   "signals": [
+    {
+     "key": "close_20low",
+     "name": "收盤跌破20日最低收",
+     "status": "watch",
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
+    }
+   ],
+   "n_active": 0,
+   "n_watch": 2,
+   "level": "mid",
+   "score": 0,
+   "rr": {
+    "stop": 141.5,
+    "target": 252.0,
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
+   }
+  },
+  {
+   "code": "3090",
+   "name": "日電貿",
+   "close": 95.0,
+   "pct": -9.95,
+   "signals": [
+    {
+     "key": "close_20low",
+     "name": "收盤跌破20日最低收",
+     "status": "watch",
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
+    }
+   ],
+   "n_active": 0,
+   "n_watch": 2,
+   "level": "mid",
+   "score": 0,
+   "rr": {
+    "stop": 104.5,
     "target": 168.0,
     "note": "已跌破近20日低點,沒有下方支撐可當停損"
    }
@@ -1991,99 +2164,187 @@
   {
    "code": "2303",
    "name": "聯電",
-   "close": 88.2,
-   "pct": -5.16,
+   "close": 80.3,
+   "pct": -8.96,
    "signals": [
     {
      "key": "close_20low",
      "name": "收盤跌破20日最低收",
      "status": "watch",
-     "ex5": -0.61
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
+    },
+    {
+     "key": "break_20low_vol",
+     "name": "放量跌破20日低",
+     "status": "inactive",
+     "ex5": -0.51
     }
    ],
    "n_active": 0,
-   "n_watch": 1,
+   "n_watch": 2,
    "level": "mid",
    "score": 0,
    "rr": {
-    "stop": 88.6,
-    "target": 131.5,
+    "stop": 87.7,
+    "target": 131.0,
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
+   }
+  },
+  {
+   "code": "2379",
+   "name": "瑞昱",
+   "close": 668.0,
+   "pct": -7.99,
+   "signals": [
+    {
+     "key": "close_20low",
+     "name": "收盤跌破20日最低收",
+     "status": "watch",
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
+    }
+   ],
+   "n_active": 0,
+   "n_watch": 2,
+   "level": "mid",
+   "score": 0,
+   "rr": {
+    "stop": 658.0,
+    "target": 845.0,
+    "risk": 1.5,
+    "reward": 26.5,
+    "rr": 17.7
+   }
+  },
+  {
+   "code": "2609",
+   "name": "陽明",
+   "close": 53.0,
+   "pct": -7.5,
+   "signals": [
+    {
+     "key": "close_20low",
+     "name": "收盤跌破20日最低收",
+     "status": "watch",
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
+    },
+    {
+     "key": "ma_bear",
+     "name": "均線空頭排列首日",
+     "status": "inactive",
+     "ex5": -0.12
+    }
+   ],
+   "n_active": 0,
+   "n_watch": 2,
+   "level": "mid",
+   "score": 0,
+   "rr": {
+    "stop": 54.9,
+    "target": 64.6,
     "note": "已跌破近20日低點,沒有下方支撐可當停損"
    }
   },
   {
    "code": "3231",
    "name": "緯創",
-   "close": 156.0,
-   "pct": -3.7,
+   "close": 147.0,
+   "pct": -5.77,
    "signals": [
     {
      "key": "close_20low",
      "name": "收盤跌破20日最低收",
      "status": "watch",
-     "ex5": -0.61
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
     }
    ],
    "n_active": 0,
-   "n_watch": 1,
+   "n_watch": 2,
    "level": "mid",
    "score": 0,
    "rr": {
     "stop": 152.0,
     "target": 199.5,
-    "risk": 2.56,
-    "reward": 27.88,
-    "rr": 10.88
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
    }
   },
   {
    "code": "3707",
    "name": "漢磊",
-   "close": 46.95,
-   "pct": -8.83,
+   "close": 42.3,
+   "pct": -9.9,
    "signals": [
     {
      "key": "close_20low",
      "name": "收盤跌破20日最低收",
      "status": "watch",
-     "ex5": -0.61
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
     }
    ],
    "n_active": 0,
-   "n_watch": 1,
+   "n_watch": 2,
    "level": "mid",
    "score": 0,
    "rr": {
-    "stop": 48.75,
-    "target": 76.2,
+    "stop": 46.5,
+    "target": 75.7,
     "note": "已跌破近20日低點,沒有下方支撐可當停損"
    }
   },
   {
    "code": "5425",
    "name": "台半",
-   "close": 65.1,
-   "pct": -9.21,
+   "close": 58.6,
+   "pct": -9.98,
    "signals": [
     {
      "key": "close_20low",
      "name": "收盤跌破20日最低收",
      "status": "watch",
-     "ex5": -0.61
+     "ex5": -0.62
     },
     {
-     "key": "break_20low_vol",
-     "name": "放量跌破20日低",
-     "status": "inactive",
-     "ex5": -0.43
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
     }
    ],
    "n_active": 0,
-   "n_watch": 1,
+   "n_watch": 2,
    "level": "mid",
    "score": 0,
    "rr": {
-    "stop": 66.2,
+    "stop": 64.6,
     "target": 95.5,
     "note": "已跌破近20日低點,沒有下方支撐可當停損"
    }
@@ -2091,22 +2352,28 @@
   {
    "code": "2481",
    "name": "強茂",
-   "close": 94.9,
-   "pct": -9.62,
+   "close": 85.5,
+   "pct": -9.91,
    "signals": [
     {
      "key": "close_20low",
      "name": "收盤跌破20日最低收",
      "status": "watch",
-     "ex5": -0.61
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
     }
    ],
    "n_active": 0,
-   "n_watch": 1,
+   "n_watch": 2,
    "level": "mid",
    "score": 0,
    "rr": {
-    "stop": 98.6,
+    "stop": 94.5,
     "target": 165.0,
     "note": "已跌破近20日低點,沒有下方支撐可當停損"
    }
@@ -2114,72 +2381,98 @@
   {
    "code": "3588",
    "name": "通嘉",
-   "close": 40.0,
-   "pct": -5.88,
+   "close": 39.4,
+   "pct": -1.5,
    "signals": [
+    {
+     "key": "vol_down",
+     "name": "量大下跌(現行出場)",
+     "status": "inactive",
+     "ex5": -0.88
+    },
     {
      "key": "close_20low",
      "name": "收盤跌破20日最低收",
      "status": "watch",
-     "ex5": -0.61
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
+    },
+    {
+     "key": "break_20low_vol",
+     "name": "放量跌破20日低",
+     "status": "inactive",
+     "ex5": -0.51
     }
    ],
    "n_active": 0,
-   "n_watch": 1,
+   "n_watch": 2,
    "level": "mid",
    "score": 0,
    "rr": {
     "stop": 39.6,
     "target": 51.6,
-    "risk": 1.0,
-    "reward": 29.0,
-    "rr": 29.0
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
    }
   },
   {
    "code": "5347",
    "name": "世界",
-   "close": 116.5,
-   "pct": -6.05,
+   "close": 106.5,
+   "pct": -8.58,
    "signals": [
     {
      "key": "close_20low",
      "name": "收盤跌破20日最低收",
      "status": "watch",
-     "ex5": -0.61
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
     }
    ],
    "n_active": 0,
-   "n_watch": 1,
+   "n_watch": 2,
    "level": "mid",
    "score": 0,
    "rr": {
     "stop": 113.5,
     "target": 170.0,
-    "risk": 2.58,
-    "reward": 45.92,
-    "rr": 17.83
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
    }
   },
   {
    "code": "6182",
    "name": "合晶",
-   "close": 63.1,
-   "pct": -9.99,
+   "close": 56.8,
+   "pct": -9.98,
    "signals": [
     {
      "key": "close_20low",
      "name": "收盤跌破20日最低收",
      "status": "watch",
-     "ex5": -0.61
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
     }
    ],
    "n_active": 0,
-   "n_watch": 1,
+   "n_watch": 2,
    "level": "mid",
    "score": 0,
    "rr": {
-    "stop": 65.2,
+    "stop": 63.1,
     "target": 113.0,
     "note": "已跌破近20日低點,沒有下方支撐可當停損"
    }
@@ -2187,22 +2480,28 @@
   {
    "code": "2351",
    "name": "順德",
-   "close": 116.5,
-   "pct": -9.69,
+   "close": 105.0,
+   "pct": -9.87,
    "signals": [
     {
      "key": "close_20low",
      "name": "收盤跌破20日最低收",
      "status": "watch",
-     "ex5": -0.61
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
     }
    ],
    "n_active": 0,
-   "n_watch": 1,
+   "n_watch": 2,
    "level": "mid",
    "score": 0,
    "rr": {
-    "stop": 119.0,
+    "stop": 116.5,
     "target": 209.5,
     "note": "已跌破近20日低點,沒有下方支撐可當停損"
    }
@@ -2210,84 +2509,86 @@
   {
    "code": "2449",
    "name": "京元電子",
-   "close": 175.0,
-   "pct": -9.79,
+   "close": 157.5,
+   "pct": -10.0,
    "signals": [
     {
      "key": "close_20low",
      "name": "收盤跌破20日最低收",
      "status": "watch",
-     "ex5": -0.61
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
     }
    ],
    "n_active": 0,
-   "n_watch": 1,
+   "n_watch": 2,
    "level": "mid",
    "score": 0,
    "rr": {
     "stop": 173.5,
     "target": 284.5,
-    "risk": 0.86,
-    "reward": 62.57,
-    "rr": 73.0
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
    }
   },
   {
    "code": "6239",
    "name": "力成",
-   "close": 201.5,
-   "pct": -7.99,
+   "close": 181.5,
+   "pct": -9.93,
    "signals": [
     {
      "key": "close_20low",
      "name": "收盤跌破20日最低收",
      "status": "watch",
-     "ex5": -0.61
+     "ex5": -0.62
     },
     {
-     "key": "ma_bear",
-     "name": "均線空頭排列首日",
-     "status": "inactive",
-     "ex5": -0.1
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
     }
    ],
    "n_active": 0,
-   "n_watch": 1,
+   "n_watch": 2,
    "level": "mid",
    "score": 0,
    "rr": {
     "stop": 198.0,
     "target": 276.5,
-    "risk": 1.74,
-    "reward": 37.22,
-    "rr": 21.43
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
    }
   },
   {
    "code": "8150",
    "name": "南茂",
-   "close": 67.5,
-   "pct": -9.27,
+   "close": 61.0,
+   "pct": -9.63,
    "signals": [
     {
      "key": "close_20low",
      "name": "收盤跌破20日最低收",
      "status": "watch",
-     "ex5": -0.61
+     "ex5": -0.62
     },
     {
-     "key": "ma_bear",
-     "name": "均線空頭排列首日",
-     "status": "inactive",
-     "ex5": -0.1
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
     }
    ],
    "n_active": 0,
-   "n_watch": 1,
+   "n_watch": 2,
    "level": "mid",
    "score": 0,
    "rr": {
-    "stop": 68.4,
+    "stop": 67.1,
     "target": 105.0,
     "note": "已跌破近20日低點,沒有下方支撐可當停損"
    }
@@ -2295,22 +2596,28 @@
   {
    "code": "4958",
    "name": "臻鼎-KY",
-   "close": 344.0,
-   "pct": -9.95,
+   "close": 310.0,
+   "pct": -9.88,
    "signals": [
     {
      "key": "close_20low",
      "name": "收盤跌破20日最低收",
      "status": "watch",
-     "ex5": -0.61
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
     }
    ],
    "n_active": 0,
-   "n_watch": 1,
+   "n_watch": 2,
    "level": "mid",
    "score": 0,
    "rr": {
-    "stop": 355.0,
+    "stop": 344.0,
     "target": 614.0,
     "note": "已跌破近20日低點,沒有下方支撐可當停損"
    }
@@ -2318,22 +2625,28 @@
   {
    "code": "3037",
    "name": "欣興",
-   "close": 596.0,
-   "pct": -9.97,
+   "close": 537.0,
+   "pct": -9.9,
    "signals": [
     {
      "key": "close_20low",
      "name": "收盤跌破20日最低收",
      "status": "watch",
-     "ex5": -0.61
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
     }
    ],
    "n_active": 0,
-   "n_watch": 1,
+   "n_watch": 2,
    "level": "mid",
    "score": 0,
    "rr": {
-    "stop": 607.0,
+    "stop": 596.0,
     "target": 1180.0,
     "note": "已跌破近20日低點,沒有下方支撐可當停損"
    }
@@ -2341,28 +2654,28 @@
   {
    "code": "6488",
    "name": "環球晶",
-   "close": 490.0,
-   "pct": -9.93,
+   "close": 441.5,
+   "pct": -9.9,
    "signals": [
     {
      "key": "close_20low",
      "name": "收盤跌破20日最低收",
      "status": "watch",
-     "ex5": -0.61
+     "ex5": -0.62
     },
     {
-     "key": "ma_bear",
-     "name": "均線空頭排列首日",
-     "status": "inactive",
-     "ex5": -0.1
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
     }
    ],
    "n_active": 0,
-   "n_watch": 1,
+   "n_watch": 2,
    "level": "mid",
    "score": 0,
    "rr": {
-    "stop": 507.0,
+    "stop": 490.0,
     "target": 903.0,
     "note": "已跌破近20日低點,沒有下方支撐可當停損"
    }
@@ -2370,22 +2683,28 @@
   {
    "code": "3490",
    "name": "單井",
-   "close": 25.3,
-   "pct": -9.64,
+   "close": 22.9,
+   "pct": -9.49,
    "signals": [
     {
      "key": "close_20low",
      "name": "收盤跌破20日最低收",
      "status": "watch",
-     "ex5": -0.61
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
     }
    ],
    "n_active": 0,
-   "n_watch": 1,
+   "n_watch": 2,
    "level": "mid",
    "score": 0,
    "rr": {
-    "stop": 26.95,
+    "stop": 25.3,
     "target": 45.0,
     "note": "已跌破近20日低點,沒有下方支撐可當停損"
    }
@@ -2393,20 +2712,596 @@
   {
    "code": "2409",
    "name": "友達",
-   "close": 25.1,
+   "close": 23.25,
+   "pct": -7.37,
+   "signals": [
+    {
+     "key": "close_20low",
+     "name": "收盤跌破20日最低收",
+     "status": "watch",
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
+    }
+   ],
+   "n_active": 0,
+   "n_watch": 2,
+   "level": "mid",
+   "score": 0,
+   "rr": {
+    "stop": 24.55,
+    "target": 37.8,
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
+   }
+  },
+  {
+   "code": "2327",
+   "name": "國巨",
+   "close": 296.0,
+   "pct": -8.22,
+   "signals": [
+    {
+     "key": "close_20low",
+     "name": "收盤跌破20日最低收",
+     "status": "watch",
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
+    },
+    {
+     "key": "break_20low_vol",
+     "name": "放量跌破20日低",
+     "status": "inactive",
+     "ex5": -0.51
+    },
+    {
+     "key": "vol_up_price_down3",
+     "name": "連3日量增價跌",
+     "status": "inactive",
+     "ex5": 0.67
+    }
+   ],
+   "n_active": 0,
+   "n_watch": 2,
+   "level": "mid",
+   "score": 0,
+   "rr": {
+    "stop": 317.0,
+    "target": 559.0,
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
+   }
+  },
+  {
+   "code": "3624",
+   "name": "光頡",
+   "close": 77.6,
+   "pct": -9.98,
+   "signals": [
+    {
+     "key": "close_20low",
+     "name": "收盤跌破20日最低收",
+     "status": "watch",
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
+    }
+   ],
+   "n_active": 0,
+   "n_watch": 2,
+   "level": "mid",
+   "score": 0,
+   "rr": {
+    "stop": 86.2,
+    "target": 154.0,
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
+   }
+  },
+  {
+   "code": "3605",
+   "name": "宏致",
+   "close": 83.7,
+   "pct": -9.9,
+   "signals": [
+    {
+     "key": "close_20low",
+     "name": "收盤跌破20日最低收",
+     "status": "watch",
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
+    }
+   ],
+   "n_active": 0,
+   "n_watch": 2,
+   "level": "mid",
+   "score": 0,
+   "rr": {
+    "stop": 92.3,
+    "target": 183.5,
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
+   }
+  },
+  {
+   "code": "6456",
+   "name": "GIS-KY",
+   "close": 67.7,
+   "pct": -9.97,
+   "signals": [
+    {
+     "key": "close_20low",
+     "name": "收盤跌破20日最低收",
+     "status": "watch",
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
+    },
+    {
+     "key": "ma_bear",
+     "name": "均線空頭排列首日",
+     "status": "inactive",
+     "ex5": -0.12
+    }
+   ],
+   "n_active": 0,
+   "n_watch": 2,
+   "level": "mid",
+   "score": 0,
+   "rr": {
+    "stop": 75.2,
+    "target": 113.5,
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
+   }
+  },
+  {
+   "code": "2492",
+   "name": "華新科",
+   "close": 187.5,
+   "pct": -9.86,
+   "signals": [
+    {
+     "key": "close_20low",
+     "name": "收盤跌破20日最低收",
+     "status": "watch",
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
+    }
+   ],
+   "n_active": 0,
+   "n_watch": 2,
+   "level": "mid",
+   "score": 0,
+   "rr": {
+    "stop": 208.0,
+    "target": 431.5,
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
+   }
+  },
+  {
+   "code": "4991",
+   "name": "環宇-KY",
+   "close": 245.5,
+   "pct": -9.91,
+   "signals": [
+    {
+     "key": "close_20low",
+     "name": "收盤跌破20日最低收",
+     "status": "watch",
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
+    }
+   ],
+   "n_active": 0,
+   "n_watch": 2,
+   "level": "mid",
+   "score": 0,
+   "rr": {
+    "stop": 271.0,
+    "target": 466.0,
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
+   }
+  },
+  {
+   "code": "6278",
+   "name": "台表科",
+   "close": 153.0,
+   "pct": -9.73,
+   "signals": [
+    {
+     "key": "close_20low",
+     "name": "收盤跌破20日最低收",
+     "status": "watch",
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
+    }
+   ],
+   "n_active": 0,
+   "n_watch": 2,
+   "level": "mid",
+   "score": 0,
+   "rr": {
+    "stop": 169.5,
+    "target": 316.5,
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
+   }
+  },
+  {
+   "code": "3042",
+   "name": "晶技",
+   "close": 105.5,
+   "pct": -9.83,
+   "signals": [
+    {
+     "key": "close_20low",
+     "name": "收盤跌破20日最低收",
+     "status": "watch",
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
+    }
+   ],
+   "n_active": 0,
+   "n_watch": 2,
+   "level": "mid",
+   "score": 0,
+   "rr": {
+    "stop": 116.0,
+    "target": 189.0,
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
+   }
+  },
+  {
+   "code": "2606",
+   "name": "裕民",
+   "close": 63.1,
+   "pct": -8.68,
+   "signals": [
+    {
+     "key": "close_20low",
+     "name": "收盤跌破20日最低收",
+     "status": "watch",
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
+    },
+    {
+     "key": "ma_bear",
+     "name": "均線空頭排列首日",
+     "status": "inactive",
+     "ex5": -0.12
+    }
+   ],
+   "n_active": 0,
+   "n_watch": 2,
+   "level": "mid",
+   "score": 0,
+   "rr": {
+    "stop": 64.5,
+    "target": 76.5,
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
+   }
+  },
+  {
+   "code": "1802",
+   "name": "台玻",
+   "close": 52.9,
+   "pct": -9.88,
+   "signals": [
+    {
+     "key": "close_20low",
+     "name": "收盤跌破20日最低收",
+     "status": "watch",
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
+    }
+   ],
+   "n_active": 0,
+   "n_watch": 2,
+   "level": "mid",
+   "score": 0,
+   "rr": {
+    "stop": 54.1,
+    "target": 89.5,
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
+   }
+  },
+  {
+   "code": "3706",
+   "name": "神達",
+   "close": 53.0,
+   "pct": -7.83,
+   "signals": [
+    {
+     "key": "close_20low",
+     "name": "收盤跌破20日最低收",
+     "status": "watch",
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
+    },
+    {
+     "key": "break_20low_vol",
+     "name": "放量跌破20日低",
+     "status": "inactive",
+     "ex5": -0.51
+    }
+   ],
+   "n_active": 0,
+   "n_watch": 2,
+   "level": "mid",
+   "score": 0,
+   "rr": {
+    "stop": 56.8,
+    "target": 82.4,
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
+   }
+  },
+  {
+   "code": "2049",
+   "name": "上銀",
+   "close": 242.5,
+   "pct": -7.09,
+   "signals": [
+    {
+     "key": "close_20low",
+     "name": "收盤跌破20日最低收",
+     "status": "watch",
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
+    }
+   ],
+   "n_active": 0,
+   "n_watch": 2,
+   "level": "mid",
+   "score": 0,
+   "rr": {
+    "stop": 256.5,
+    "target": 347.5,
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
+   }
+  },
+  {
+   "code": "4576",
+   "name": "大銀微系統",
+   "close": 147.5,
    "pct": -8.39,
    "signals": [
     {
      "key": "close_20low",
      "name": "收盤跌破20日最低收",
      "status": "watch",
-     "ex5": -0.61
+     "ex5": -0.62
     },
     {
-     "key": "ma_bear",
-     "name": "均線空頭排列首日",
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
+    }
+   ],
+   "n_active": 0,
+   "n_watch": 2,
+   "level": "mid",
+   "score": 0,
+   "rr": {
+    "stop": 159.5,
+    "target": 236.0,
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
+   }
+  },
+  {
+   "code": "2359",
+   "name": "所羅門",
+   "close": 70.1,
+   "pct": -9.08,
+   "signals": [
+    {
+     "key": "close_20low",
+     "name": "收盤跌破20日最低收",
+     "status": "watch",
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
+    }
+   ],
+   "n_active": 0,
+   "n_watch": 2,
+   "level": "mid",
+   "score": 0,
+   "rr": {
+    "stop": 77.0,
+    "target": 123.0,
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
+   }
+  },
+  {
+   "code": "8033",
+   "name": "雷虎",
+   "close": 110.5,
+   "pct": -6.36,
+   "signals": [
+    {
+     "key": "big_black",
+     "name": "爆量長黑",
+     "status": "watch",
+     "ex5": -1.6
+    },
+    {
+     "key": "vol_down",
+     "name": "量大下跌(現行出場)",
      "status": "inactive",
-     "ex5": -0.1
+     "ex5": -0.88
+    },
+    {
+     "key": "close_20low",
+     "name": "收盤跌破20日最低收",
+     "status": "watch",
+     "ex5": -0.62
+    },
+    {
+     "key": "break_20low_vol",
+     "name": "放量跌破20日低",
+     "status": "inactive",
+     "ex5": -0.51
+    },
+    {
+     "key": "vol_up_price_down3",
+     "name": "連3日量增價跌",
+     "status": "inactive",
+     "ex5": 0.67
+    }
+   ],
+   "n_active": 0,
+   "n_watch": 2,
+   "level": "mid",
+   "score": 0,
+   "rr": {
+    "stop": 118.0,
+    "target": 164.5,
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
+   }
+  },
+  {
+   "code": "2368",
+   "name": "金像電",
+   "close": 711.0,
+   "pct": -10.0,
+   "signals": [
+    {
+     "key": "close_20low",
+     "name": "收盤跌破20日最低收",
+     "status": "watch",
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
+    }
+   ],
+   "n_active": 0,
+   "n_watch": 2,
+   "level": "mid",
+   "score": 0,
+   "rr": {
+    "stop": 782.0,
+    "target": 1255.0,
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
+   }
+  },
+  {
+   "code": "6209",
+   "name": "今國光",
+   "close": 54.6,
+   "pct": -9.9,
+   "signals": [
+    {
+     "key": "close_20low",
+     "name": "收盤跌破20日最低收",
+     "status": "watch",
+     "ex5": -0.62
+    },
+    {
+     "key": "gap_down",
+     "name": "跳空缺口未補",
+     "status": "watch",
+     "ex5": -0.41
+    }
+   ],
+   "n_active": 0,
+   "n_watch": 2,
+   "level": "mid",
+   "score": 0,
+   "rr": {
+    "stop": 60.6,
+    "target": 120.0,
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
+   }
+  },
+  {
+   "code": "3027",
+   "name": "盛達",
+   "close": 12.7,
+   "pct": -4.15,
+   "signals": [
+    {
+     "key": "vol_down",
+     "name": "量大下跌(現行出場)",
+     "status": "inactive",
+     "ex5": -0.88
+    },
+    {
+     "key": "close_20low",
+     "name": "收盤跌破20日最低收",
+     "status": "watch",
+     "ex5": -0.62
+    },
+    {
+     "key": "break_20low_vol",
+     "name": "放量跌破20日低",
+     "status": "inactive",
+     "ex5": -0.51
     }
    ],
    "n_active": 0,
@@ -2414,30 +3309,51 @@
    "level": "mid",
    "score": 0,
    "rr": {
-    "stop": 24.55,
-    "target": 37.8,
-    "risk": 2.19,
-    "reward": 50.6,
-    "rr": 23.09
+    "stop": 13.05,
+    "target": 19.4,
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
    }
   },
   {
-   "code": "2882",
-   "name": "國泰金",
-   "close": 103.5,
-   "pct": -5.91,
+   "code": "2881",
+   "name": "富邦金",
+   "close": 136.5,
+   "pct": -7.77,
    "signals": [
     {
      "key": "close_20low",
      "name": "收盤跌破20日最低收",
      "status": "watch",
-     "ex5": -0.61
+     "ex5": -0.62
     },
     {
-     "key": "ma_bear",
-     "name": "均線空頭排列首日",
+     "key": "break_20low_vol",
+     "name": "放量跌破20日低",
      "status": "inactive",
-     "ex5": -0.1
+     "ex5": -0.51
+    }
+   ],
+   "n_active": 0,
+   "n_watch": 1,
+   "level": "mid",
+   "score": 0,
+   "rr": {
+    "stop": 140.0,
+    "target": 164.0,
+    "note": "已跌破近20日低點,沒有下方支撐可當停損"
+   }
+  },
+  {
+   "code": "2882",
+   "name": "國泰金",
+   "close": 96.9,
+   "pct": -6.38,
+   "signals": [
+    {
+     "key": "close_20low",
+     "name": "收盤跌破20日最低收",
+     "status": "watch",
+     "ex5": -0.62
     }
    ],
    "n_active": 0,
@@ -2447,226 +3363,20 @@
    "rr": {
     "stop": 101.0,
     "target": 117.5,
-    "risk": 2.42,
-    "reward": 13.53,
-    "rr": 5.6
-   }
-  },
-  {
-   "code": "2327",
-   "name": "國巨",
-   "close": 322.5,
-   "pct": -8.38,
-   "signals": [
-    {
-     "key": "close_20low",
-     "name": "收盤跌破20日最低收",
-     "status": "watch",
-     "ex5": -0.61
-    },
-    {
-     "key": "vol_up_price_down3",
-     "name": "連3日量增價跌",
-     "status": "inactive",
-     "ex5": 0.67
-    }
-   ],
-   "n_active": 0,
-   "n_watch": 1,
-   "level": "mid",
-   "score": 0,
-   "rr": {
-    "stop": 331.0,
-    "target": 559.0,
-    "note": "已跌破近20日低點,沒有下方支撐可當停損"
-   }
-  },
-  {
-   "code": "3624",
-   "name": "光頡",
-   "close": 86.2,
-   "pct": -9.93,
-   "signals": [
-    {
-     "key": "close_20low",
-     "name": "收盤跌破20日最低收",
-     "status": "watch",
-     "ex5": -0.61
-    },
-    {
-     "key": "ma_bear",
-     "name": "均線空頭排列首日",
-     "status": "inactive",
-     "ex5": -0.1
-    }
-   ],
-   "n_active": 0,
-   "n_watch": 1,
-   "level": "mid",
-   "score": 0,
-   "rr": {
-    "stop": 90.9,
-    "target": 154.0,
-    "note": "已跌破近20日低點,沒有下方支撐可當停損"
-   }
-  },
-  {
-   "code": "3605",
-   "name": "宏致",
-   "close": 92.9,
-   "pct": -9.37,
-   "signals": [
-    {
-     "key": "close_20low",
-     "name": "收盤跌破20日最低收",
-     "status": "watch",
-     "ex5": -0.61
-    }
-   ],
-   "n_active": 0,
-   "n_watch": 1,
-   "level": "mid",
-   "score": 0,
-   "rr": {
-    "stop": 96.4,
-    "target": 183.5,
-    "note": "已跌破近20日低點,沒有下方支撐可當停損"
-   }
-  },
-  {
-   "code": "6456",
-   "name": "GIS-KY",
-   "close": 75.2,
-   "pct": -9.94,
-   "signals": [
-    {
-     "key": "close_20low",
-     "name": "收盤跌破20日最低收",
-     "status": "watch",
-     "ex5": -0.61
-    }
-   ],
-   "n_active": 0,
-   "n_watch": 1,
-   "level": "mid",
-   "score": 0,
-   "rr": {
-    "stop": 75.4,
-    "target": 113.5,
-    "note": "已跌破近20日低點,沒有下方支撐可當停損"
-   }
-  },
-  {
-   "code": "2492",
-   "name": "華新科",
-   "close": 208.0,
-   "pct": -9.96,
-   "signals": [
-    {
-     "key": "close_20low",
-     "name": "收盤跌破20日最低收",
-     "status": "watch",
-     "ex5": -0.61
-    }
-   ],
-   "n_active": 0,
-   "n_watch": 1,
-   "level": "mid",
-   "score": 0,
-   "rr": {
-    "stop": 217.5,
-    "target": 431.5,
-    "note": "已跌破近20日低點,沒有下方支撐可當停損"
-   }
-  },
-  {
-   "code": "4991",
-   "name": "環宇-KY",
-   "close": 272.5,
-   "pct": -9.92,
-   "signals": [
-    {
-     "key": "close_20low",
-     "name": "收盤跌破20日最低收",
-     "status": "watch",
-     "ex5": -0.61
-    }
-   ],
-   "n_active": 0,
-   "n_watch": 1,
-   "level": "mid",
-   "score": 0,
-   "rr": {
-    "stop": 271.0,
-    "target": 466.0,
-    "risk": 0.55,
-    "reward": 71.01,
-    "rr": 129.0
-   }
-  },
-  {
-   "code": "6278",
-   "name": "台表科",
-   "close": 169.5,
-   "pct": -9.84,
-   "signals": [
-    {
-     "key": "close_20low",
-     "name": "收盤跌破20日最低收",
-     "status": "watch",
-     "ex5": -0.61
-    },
-    {
-     "key": "ma_bear",
-     "name": "均線空頭排列首日",
-     "status": "inactive",
-     "ex5": -0.1
-    }
-   ],
-   "n_active": 0,
-   "n_watch": 1,
-   "level": "mid",
-   "score": 0,
-   "rr": {
-    "stop": 174.0,
-    "target": 316.5,
-    "note": "已跌破近20日低點,沒有下方支撐可當停損"
-   }
-  },
-  {
-   "code": "3042",
-   "name": "晶技",
-   "close": 117.0,
-   "pct": -8.95,
-   "signals": [
-    {
-     "key": "close_20low",
-     "name": "收盤跌破20日最低收",
-     "status": "watch",
-     "ex5": -0.61
-    }
-   ],
-   "n_active": 0,
-   "n_watch": 1,
-   "level": "mid",
-   "score": 0,
-   "rr": {
-    "stop": 119.0,
-    "target": 189.0,
     "note": "已跌破近20日低點,沒有下方支撐可當停損"
    }
   },
   {
    "code": "1316",
    "name": "上曜",
-   "close": 8.33,
-   "pct": -6.51,
+   "close": 7.88,
+   "pct": -5.4,
    "signals": [
     {
      "key": "close_20low",
      "name": "收盤跌破20日最低收",
      "status": "watch",
-     "ex5": -0.61
+     "ex5": -0.62
     }
    ],
    "n_active": 0,
@@ -2674,63 +3384,28 @@
    "level": "mid",
    "score": 0,
    "rr": {
-    "stop": 8.68,
+    "stop": 8.3,
     "target": 10.8,
-    "note": "已跌破近20日低點,沒有下方支撐可當停損"
-   }
-  },
-  {
-   "code": "2365",
-   "name": "昆盈",
-   "close": 20.0,
-   "pct": -7.83,
-   "signals": [
-    {
-     "key": "close_20low",
-     "name": "收盤跌破20日最低收",
-     "status": "watch",
-     "ex5": -0.61
-    },
-    {
-     "key": "break_20low_vol",
-     "name": "放量跌破20日低",
-     "status": "inactive",
-     "ex5": -0.43
-    },
-    {
-     "key": "vol_up_price_down3",
-     "name": "連3日量增價跌",
-     "status": "inactive",
-     "ex5": 0.67
-    }
-   ],
-   "n_active": 0,
-   "n_watch": 1,
-   "level": "mid",
-   "score": 0,
-   "rr": {
-    "stop": 20.85,
-    "target": 27.7,
     "note": "已跌破近20日低點,沒有下方支撐可當停損"
    }
   },
   {
    "code": "2887",
    "name": "台新新光金",
-   "close": 35.7,
-   "pct": -3.77,
+   "close": 33.95,
+   "pct": -4.9,
    "signals": [
     {
      "key": "close_20low",
      "name": "收盤跌破20日最低收",
      "status": "watch",
-     "ex5": -0.61
+     "ex5": -0.62
     },
     {
      "key": "break_20low_vol",
      "name": "放量跌破20日低",
      "status": "inactive",
-     "ex5": -0.43
+     "ex5": -0.51
     }
    ],
    "n_active": 0,
@@ -2738,136 +3413,28 @@
    "level": "mid",
    "score": 0,
    "rr": {
-    "stop": 36.3,
+    "stop": 34.75,
     "target": 42.9,
-    "note": "已跌破近20日低點,沒有下方支撐可當停損"
-   }
-  },
-  {
-   "code": "2049",
-   "name": "上銀",
-   "close": 261.0,
-   "pct": -7.61,
-   "signals": [
-    {
-     "key": "close_20low",
-     "name": "收盤跌破20日最低收",
-     "status": "watch",
-     "ex5": -0.61
-    },
-    {
-     "key": "ma_bear",
-     "name": "均線空頭排列首日",
-     "status": "inactive",
-     "ex5": -0.1
-    }
-   ],
-   "n_active": 0,
-   "n_watch": 1,
-   "level": "mid",
-   "score": 0,
-   "rr": {
-    "stop": 256.5,
-    "target": 347.5,
-    "risk": 1.72,
-    "reward": 33.14,
-    "rr": 19.22
-   }
-  },
-  {
-   "code": "4576",
-   "name": "大銀微系統",
-   "close": 161.0,
-   "pct": -9.04,
-   "signals": [
-    {
-     "key": "close_20low",
-     "name": "收盤跌破20日最低收",
-     "status": "watch",
-     "ex5": -0.61
-    },
-    {
-     "key": "ma_bear",
-     "name": "均線空頭排列首日",
-     "status": "inactive",
-     "ex5": -0.1
-    }
-   ],
-   "n_active": 0,
-   "n_watch": 1,
-   "level": "mid",
-   "score": 0,
-   "rr": {
-    "stop": 160.0,
-    "target": 236.0,
-    "risk": 0.62,
-    "reward": 46.58,
-    "rr": 75.0
-   }
-  },
-  {
-   "code": "2359",
-   "name": "所羅門",
-   "close": 77.1,
-   "pct": -9.4,
-   "signals": [
-    {
-     "key": "close_20low",
-     "name": "收盤跌破20日最低收",
-     "status": "watch",
-     "ex5": -0.61
-    }
-   ],
-   "n_active": 0,
-   "n_watch": 1,
-   "level": "mid",
-   "score": 0,
-   "rr": {
-    "stop": 81.2,
-    "target": 123.0,
-    "note": "已跌破近20日低點,沒有下方支撐可當停損"
-   }
-  },
-  {
-   "code": "8033",
-   "name": "雷虎",
-   "close": 118.0,
-   "pct": -9.92,
-   "signals": [
-    {
-     "key": "close_20low",
-     "name": "收盤跌破20日最低收",
-     "status": "watch",
-     "ex5": -0.61
-    },
-    {
-     "key": "break_20low_vol",
-     "name": "放量跌破20日低",
-     "status": "inactive",
-     "ex5": -0.43
-    }
-   ],
-   "n_active": 0,
-   "n_watch": 1,
-   "level": "mid",
-   "score": 0,
-   "rr": {
-    "stop": 123.5,
-    "target": 165.5,
     "note": "已跌破近20日低點,沒有下方支撐可當停損"
    }
   },
   {
    "code": "6505",
    "name": "台塑化",
-   "close": 84.3,
-   "pct": -6.12,
+   "close": 80.6,
+   "pct": -4.39,
    "signals": [
     {
      "key": "close_20low",
      "name": "收盤跌破20日最低收",
      "status": "watch",
-     "ex5": -0.61
+     "ex5": -0.62
+    },
+    {
+     "key": "ma_bear",
+     "name": "均線空頭排列首日",
+     "status": "inactive",
+     "ex5": -0.12
     }
    ],
    "n_active": 0,
@@ -2876,95 +3443,10 @@
    "score": 0,
    "rr": {
     "stop": 79.2,
-    "target": 117.0,
-    "risk": 6.05,
-    "reward": 38.79,
-    "rr": 6.41
-   }
-  },
-  {
-   "code": "2368",
-   "name": "金像電",
-   "close": 790.0,
-   "pct": -9.92,
-   "signals": [
-    {
-     "key": "close_20low",
-     "name": "收盤跌破20日最低收",
-     "status": "watch",
-     "ex5": -0.61
-    },
-    {
-     "key": "ma_bear",
-     "name": "均線空頭排列首日",
-     "status": "inactive",
-     "ex5": -0.1
-    }
-   ],
-   "n_active": 0,
-   "n_watch": 1,
-   "level": "mid",
-   "score": 0,
-   "rr": {
-    "stop": 782.0,
-    "target": 1255.0,
-    "risk": 1.01,
-    "reward": 58.86,
-    "rr": 58.12
-   }
-  },
-  {
-   "code": "6209",
-   "name": "今國光",
-   "close": 60.6,
-   "pct": -9.96,
-   "signals": [
-    {
-     "key": "close_20low",
-     "name": "收盤跌破20日最低收",
-     "status": "watch",
-     "ex5": -0.61
-    },
-    {
-     "key": "ma_bear",
-     "name": "均線空頭排列首日",
-     "status": "inactive",
-     "ex5": -0.1
-    }
-   ],
-   "n_active": 0,
-   "n_watch": 1,
-   "level": "mid",
-   "score": 0,
-   "rr": {
-    "stop": 62.9,
-    "target": 120.0,
-    "note": "已跌破近20日低點,沒有下方支撐可當停損"
-   }
-  },
-  {
-   "code": "2881",
-   "name": "富邦金",
-   "close": 148.0,
-   "pct": -0.67,
-   "signals": [
-    {
-     "key": "ma_bear",
-     "name": "均線空頭排列首日",
-     "status": "inactive",
-     "ex5": -0.1
-    }
-   ],
-   "n_active": 0,
-   "n_watch": 0,
-   "level": "low",
-   "score": 0,
-   "rr": {
-    "stop": 140.0,
-    "target": 164.0,
-    "risk": 5.41,
-    "reward": 10.81,
-    "rr": 2.0
+    "target": 114.0,
+    "risk": 1.74,
+    "reward": 41.44,
+    "rr": 23.86
    }
   }
  ]
