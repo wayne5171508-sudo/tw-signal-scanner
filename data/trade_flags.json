@@ -1,7 +1,7 @@
 {
- "date": "2026-11-20",
- "fetched_at": "2026-11-20T00:55:46",
- "daytrade_list_date": "2026-11-20",
+ "date": "2026-11-23",
+ "fetched_at": "2026-11-23T00:56:00",
+ "daytrade_list_date": "2026-11-23",
  "status": {
   "twse_daytrade": "ok",
   "tpex_daytrade": "ok",
@@ -30,7 +30,8 @@
    "daytrade": true
   },
   "8021": {
-   "daytrade": true
+   "daytrade": true,
+   "near_disposal": "115年11月19日至115年11月20日連續二次"
   },
   "8039": {
    "daytrade": true
@@ -45,11 +46,7 @@
    "daytrade": true
   },
   "3105": {
-   "daytrade": true,
-   "notice": {
-    "date": "2026-11-19",
-    "reason": "最近六個營業日(自當日之前一個營業日起)之當日沖銷成交量占總成交量比率達67.39%，當日之前一個營業日當日沖銷成交量占總成交量達76.51%（第十三款)"
-   }
+   "daytrade": true
   },
   "6173": {
    "daytrade": true
@@ -63,9 +60,10 @@
   "8042": {
    "daytrade": true,
    "notice": {
-    "date": "2026-11-19",
-    "reason": "最近六個營業日(含當日)累積之最後成交價跌幅達39.9%(第一款)"
-   }
+    "date": "2026-11-20",
+    "reason": "最近六個營業日(含當日)累積之最後成交價跌幅達45.67%(第一款)"
+   },
+   "near_disposal": "115年11月19日至115年11月20日連續二次"
   },
   "3027": {
    "daytrade": true
@@ -77,11 +75,7 @@
    "daytrade": true
   },
   "1815": {
-   "daytrade": true,
-   "notice": {
-    "date": "2026-11-19",
-    "reason": "最近六個營業日(含當日)之累積週轉率為123.57%，當日週轉率達9.65%(第十款)"
-   }
+   "daytrade": true
   },
   "2630": {
    "daytrade": true
@@ -147,11 +141,7 @@
    "daytrade": true
   },
   "6182": {
-   "daytrade": true,
-   "notice": {
-    "date": "2026-11-19",
-    "reason": "最近六個營業日(自當日之前一個營業日起)之當日沖銷成交量占總成交量比率達65.5%，當日之前一個營業日當日沖銷成交量占總成交量達73.82%（第十三款)"
-   }
+   "daytrade": true
   },
   "2351": {
    "daytrade": true
@@ -187,11 +177,7 @@
    "daytrade": true
   },
   "3624": {
-   "daytrade": true,
-   "notice": {
-    "date": "2026-11-19",
-    "reason": "最近六個營業日(自當日之前一個營業日起)之當日沖銷成交量占總成交量比率達63.2%，當日之前一個營業日當日沖銷成交量占總成交量達75.75%（第十三款)"
-   }
+   "daytrade": true
   },
   "3605": {
    "daytrade": true
