@@ -1,7 +1,7 @@
 {
- "date": "2026-11-24",
- "fetched_at": "2026-11-24T00:55:50",
- "daytrade_list_date": "2026-11-24",
+ "date": "2026-11-25",
+ "fetched_at": "2026-11-25T00:55:46",
+ "daytrade_list_date": "2026-11-25",
  "status": {
   "twse_daytrade": "ok",
   "tpex_daytrade": "ok",
@@ -70,15 +70,15 @@
    "daytrade": true
   },
   "8042": {
-   "daytrade": true,
+   "daytrade": false,
    "disposal": {
     "start": "2026-11-24",
     "end": "2026-11-30",
     "measure": "每2分鐘撮合・預收款券"
    },
    "notice": {
-    "date": "2026-11-20",
-    "reason": "最近六個營業日(含當日)累積之最後成交價跌幅達45.67%(第一款)"
+    "date": "2026-11-23",
+    "reason": "最近六個營業日(含當日)累積之最後成交價跌幅達44.5%(第一款)"
    }
   },
   "3027": {
@@ -91,7 +91,11 @@
    "daytrade": true
   },
   "1815": {
-   "daytrade": true
+   "daytrade": true,
+   "notice": {
+    "date": "2026-11-24",
+    "reason": "最近六個營業日(自當日之前一個營業日起)之當日沖銷成交量占總成交量比率達70.2%，當日之前一個營業日當日沖銷成交量占總成交量達76.04%（第十三款)"
+   }
   },
   "2630": {
    "daytrade": true
@@ -199,8 +203,12 @@
    "daytrade": true
   },
   "6456": {
-   "daytrade": true,
-   "near_disposal": "115年11月20日至115年11月23日連續二次"
+   "daytrade": false,
+   "disposal": {
+    "start": "2026-11-25",
+    "end": "2026-12-01",
+    "measure": "每2分鐘撮合・預收款券"
+   }
   },
   "2492": {
    "daytrade": true
@@ -222,12 +230,7 @@
    "daytrade": true
   },
   "6140": {
-   "daytrade": false,
-   "disposal": {
-    "start": "2026-11-18",
-    "end": "2026-11-24",
-    "measure": "每2分鐘撮合・預收款券"
-   }
+   "daytrade": false
   },
   "1316": {
    "daytrade": true
