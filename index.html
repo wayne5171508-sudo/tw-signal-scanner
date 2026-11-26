@@ -219,6 +219,7 @@ td.why{color:var(--muted);font-size:12.5px;min-width:240px;max-width:520px;white
       <button data-v="radar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><path d="M12 12 18 6"/></svg>盤中雷達</button>
       <button data-v="picks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m12 3 2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/></svg>自選股推薦</button>
       <button data-v="journal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4h11l3 3v13H5z"/><path d="M9 10h6M9 14h6M9 18h3"/></svg>我的交易</button>
+      <button data-v="sim"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M16 14.5h2"/></svg>模擬帳戶</button>
       <div class="sep"></div>
       <button data-v="ai"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/></svg>規則觸發紀錄</button>
       <button data-v="team"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M15 14.5c3 0 5.5 2 5.5 5.5"/></svg>觀測員成績</button>
@@ -237,7 +238,7 @@ td.why{color:var(--muted);font-size:12.5px;min-width:240px;max-width:520px;white
 </div>
 <script>
 // ---------- 資料 ----------
-let BACKFILL = null, INTRA = null, LOG = null, DT = null, TIDX = null, TDAY = {}, PDATE = null, RADAR = null, MIDX = null, MDAY = {}, JOURNAL = null, TSRC = null, VIEW = 'radar', PDATE_MANUAL = false, LOADING = false, HIST_LOADING = false, HIST_TRIES = {}, TAB = 'card', FILTER = 'all', SHOW = 30;
+let BACKFILL = null, INTRA = null, LOG = null, DT = null, TIDX = null, TDAY = {}, PDATE = null, RADAR = null, MIDX = null, MDAY = {}, JOURNAL = null, SIM = null, TSRC = null, VIEW = 'radar', PDATE_MANUAL = false, LOADING = false, HIST_LOADING = false, HIST_TRIES = {}, TAB = 'card', FILTER = 'all', SHOW = 30;
 const RULE_TYPE = { score: '多空分數', pb: '拉回均價線', fade: '超漲超跌反向' };
 const EXIT = { stop: '停損', target: '停利', close: '收盤出場' };
 const AMT_KEY = 'aitrader.amount', TH_KEY = 'aitrader.theme';
@@ -254,7 +255,7 @@ async function loadAllInner(opts){
   // 全部同時抓(以前 7 個檔一個接一個,手機 4G 要多 1~2 秒);當天全市場紀錄要先知道日期,用今天猜,猜錯再補
   const guess = (RADAR && RADAR.date) || tpeToday();
   const want = { INTRA: 'data/intraday_latest.json', LOG: 'data/bias_log.json', DT: 'data/daytrade.json', TIDX: 'data/team/index.json',
-    RADAR: 'data/market_radar.json', MIDX: 'data/market/index.json', JOURNAL: 'data/journal.json', BACKFILL: 'data/backfill_status.json',
+    RADAR: 'data/market_radar.json', MIDX: 'data/market/index.json', JOURNAL: 'data/journal.json', BACKFILL: 'data/backfill_status.json', SIM: 'data/papertrade.json',
     MDAY_G: `data/market/${guess}.json` };
   const keys = Object.keys(want), got = await Promise.allSettled(keys.map(k => getJson(want[k])));
   const v = Object.fromEntries(keys.map((k, i) => [k, got[i].status === 'fulfilled' ? got[i].value : undefined]));
@@ -263,6 +264,7 @@ async function loadAllInner(opts){
   if(v.DT) DT = v.DT;
   if(v.RADAR) RADAR = v.RADAR;
   if(v.BACKFILL) BACKFILL = v.BACKFILL;
+  if(v.SIM) SIM = v.SIM;
   TIDX = v.TIDX || TIDX || {days: {}};
   MIDX = v.MIDX || MIDX || {days: {}};
   JOURNAL = v.JOURNAL || JOURNAL || {trades: []};
@@ -350,7 +352,7 @@ function render(){
   const m = document.getElementById('main');
   const opened = new Set([...m.querySelectorAll('details[data-k][open]')].map(x => x.dataset.k));
   try{
-    m.innerHTML = VIEW === 'radar' ? viewRadar() : VIEW === 'picks' ? viewPicks() : VIEW === 'journal' ? viewJournal() : VIEW === 'team' ? viewTeam() : VIEW === 'rules' ? viewRules() : viewAI();
+    m.innerHTML = VIEW === 'radar' ? viewRadar() : VIEW === 'picks' ? viewPicks() : VIEW === 'journal' ? viewJournal() : VIEW === 'sim' ? viewSim() : VIEW === 'team' ? viewTeam() : VIEW === 'rules' ? viewRules() : viewAI();
   }catch(e){
     m.innerHTML = `<div class="card"><div class="empty">畫面產生失敗:${esc(e.message)}</div></div>`;
   }
@@ -715,6 +717,42 @@ function viewTeam(){
     <div class="card"><h3>${mk ? '哪種推薦比較準' : '決策員的結論準不準'}</h3>${rows.length ? `<div class="scroll"><table><thead><tr><th>分組</th><th class="r">收盤淨報酬</th></tr></thead><tbody>${extra}</tbody></table></div>` : '<div class="empty">收盤後才有成績</div>'}</div>
   </div>
   <p class="note">「通過 − 警示」是正的,代表這個觀測員說通過的,事後平均比說警示的好;接近 0 或負的,代表它的警示目前沒有分辨力。樣本少的時候數字變動很大,累積 20 個交易日以上比較有意義。</p>`;
+}
+
+// 模擬帳戶(papertrade.py 收盤後產生):本金 10 萬、當沖額度 90 萬,照推薦機械式做,看累積賺賠
+function viewSim(){
+  const r = SIM;
+  if(!r || !(r.days || []).length) return `<div class="card"><div class="empty">還沒有模擬結果(每天收盤後計算)</div></div>`;
+  const days = r.days, all = days.flatMap(d => d.trades), pts = [r.capital, ...days.map(d => d.equity)];
+  const W = 600, H = 120, lo = Math.min(...pts), hi = Math.max(...pts), span = hi - lo || 1;
+  const x = i => i / (pts.length - 1) * W, y = v => H - 6 - (v - lo) / span * (H - 12);
+  const line = pts.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join('');
+  const chart = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;height:120px;display:block">
+    <line x1="0" x2="${W}" y1="${y(r.capital)}" y2="${y(r.capital)}" stroke="var(--line)" stroke-dasharray="3 4"/>
+    <path d="${line}" fill="none" stroke="var(--accent)" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>
+    <div style="display:flex;justify-content:space-between;font-size:11px" class="mut mono"><span>起始 ${(r.capital).toLocaleString()}</span><span>${esc(days[days.length - 1].date)}</span></div>`;
+  const why = {停損: 'down', 停利: 'up'};
+  const dayRow = d => `<details class="fold" data-k="sim-${d.date}"><summary><span class="mono">${esc(d.date)}</span>・${d.trades.length} 筆・用額度 ${d.used.toLocaleString()}・
+      <b class="num ${cls(d.net)}">${money(d.net)}</b>・帳戶 <span class="num">${d.equity.toLocaleString()}</span></summary>
+    <div class="scroll"><table><thead><tr><th>代號</th><th>方向</th><th class="r">進場</th><th class="r">停損 / 停利</th><th class="r">張數</th><th class="r">出場</th><th class="r">費稅</th><th class="r">淨損益</th></tr></thead><tbody>
+    ${d.trades.map(t => `<tr><td>${esc(t.code)} ${esc(t.name)}</td><td>${t.side > 0 ? '做多' : '做空'}</td><td class="r num">${esc(t.t)} ${fmt(t.entry)}</td>
+      <td class="r num">${fmt(t.stop)} / ${isNum(t.target) ? fmt(t.target) : '—'}</td><td class="r num">${t.lots}</td>
+      <td class="r num">${esc(t.exit_t)} ${fmt(t.exit)} <span class="${why[t.why] || ''}">${esc(t.why)}</span></td><td class="r num">${t.fee.toLocaleString()}</td>
+      <td class="r num ${cls(t.net)}">${money(t.net)}</td></tr>`).join('')}</tbody></table></div></details>`;
+  const n = r.trades, cnt = k => all.filter(t => t.why === k).length;
+  return `
+  <div class="head"><div><div class="eyebrow">PAPER TRADING</div><h1>模擬帳戶</h1>
+    <p class="sub">假裝本金 ${(r.capital / 1e4).toFixed(0)} 萬、當沖額度 ${(r.limit / 1e4).toFixed(0)} 萬,從 ${esc(mmdd(r.start))} 起每天照自選股推薦機械式做一遍(不下單),看累積是賺是賠。</p></div></div>
+  <div class="card"><div class="kpis">
+    ${kpi('wallet', '帳戶餘額', `<span class="${cls(r.net)}">${r.equity.toLocaleString()}</span>`, `累積 ${money(r.net)}(${(r.net / r.capital * 100).toFixed(1)}%)`)}
+    ${kpi('target', '交易筆數', n, `${days.length} 個交易日`)}
+    ${kpi('cup', '勝率', n ? (r.wins / n * 100).toFixed(0) + '%' : '—', `賺 ${r.wins} 筆・賠 ${n - r.wins} 筆`)}
+    ${kpi('shield', '出場方式', `${cnt('停損')} / ${cnt('停利')} / ${cnt('收盤')}`, '停損 / 停利 / 收盤', {sm: true, gold: true})}
+  </div></div>
+  <div class="card"><h3>帳戶走勢 <small>每天收盤結算</small></h3><div style="padding:0 18px 14px">${chart}</div></div>
+  <div class="card"><h3>每天明細 <small>點開看每一筆</small></h3><div style="padding:0 18px 10px">${days.slice().reverse().map(dayRow).join('')}</div></div>
+  <p class="note">規則:每檔取第一次「沒有警示」的推薦(有警示、硬限制的不做),依時間先到先做,每筆最多 ${(r.per_trade / 1e4).toFixed(0)} 萬(至少 1 張),當天進場合計不超過額度;
+    出場照系統當時給的停損、停利,5 分K 同一根兩個都碰到算停損,都沒碰到就收盤出場;扣手續費 2.8 折與當沖稅。碰到停損就用停損價成交,沒算急漲急跌的滑價和漲跌停買不到,實際會更差。</p>`;
 }
 
 const netPct = t => isNum(t.net) && t.entry > 0 && t.shares > 0 ? t.net / (t.entry * t.shares) * 100 : t.pct;   // 扣完費稅的報酬(以進場金額為分母)

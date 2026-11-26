@@ -38,7 +38,9 @@ jobs:
         run: |
           set -o pipefail
           python -u sj_backfill.py --days "$DAYS" --max-seconds 4200 2>&1 | sed -E -e 's/[A-Z][12][0-9]{8}/[已遮蔽]/g' -e "s/(account_id|person_id|broker_id)([\\\"' :=]+)[0-9A-Za-z]+/\1\2[已遮蔽]/g"
+      - name: 模擬帳戶重算(用剛補好的 5 分K)
+        run: python papertrade.py
       - name: 存回 repo
         run: |
           bash .github/scripts/commit_data.sh "永豐 1 分K 回補 $(TZ=Asia/Taipei date +'%Y-%m-%d %H:%M')" \
-            data/bars5m data/bars5m_top data/backfill_status.json data/backfill_tried.json
+            data/bars5m data/bars5m_top data/backfill_status.json data/backfill_tried.json data/papertrade.json
