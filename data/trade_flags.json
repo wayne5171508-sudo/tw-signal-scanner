@@ -1,7 +1,7 @@
 {
- "date": "2026-11-26",
- "fetched_at": "2026-11-26T00:55:58",
- "daytrade_list_date": "2026-11-26",
+ "date": "2026-11-27",
+ "fetched_at": "2026-11-27T00:55:53",
+ "daytrade_list_date": "2026-11-27",
  "status": {
   "twse_daytrade": "ok",
   "tpex_daytrade": "ok",
@@ -41,11 +41,7 @@
    "daytrade": true
   },
   "8358": {
-   "daytrade": true,
-   "notice": {
-    "date": "2026-11-24",
-    "reason": "最近六個營業日(自當日之前一個營業日起)之當日沖銷成交量占總成交量比率達60.29%，當日之前一個營業日當日沖銷成交量占總成交量達66.88%（第十三款)"
-   }
+   "daytrade": true
   },
   "3264": {
    "daytrade": true
@@ -83,11 +79,7 @@
    "daytrade": true
   },
   "1815": {
-   "daytrade": true,
-   "notice": {
-    "date": "2026-11-24",
-    "reason": "最近六個營業日(自當日之前一個營業日起)之當日沖銷成交量占總成交量比率達70.2%，當日之前一個營業日當日沖銷成交量占總成交量達76.04%（第十三款)"
-   }
+   "daytrade": true
   },
   "2630": {
    "daytrade": true
