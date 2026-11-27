@@ -4811,5 +4811,37 @@
     "overnight_return_pct": 5.78,
     "day_high_return_pct": 9.54,
     "close_return_pct": 8.67
+  },
+  {
+    "signal_date": "2026-11-26",
+    "checked_date": "2026-11-27",
+    "code": "2516",
+    "name": "新建",
+    "signal_status": "爆量但無法人買盤,風險較高",
+    "tech_score": 0.5,
+    "signal_close": 17.1,
+    "next_open": 16.55,
+    "next_high": 17.1,
+    "next_low": 15.4,
+    "next_close": 15.9,
+    "overnight_return_pct": -3.22,
+    "day_high_return_pct": 0.0,
+    "close_return_pct": -7.02
+  },
+  {
+    "signal_date": "2026-11-26",
+    "checked_date": "2026-11-27",
+    "code": "2466",
+    "name": "冠西電",
+    "signal_status": "放量觀察",
+    "tech_score": 1.3,
+    "signal_close": 329.0,
+    "next_open": 325.0,
+    "next_high": 361.5,
+    "next_low": 315.0,
+    "next_close": 361.5,
+    "overnight_return_pct": -1.22,
+    "day_high_return_pct": 9.88,
+    "close_return_pct": 9.88
   }
 ]
